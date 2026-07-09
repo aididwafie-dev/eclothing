@@ -12,6 +12,7 @@
 	use App\Models\Admin;
 	use Illuminate\Mail\Mailer;
 	use Mail;
+	use App\Support\PasswordHasher;
 
 	class AdminPasswordController extends Controller
 	{
@@ -26,13 +27,13 @@
 
 	    public function saveChangePassword(Request $request) {
 
-	    	$old_password = md5($request->input('old_password'));
-			$new_password = md5($request->input('new_password'));
+	    	$old_password = $request->input('old_password');
+			$new_password = $request->input('new_password');
 			$admin_id = $request->session()->get('admin_id');
 			$time = date("Y-m-d H:i:s");
-			$log = DB::table('admins')->where('id', '=', $admin_id)->where('password', '=', $old_password)->count();
-			if($log > 0) {
-				DB::table('admins')->where('id', '=', $admin_id)->update(['password' => $new_password,'updated_at' => $time]);
+			$admin = DB::table('admins')->where('id', '=', $admin_id)->first();
+			if($admin && PasswordHasher::verify($old_password, $admin->password)) {
+				DB::table('admins')->where('id', '=', $admin_id)->update(['password' => PasswordHasher::make($new_password),'updated_at' => $time]);
 				\Session::flash('message', 'You have successfully updated your password.'); 
 				\Session::flash('alert-class', 'alert-success');
 				return redirect()->route('admin.new-admin');
@@ -94,7 +95,7 @@
 					$message->from(config('mail.from.address'), config('mail.from.name'));
 					$message->to($email)->subject($subject);
 				});
-				$rand_password = md5($string);
+				$rand_password = PasswordHasher::make($string);
 				DB::table('admins')->where('email', '=', $email)->update(['password' => $rand_password]);
 				echo "We have sent you an email with your new password. Please go back to the login page to login with your new password.";
 			} catch (\Throwable $e) {

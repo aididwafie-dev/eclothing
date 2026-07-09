@@ -18,6 +18,7 @@
 	use Illuminate\Mail\Mailer;
 	use Illuminate\Support\Facades\Validator;
 	use Illuminate\Support\Facades\Schema;
+	use App\Support\PasswordHasher;
 
 	class AdminController extends Controller
 	{
@@ -33,16 +34,19 @@
 		public function checkAdminLogin(Request $request) {
 
 			$username = $request->input('username');
-			$password = md5($request->input('password'));
-			$log = DB::table('admins')->where('username', '=', $username)->where('password', '=', $password)->first();
-			if(!empty($log)) { 
+			$password = $request->input('password');
+			$log = DB::table('admins')->where('username', '=', $username)->first();
+			if(!empty($log) && PasswordHasher::verify($password, $log->password)) {
+				if (PasswordHasher::needsRehash($log->password)) {
+					DB::table('admins')->where('id', '=', $log->id)->update(['password' => PasswordHasher::make($password)]);
+				}
 				$admin_id = $log->id;
 				$request->session()->put('admin_id', $admin_id);
 				return redirect()->route('admin.new-admin');
 			}
 			else{
-				\Session::flash('message', 'You can not login.'); 
-				\Session::flash('alert-class', 'alert-danger'); 
+				\Session::flash('message', 'You can not login.');
+				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('site-admin.login');
 			}
 		}
@@ -370,7 +374,9 @@ $nestedData[] = $row->updated_at;
 		public function changeBasicDetails(Request $request) {
 
 		 	$genuser = Gen_user::find($request->input('id'));
-		 	$genuser->password = md5($request->password);
+		 	if ($request->password !== $genuser->password) {
+		 		$genuser->password = PasswordHasher::make($request->password);
+		 	}
 		 	$genuser->s_id = $request->s_id;
 		 	$genuser->save();
 		 	$personalDetails = DB::table('personal_details')->where('user_id', '=', $request->input('id'))->first();

@@ -11,7 +11,8 @@
 	use DB;
 	use Mail;
 	use Session;
-	
+	use App\Support\PasswordHasher;
+
 	class UserController extends Controller {
 
 		public function register(Request $request) {
@@ -75,7 +76,7 @@
 			$genuser = new Gen_user;
 			$genuser->email = $request->email;
 			$genuser->s_id = $request->s_id;
-			$genuser->password = md5($request->password);
+			$genuser->password = PasswordHasher::make($request->password);
 			$genuser->auth_code = $string;
 			$genuser->save();
 			
@@ -165,7 +166,7 @@
 					$message->from(config('mail.from.address'), config('mail.from.name'));
 					$message->to($email)->subject($subject);
 				});
-				$rand_password = md5($string);
+				$rand_password = PasswordHasher::make($string);
 				DB::table('gen_users')->where('email', '=', $email)->update(['password' => $rand_password]);
 				echo "We have sent you an email with your new password. Please go back to the login page to login with your new password.";
 			} catch (\Throwable $e) {
@@ -176,12 +177,13 @@
 		public function UserLoginCheck(Request $request) {
 			
 			$s_id = $request->input('s_id');
-			$password = md5($request->input('password'));
-			$log = DB::table('gen_users')->where('s_id', '=', $s_id)->where('password', '=', $password)->where('activation_status', '=', 1)->where('status', '=', 1)->count();
-			if($log == 1) {
-				$u_id = DB::table('gen_users')->select('id')->where('s_id', '=', $s_id)->get();
-				$user_id = $u_id[0]->id;
-				$request->session()->put('user_id', $user_id);
+			$password = $request->input('password');
+			$user = DB::table('gen_users')->where('s_id', '=', $s_id)->where('activation_status', '=', 1)->where('status', '=', 1)->first();
+			if($user && PasswordHasher::verify($password, $user->password)) {
+				if (PasswordHasher::needsRehash($user->password)) {
+					DB::table('gen_users')->where('id', '=', $user->id)->update(['password' => PasswordHasher::make($password)]);
+				}
+				$request->session()->put('user_id', $user->id);
 				return redirect()->route('user.personal');
 			}
 			else{

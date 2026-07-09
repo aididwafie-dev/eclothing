@@ -9,6 +9,7 @@
 	use App\Models\Gen_user;
 	use DB;
 	use Session;
+	use App\Support\PasswordHasher;
 
 	class UserChangesController extends Controller {
 
@@ -23,13 +24,13 @@
 
 		public function editPassword(Request $request) {
 			
-			$old_password = md5($request->input('old_password'));
-			$new_password = md5($request->input('new_password'));
+			$old_password = $request->input('old_password');
+			$new_password = $request->input('new_password');
 			$u_id = $request->session()->get('user_id');
 			$time = date("Y-m-d H:i:s");
-			$log = DB::table('gen_users')->where('id', '=', $u_id)->where('password', '=', $old_password)->count();
-			if($log > 0) {
-				DB::table('gen_users')->where('id', '=', $u_id)->update(['password' => $new_password]);
+			$user = DB::table('gen_users')->where('id', '=', $u_id)->first();
+			if($user && PasswordHasher::verify($old_password, $user->password)) {
+				DB::table('gen_users')->where('id', '=', $u_id)->update(['password' => PasswordHasher::make($new_password)]);
 				\Session::flash('message', 'You have successfully updated your password.'); 
 				\Session::flash('alert-class', 'alert-success');
 				return redirect()->route('user.personal');

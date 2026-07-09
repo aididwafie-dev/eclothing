@@ -22,6 +22,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/.claude
 
 storage/framework/cache/*
 !storage/framework/cache/.gitignore
