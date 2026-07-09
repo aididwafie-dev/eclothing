@@ -1,102 +1,52 @@
 # Phase 2 Platform Baseline
 
-This document records the current machine and dependency baseline before any Laravel framework upgrade work.
+Originally recorded when this repo was on Laravel 5.4.36 / PHP 7.4.33.
+That baseline is superseded: PHP and Composer have since been upgraded
+and the framework was updated to Laravel 12 (`composer.lock` and
+`vendor/laravel/framework` both report `v12.62.0`, `php artisan
+--version` prints `Laravel Framework 12.62.0`, `php -v` prints `PHP
+8.2.32`). Kept below for history; see
+`docs/laravel12-upgrade-plan.md` for current status and remaining
+work.
 
-## Current Runtime
+## Current Runtime (as of this update)
 
-- Laravel CLI boots as `Laravel Framework 5.4.36`
-- PHP CLI version is `7.4.33`
-- IIS FastCGI is configured to use `C:\php 7.4.33\php-cgi.exe`
-- Composer version is `2.9.5`
+- Laravel CLI boots as `Laravel Framework 12.62.0`
+- PHP CLI version is `8.2.32`
+- `composer.json` requires `php ^8.2` and `laravel/framework ^12.0`
 
-## Laravel 12 Gap
+## Historical Baseline (PHP 7.4.33 / Laravel 5.4.36 era)
 
-- Laravel 12 requires PHP `8.2+`
-- The current CLI and IIS runtime are both still on PHP `7.4.33`
-- Result: the server runtime must be upgraded before Laravel 12 can be installed or tested properly
+- IIS FastCGI was configured to use `C:\php 7.4.33\php-cgi.exe`
+- Composer version was `2.9.5`
+- Composer diagnostics reported HTTPS certificate problems
+  (`curl.cainfo`/`openssl.cafile` pointing at a stale `cacert.pem`,
+  `curl error 77`) that blocked reliable package downloads. Since the
+  upgrade completed, this is no longer a live blocker, but if a fresh
+  environment ever needs provisioning, re-check `php --ini` for a
+  valid `curl.cainfo`/`openssl.cafile` before running Composer.
+- Dependency risks noted at the time (`phpoffice/phpexcel`,
+  `fzaninotto/faker`, `phpunit 5.7`, `mockery 0.9`) are resolved:
+  `composer.json` now only requires `phpoffice/phpspreadsheet` (no
+  `phpexcel`), `fakerphp/faker`, `phpunit/phpunit ^11.5`, and
+  `mockery/mockery ^1.6`. The last live use of the old `PHPExcel`
+  classes (in `AnnouncementsController`) was dead/unreachable code and
+  has been removed rather than ported.
 
-## Current Constraint Decision
+## Remaining Work
 
-- The chosen constraint is to keep the current PHP version at `7.4.33`
-- Under this constraint, Laravel 12 is not a feasible upgrade target
-- The practical maximum target on PHP `7.4` is Laravel `8.x`
-- Result: the framework upgrade plan must be redirected from Laravel 12 to a PHP-7.4-compatible Laravel target
+The framework/runtime upgrade itself is done. What's still open is
+modernizing the application code to match (see
+`docs/laravel12-upgrade-plan.md` Phase 4 onward):
 
-## PHP Extension Baseline
-
-The current PHP installation includes the key extensions commonly needed for a modern Laravel upgrade path:
-
-- `bcmath`
-- `ctype`
-- `curl`
-- `dom`
-- `fileinfo`
-- `mbstring`
-- `openssl`
-- `PDO`
-- `pdo_mysql`
-- `session`
-- `tokenizer`
-- `xml`
-- `zip`
-
-No immediate extension blocker was found for the upgrade path, but the PHP version itself is still below target.
-
-## Composer / TLS Blockers
-
-Composer diagnostics report HTTPS certificate problems:
-
-- `curl.cainfo` points to `D:/Program Files/PhpWebStudy-Data/server/CA/cacert.pem`
-- `openssl.cafile` points to `D:/Program Files/PhpWebStudy-Data/server/CA/cacert.pem`
-- Composer fails HTTPS verification with `curl error 77`
-- Composer also reports SSL/TLS protection is disabled
-
-Result:
-
-- package downloads and secure updates are not reliable yet
-- Composer CA configuration must be corrected before any framework upgrade work
-
-## Dependency Risks
-
-The current direct dependency set contains multiple upgrade blockers:
-
-- `laravel/framework 5.4.36`
-- `laravel/tinker 1.0.10`
-- `phpoffice/phpexcel 1.8.2`
-- `phpoffice/phpspreadsheet 1.29.0`
-- `fzaninotto/faker 1.9.2`
-- `mockery/mockery 0.9.11`
-- `phpunit/phpunit 5.7.27`
-
-### Critical Notes
-
-- `phpoffice/phpexcel` is legacy and incompatible with a Laravel 12 target stack; it should be removed in favor of `PhpSpreadsheet`
-- The codebase still actively uses `PHPExcel` classes in `AnnouncementsController`
-- `fzaninotto/faker` is legacy and should be replaced by `fakerphp/faker`
-- `phpunit/phpunit 5.7` and `mockery/mockery 0.9` are far below current Laravel 12 era tooling
-- `phpoffice/phpspreadsheet` is present, but the project is mixed between old `PHPExcel` and newer `PhpSpreadsheet` APIs
-
-## IIS / App Entry
-
-- `public/web.config` contains rewrite rules for front-controller routing
-- No app-specific PHP handler override exists in the repository; IIS is using machine-level FastCGI config
-
-## Phase 2 Outcome
-
-Phase 2 confirms two possible paths:
-
-### Path A: Upgrade to Laravel 12
-
-This path is blocked unless PHP is upgraded to `8.2+`.
-
-### Path B: Maintain PHP 7.4.33
-
-This path remains viable, but the framework target must be reduced to Laravel `8.x` instead of Laravel 12.
-
-The required prerequisites for the PHP-7.4-compatible path are:
-
-1. Keep CLI and IIS on PHP `7.4.33`
-2. Fix `php.ini` CA certificate settings so Composer HTTPS works normally
-3. Replace `PHPExcel` usage with `PhpSpreadsheet`
-4. Replace legacy dev packages such as `fzaninotto/faker`, `phpunit 5.7`, and `mockery 0.9`
-5. Begin a staged framework upgrade toward the highest PHP-7.4-compatible Laravel version
+- `routes/web.php` has been converted to `[Controller::class,
+  'method']->name(...)` syntax and split into public/user/admin
+  middleware groups (done).
+- Admin/user "am I logged in" checks are still duplicated inline in
+  many controller methods in addition to the new middleware gate
+  (`admin.auth`/`user.auth`); removing the redundant inline checks is
+  a follow-up, not yet done.
+- `AdminController`, `DashboardController`, `AdminReportController`,
+  and `AdminUsersReportController` are still large, multi-purpose
+  controllers — splitting them into smaller domain-focused classes is
+  still open (Phase 5 of the upgrade plan).
