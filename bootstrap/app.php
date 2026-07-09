@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\EncryptCookies;
+use App\Http\Middleware\EnsureAdminIsAuthenticated;
+use App\Http\Middleware\EnsureUserIsAuthenticated;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\TrimStrings;
 use App\Http\Middleware\VerifyCsrfToken;
@@ -48,6 +50,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'can' => Authorize::class,
             'guest' => RedirectIfAuthenticated::class,
             'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            'admin.auth' => EnsureAdminIsAuthenticated::class,
+            'user.auth' => EnsureUserIsAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
