@@ -14,7 +14,11 @@
 	use Illuminate\Mail\Mailer;
 	use Mail;
 	use Session;
-	
+	use App\Services\OrderStatusService;
+	use App\Services\AssignedUniformService;
+	use App\Services\UniformCartRules;
+	use App\Services\OrderCheckoutService;
+
 	class DashboardController extends Controller {
 		
 		public function index(Request $request) {
@@ -161,30 +165,7 @@
 			$user_id = $request->session()->get('user_id');
 			$personalDetails = DB::table('personal_details')->where('user_id', '=', $user_id)->first();
 
-			if($personalDetails->ketukangan_type == 1) {
-				$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->first();
-				$array = json_decode($data->uniforms_id);
-			} else{
-				if($personalDetails->pangkat == 36 || $personalDetails->pangkat == 38 || $personalDetails->pangkat == 39 || $personalDetails->pangkat == 45 || $personalDetails->pangkat == 46 || $personalDetails->pangkat == 54 || $personalDetails->pangkat == 55) {
-					$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->where('pangkats_id', '=', $personalDetails->pangkat)->first();
-					$array = json_decode($data->uniforms_id);
-				} else{
-
-					$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->first();
-					$array = json_decode($data->uniforms_id);
-				}
-			}
-			$i = 0;
-			foreach ($array as $value) {
-				$uniforms[$i] = DB::table('uniforms')->where('id', '=', $value)->first();
-				$i++;
-			}
-
-			$result = [
-				'uniforms'=>$uniforms
-			];
-
-			return $result;
+			return ['uniforms' => app(AssignedUniformService::class)->forPersonalDetail($personalDetails)];
 		}
 
 		public function getAccessoriesInfo(Request $request) {
@@ -192,35 +173,7 @@
 			$user_id = $request->session()->get('user_id');
 			$personalDetails = DB::table('personal_details')->where('user_id', '=', $user_id)->first();
 
-			if($personalDetails->ketukangan_type == 1) {
-
-				$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->first();
-				$array = json_decode($data->uniforms_id);
-			}
-			else{
-				if($personalDetails->pangkat == 36 || $personalDetails->pangkat == 38 || $personalDetails->pangkat == 39 || $personalDetails->pangkat == 45 || $personalDetails->pangkat == 46 || $personalDetails->pangkat == 54 || $personalDetails->pangkat == 55) {
-
-					$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->where('pangkats_id', '=', $personalDetails->pangkat)->first();
-					$array = json_decode($data->uniforms_id);
-				}
-				else{
-
-					$data = DB::table('assigned_uniforms')->where('ketukangans_id', '=', $personalDetails->ketukangan)->first();
-					$array = json_decode($data->uniforms_id);
-				}
-			}
-			$i = 0;
-			foreach ($array as $value) {
-				
-				$uniforms[$i] = DB::table('uniforms')->where('id', '=', $value)->first();
-				$i++;
-			}
-
-			$result = [
-				'uniforms'=>$uniforms
-			];
-
-			return $result;
+			return ['uniforms' => app(AssignedUniformService::class)->forPersonalDetail($personalDetails)];
 		}
 
 		public function userUniformSelection(Request $request) {
@@ -330,57 +283,8 @@
 			$request->session()->put('uniform_cart', $cart);
 		}
 
-		private function hasOrderLifecycleColumns() {
-			static $hasLifecycleColumns = null;
-
-			if ($hasLifecycleColumns !== null) {
-				return $hasLifecycleColumns;
-			}
-
-			try {
-				$hasLifecycleColumns = Schema::hasTable('orders')
-					&& Schema::hasColumn('orders', 'status')
-					&& Schema::hasColumn('orders', 'remarks')
-					&& Schema::hasColumn('orders', 'collection_date');
-			} catch (\Throwable $e) {
-				$hasLifecycleColumns = false;
-			}
-
-			return $hasLifecycleColumns;
-		}
-
-		private function normalizeOrderLifecycle($order) {
-			if (!$order) {
-				return $order;
-			}
-
-			$statusMeta = $this->orderStatusMeta(isset($order->status) ? $order->status : null);
-
-			$order->status = $statusMeta['code'];
-			$order->status_key = $statusMeta['key'];
-			$order->status_label = $statusMeta['label'];
-			$order->status_class = $statusMeta['class'];
-			$order->remarks = isset($order->remarks) ? $order->remarks : null;
-			$order->collection_date = isset($order->collection_date) ? $order->collection_date : null;
-
-			return $order;
-		}
-
-		private function orderStatusMeta($status) {
-			$status = strtolower(trim((string) $status));
-
-			$statusMap = [
-				'1' => ['code' => '1', 'key' => 'pending', 'label' => 'Pending', 'class' => 'status-pending'],
-				'2' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
-				'3' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
-				'4' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
-				'pending' => ['code' => '1', 'key' => 'pending', 'label' => 'Pending', 'class' => 'status-pending'],
-				'rejected' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
-				'approved' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
-				'expired' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
-			];
-
-			return isset($statusMap[$status]) ? $statusMap[$status] : $statusMap['1'];
+		private function orderStatus(): OrderStatusService {
+			return app(OrderStatusService::class);
 		}
 
 		public function addUniformCartItem(Request $request) {
@@ -411,17 +315,9 @@
 				$cart[$uniforms_id] = [];
 			}
 
-			$normalizedSize = $size;
-			if (is_array($normalizedSize)) {
-				$normalizedSize = array_values(array_filter(array_map('trim', $normalizedSize), function($v) {
-					return $v !== '';
-				}));
-			} else if (is_string($normalizedSize)) {
-				$normalizedSize = trim($normalizedSize);
-			}
+			$normalizedSize = UniformCartRules::normalizeSize($size);
 
-			$isEmpty = $normalizedSize === null || $normalizedSize === '' || (is_array($normalizedSize) && !count($normalizedSize));
-			if ($isEmpty) {
+			if (UniformCartRules::isEmptySize($normalizedSize)) {
 				unset($cart[$uniforms_id][$clothes_slug]);
 				$this->setUniformCart($request, $cart);
 				return response()->json(['ok' => true]);
@@ -476,75 +372,7 @@
 				return response()->json(['ok' => false, 'message' => 'Cart is empty'], 422);
 			}
 
-			foreach ($cart as $uniforms_id => $items) {
-				if (!is_array($items) || !count($items)) {
-					continue;
-				}
-
-				$user_order = DB::table('orders')
-					->where('deleted', '=', 0)
-					->where('user_id', '=', $user_id)
-					->where('uniforms_id', '=', $uniforms_id)
-					->first();
-
-				if(!$user_order) {
-					$order = new Order;
-					$order->user_id = $user_id;
-					$order->uniforms_id = $uniforms_id;
-					if ($this->hasOrderLifecycleColumns()) {
-						$order->status = '1';
-						$order->remarks = null;
-						$order->collection_date = null;
-					}
-					$order->save();
-					$order_id = $order->id;
-				} else {
-					$order_id = $user_order->id;
-					if ($this->hasOrderLifecycleColumns()) {
-						DB::table('orders')->where('id', '=', $order_id)->update([
-							'status' => '1',
-							'remarks' => null,
-							'collection_date' => null,
-							'updated_at' => date("Y-m-d H:i:s"),
-						]);
-					}
-				}
-
-				foreach ($items as $item) {
-					$cloth = DB::table('uniform_clothes')
-						->select('clothes_type')
-						->where('uniforms_id', '=', $uniforms_id)
-						->where('clothes_slug', '=', $item['clothes_slug'])
-						->first();
-
-					if (!$cloth) {
-						continue;
-					}
-
-					$user_ordered_cloth = DB::table('ordered_clothes')
-						->where('order_id', '=', $order_id)
-						->where('clothes_slug', '=', $item['clothes_slug'])
-						->first();
-
-					$sizeValue = $item['size'];
-					if (is_array($sizeValue)) {
-						$sizeValue = implode(",", $sizeValue);
-					}
-
-					if ($user_ordered_cloth) {
-						$ordered_clothes = Ordered_clothe::find($user_ordered_cloth->id);
-						$ordered_clothes->size = $sizeValue;
-						$ordered_clothes->save();
-					} else {
-						$ordered_clothes = new Ordered_clothe;
-						$ordered_clothes->order_id = $order_id;
-						$ordered_clothes->clothes = $cloth->clothes_type;
-						$ordered_clothes->clothes_slug = $item['clothes_slug'];
-						$ordered_clothes->size = $sizeValue;
-						$ordered_clothes->save();
-					}
-				}
-			}
+			app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart);
 
 			$request->session()->forget('uniform_cart');
 			\Session::flash('message', 'Your Order is successfully saved.');
@@ -582,7 +410,7 @@
 			$user_order = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->where('uniforms_id', '=', $uniforms_id)->first();
 			if(!empty($user_order))
 			{
-				if ($this->hasOrderLifecycleColumns()) {
+				if ($this->orderStatus()->hasOrderLifecycleColumns()) {
 					DB::table('orders')->where('id', '=', $user_order->id)->update([
 						'status' => '1',
 						'remarks' => null,
@@ -626,7 +454,7 @@
 				$order = new Order;
 				$order->user_id = $user_id;
 				$order->uniforms_id = $uniforms_id;
-				if ($this->hasOrderLifecycleColumns()) {
+				if ($this->orderStatus()->hasOrderLifecycleColumns()) {
 					$order->status = '1';
 					$order->remarks = null;
 					$order->collection_date = null;
@@ -677,7 +505,7 @@
 				$userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $request->session()->get('user_id'))->get();
 				$i = 0;
 				foreach ($userOrders as $userOrder) {
-					$userOrder = $this->normalizeOrderLifecycle($userOrder);
+					$userOrder = $this->orderStatus()->normalizeOrderLifecycle($userOrder);
 					$data[$i] = [
 						'userOrders' => $userOrder,
 						'orderedUniform' => DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first(),

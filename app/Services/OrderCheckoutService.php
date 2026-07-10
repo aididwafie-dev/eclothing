@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Order;
+use App\Models\Ordered_clothe;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Converts a cart (grouped by uniform, then by clothes_slug) into
+ * Orders + Ordered_clothes rows -- extracted from
+ * DashboardController::checkoutUniformCart's upsert loop so the
+ * mobile API's CartController::checkout can share the exact same
+ * order-creation rules on top of its own (DB-backed, not session)
+ * cart storage.
+ *
+ * $cartByUniform shape: [uniforms_id => [clothes_slug => ['clothes_slug' => string, 'size' => mixed], ...], ...]
+ */
+class OrderCheckoutService
+{
+    public function __construct(private OrderStatusService $orderStatus)
+    {
+    }
+
+    public function checkoutForUser(int $userId, array $cartByUniform): void
+    {
+        foreach ($cartByUniform as $uniformsId => $items) {
+            if (!is_array($items) || !count($items)) {
+                continue;
+            }
+
+            $orderId = $this->resolveOrderId($userId, (int) $uniformsId);
+
+            foreach ($items as $item) {
+                $this->upsertOrderedCloth($orderId, (int) $uniformsId, $item);
+            }
+        }
+    }
+
+    private function resolveOrderId(int $userId, int $uniformsId): int
+    {
+        $userOrder = DB::table('orders')
+            ->where('deleted', '=', 0)
+            ->where('user_id', '=', $userId)
+            ->where('uniforms_id', '=', $uniformsId)
+            ->first();
+
+        if (!$userOrder) {
+            $order = new Order;
+            $order->user_id = $userId;
+            $order->uniforms_id = $uniformsId;
+            if ($this->orderStatus->hasOrderLifecycleColumns()) {
+                $order->status = '1';
+                $order->remarks = null;
+                $order->collection_date = null;
+            }
+            $order->save();
+
+            return $order->id;
+        }
+
+        if ($this->orderStatus->hasOrderLifecycleColumns()) {
+            DB::table('orders')->where('id', '=', $userOrder->id)->update([
+                'status' => '1',
+                'remarks' => null,
+                'collection_date' => null,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        return $userOrder->id;
+    }
+
+    private function upsertOrderedCloth(int $orderId, int $uniformsId, array $item): void
+    {
+        $cloth = DB::table('uniform_clothes')
+            ->select('clothes_type')
+            ->where('uniforms_id', '=', $uniformsId)
+            ->where('clothes_slug', '=', $item['clothes_slug'])
+            ->first();
+
+        if (!$cloth) {
+            return;
+        }
+
+        $sizeValue = $item['size'];
+        if (is_array($sizeValue)) {
+            $sizeValue = implode(',', $sizeValue);
+        }
+
+        $existing = DB::table('ordered_clothes')
+            ->where('order_id', '=', $orderId)
+            ->where('clothes_slug', '=', $item['clothes_slug'])
+            ->first();
+
+        if ($existing) {
+            $orderedCloth = Ordered_clothe::find($existing->id);
+            $orderedCloth->size = $sizeValue;
+            $orderedCloth->save();
+        } else {
+            $orderedCloth = new Ordered_clothe;
+            $orderedCloth->order_id = $orderId;
+            $orderedCloth->clothes = $cloth->clothes_type;
+            $orderedCloth->clothes_slug = $item['clothes_slug'];
+            $orderedCloth->size = $sizeValue;
+            $orderedCloth->save();
+        }
+    }
+}

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\EnsureAdminIsAuthenticated;
+use App\Http\Middleware\EnsureMobileTokenIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAuthenticated;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\TrimStrings;
@@ -53,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
             'admin.auth' => EnsureAdminIsAuthenticated::class,
             'user.auth' => EnsureUserIsAuthenticated::class,
+            'api.auth' => EnsureMobileTokenIsAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

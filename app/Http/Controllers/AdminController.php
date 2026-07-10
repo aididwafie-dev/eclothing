@@ -19,6 +19,7 @@
 	use Illuminate\Support\Facades\Validator;
 	use Illuminate\Support\Facades\Schema;
 	use App\Support\PasswordHasher;
+	use App\Services\OrderStatusService;
 
 	class AdminController extends Controller
 	{
@@ -82,57 +83,8 @@
 			return base64_encode('DCS'.$id.'DCS');
 		}
 
-		private function hasOrderLifecycleColumns() {
-			static $hasLifecycleColumns = null;
-
-			if ($hasLifecycleColumns !== null) {
-				return $hasLifecycleColumns;
-			}
-
-			try {
-				$hasLifecycleColumns = Schema::hasTable('orders')
-					&& Schema::hasColumn('orders', 'status')
-					&& Schema::hasColumn('orders', 'remarks')
-					&& Schema::hasColumn('orders', 'collection_date');
-			} catch (\Throwable $e) {
-				$hasLifecycleColumns = false;
-			}
-
-			return $hasLifecycleColumns;
-		}
-
-		private function normalizeOrderLifecycle($order) {
-			if (!$order) {
-				return $order;
-			}
-
-			$statusMeta = $this->orderStatusMeta(isset($order->status) ? $order->status : null);
-
-			$order->status = $statusMeta['code'];
-			$order->status_key = $statusMeta['key'];
-			$order->status_label = $statusMeta['label'];
-			$order->status_class = $statusMeta['class'];
-			$order->remarks = isset($order->remarks) ? $order->remarks : null;
-			$order->collection_date = isset($order->collection_date) ? $order->collection_date : null;
-
-			return $order;
-		}
-
-		private function orderStatusMeta($status) {
-			$status = strtolower(trim((string) $status));
-
-			$statusMap = [
-				'1' => ['code' => '1', 'key' => 'pending', 'label' => 'Pending', 'class' => 'status-pending'],
-				'2' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
-				'3' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
-				'4' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
-				'pending' => ['code' => '1', 'key' => 'pending', 'label' => 'Pending', 'class' => 'status-pending'],
-				'rejected' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
-				'approved' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
-				'expired' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
-			];
-
-			return isset($statusMap[$status]) ? $statusMap[$status] : $statusMap['1'];
+		private function orderStatus(): OrderStatusService {
+			return app(OrderStatusService::class);
 		}
 
 		private function uniformOrdersListQuery() {
@@ -154,7 +106,7 @@
 				DB::raw('COALESCE(order_items.items_count, 0) as items_count'),
 			];
 
-			if ($this->hasOrderLifecycleColumns()) {
+			if ($this->orderStatus()->hasOrderLifecycleColumns()) {
 				$selectColumns[] = 'orders.status';
 				$selectColumns[] = 'orders.remarks';
 				$selectColumns[] = 'orders.collection_date';
@@ -542,7 +494,7 @@ $nestedData[] = $row->updated_at;
 
 				$i = 0;
 				foreach ($user_order as $userOrder) {
-					$userOrder = $this->normalizeOrderLifecycle($userOrder);
+					$userOrder = $this->orderStatus()->normalizeOrderLifecycle($userOrder);
 					$uniform_type = DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first();
 					$ordered_clothes = DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->get();
 					$data[$i] = [
@@ -593,7 +545,7 @@ $nestedData[] = $row->updated_at;
 				->simplePaginate(25);
 
 			$orders->getCollection()->transform(function ($order) {
-				return $this->normalizeOrderLifecycle($order);
+				return $this->orderStatus()->normalizeOrderLifecycle($order);
 			});
 
 			return view('admin/uniform_orders_list', array('orders' => $orders));
@@ -632,7 +584,7 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('admin.uniform-orders');
 			}
 
-			$order = $this->normalizeOrderLifecycle($order);
+			$order = $this->orderStatus()->normalizeOrderLifecycle($order);
 			$ordered_clothes = DB::table('ordered_clothes')->where('order_id', '=', $order_id)->get();
 
 			return view('admin/uniform_order_detail', array(
@@ -647,7 +599,7 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
-			if (!$this->hasOrderLifecycleColumns()) {
+			if (!$this->orderStatus()->hasOrderLifecycleColumns()) {
 				\Session::flash('message', 'Please run the latest migration before updating order status.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->back();
