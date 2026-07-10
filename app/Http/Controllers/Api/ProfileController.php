@@ -36,33 +36,51 @@ class ProfileController extends Controller
     {
         $genUser = $request->attributes->get('gen_user');
 
+        // service/tred/unit/gender/duty_status are all backed by NOT NULL
+        // int columns in personal_details, so - like the web form's
+        // dropdowns - they're effectively required, not optional.
         $validated = $request->validate([
             'name' => ['required', 'string'],
-            'service' => ['nullable'],
+            'service' => ['required'],
             'ketukangan_type' => ['required', 'in:1,2'],
-            'tred' => ['nullable'],
+            'tred' => ['required'],
             'pangkat' => ['required'],
-            'unit' => ['nullable'],
-            'gender' => ['nullable'],
-            'telephone_number' => ['nullable', 'string'],
-            'duty_status' => ['nullable'],
+            'unit' => ['required'],
+            'gender' => ['required'],
+            'telephone_number' => ['required', 'string'],
+            'duty_status' => ['required'],
             'religion' => ['nullable', 'string'],
         ]);
 
         $existing = DB::table('personal_details')->where('user_id', '=', $genUser->id)->first();
         $personalDetail = $existing ? Personal_detail::find($existing->id) : new Personal_detail;
 
+        if (!$existing) {
+            // Columns this API doesn't expose yet (next-of-kin, address
+            // lines, name_tag, unit_lama, kem_lama) are all NOT NULL with
+            // no default. Only fill them in on a brand-new row - on an
+            // update, leaving them untouched preserves whatever the web
+            // form (or a previous mobile save) already put there instead
+            // of silently blanking real data.
+            $personalDetail->address = '';
+            $personalDetail->nama_waris = '';
+            $personalDetail->telephone_number_waris = '';
+            $personalDetail->name_tag = '';
+            $personalDetail->unit_lama = '';
+            $personalDetail->kem_lama = '';
+        }
+
         $personalDetail->user_id = $genUser->id;
         $personalDetail->s_id = $genUser->s_id;
         $personalDetail->name = $validated['name'];
-        $personalDetail->piliih_angkatan = $validated['service'] ?? null;
+        $personalDetail->piliih_angkatan = $validated['service'];
         $personalDetail->pangkat = $validated['pangkat'];
         $personalDetail->ketukangan_type = (int) $validated['ketukangan_type'];
-        $personalDetail->ketukangan = $validated['tred'] ?? null;
-        $personalDetail->unit = $validated['unit'] ?? null;
-        $personalDetail->jantina = $validated['gender'] ?? null;
-        $personalDetail->telephone_number = $validated['telephone_number'] ?? null;
-        $personalDetail->status_penggunaan = $validated['duty_status'] ?? null;
+        $personalDetail->ketukangan = $validated['tred'];
+        $personalDetail->unit = $validated['unit'];
+        $personalDetail->jantina = $validated['gender'];
+        $personalDetail->telephone_number = $validated['telephone_number'];
+        $personalDetail->status_penggunaan = $validated['duty_status'];
         $personalDetail->religion = $validated['religion'] ?? null;
         $personalDetail->save();
 
