@@ -40,6 +40,12 @@
 				<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
 			</div>
 
+			<div class="order-card-actions">
+				<a href="{{ route('user.order.kew-ps8', $array['userOrders']->id) }}" target="_blank" class="btn btn-default btn-sm">
+					<i class="fa fa-file-text-o" aria-hidden="true"></i> Jana Borang KEW.PS-8
+				</a>
+			</div>
+
 			<div class="order-summary-grid">
 				<div class="order-photo-block">
 					@if($image)
