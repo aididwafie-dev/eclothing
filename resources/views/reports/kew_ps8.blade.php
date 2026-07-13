@@ -27,7 +27,7 @@
 		}
 		.kewps8-sheet {
 			background: #fff;
-			max-width: 900px;
+			max-width: 1050px;
 			margin: 0 auto 24px auto;
 			padding: 20px 24px;
 			border: 1px solid #999;
@@ -52,12 +52,15 @@
 		table.kewps8-table th, table.kewps8-table td {
 			border: 1px solid #333;
 			padding: 4px 6px;
-			vertical-align: top;
+			vertical-align: middle;
 			font-size: 11px;
+			height: 26px;
+			line-height: 26px;
+			overflow: hidden;
 		}
-		table.kewps8-table thead th { text-align: center; background: #eee; }
+		table.kewps8-table thead th { text-align: center; background: #eee; line-height: 1.3; height: auto; }
 		.text-center { text-align: center; }
-		.sign-cell { vertical-align: top; }
+		.sign-cell { vertical-align: top; height: auto; line-height: normal; }
 		.sign-title { font-weight: bold; margin-bottom: 24px; }
 		.sign-stroke { margin-bottom: 2px; }
 		.sign-note { font-style: italic; margin-bottom: 6px; }
@@ -96,24 +99,31 @@
 
 		<table class="kewps8-table">
 			<colgroup>
-				<col style="width: 8%">
-				<col style="width: 32%">
-				<col style="width: 12%">
-				<col style="width: 15%">
-				<col style="width: 12%">
-				<col style="width: 21%">
+				<col style="width: 5%">
+				<col style="width: 24%">
+				<col style="width: 9%">
+				<col style="width: 11%">
+				<col style="width: 9%">
+				<col style="width: 9%">
+				<col style="width: 11%">
+				<col style="width: 11%">
+				<col style="width: 11%">
 			</colgroup>
 			<thead>
 			<tr>
 				<th colspan="4">Permohonan</th>
-				<th colspan="2">Pegawai Pelulus</th>
+				<th colspan="3">Pegawai Pelulus</th>
+				<th colspan="2">Perakuan Penerimaan</th>
 			</tr>
 			<tr>
 				<th>Bil.</th>
 				<th>Perihal Stok</th>
 				<th>Kuantiti<br>Dimohon</th>
 				<th>Catatan</th>
+				<th>Baki Sedia<br>Ada</th>
 				<th>Kuantiti<br>Diluluskan</th>
+				<th>Catatan</th>
+				<th>Kuantiti<br>Diterima</th>
 				<th>Catatan</th>
 			</tr>
 			</thead>
@@ -126,21 +136,32 @@
 					<td>{{ $row['catatan'] }}</td>
 					<td></td>
 					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
 				</tr>
 			@endforeach
 			</tbody>
 			<tfoot>
 			<tr>
 				<td colspan="4" class="sign-cell">
-					<div class="sign-title">Permohonan:</div>
+					<div class="sign-title">Pemohon:</div>
 					<div class="sign-stroke">.............................................</div>
 					<div class="sign-note">(Tandatangan)</div>
-					<div class="sign-row"><span>Pangkat</span>: {{ $rankName !== '' ? $rankName : '-' }}</div>
-					<div class="sign-row"><span>Nama</span>: {{ $applicantName }}@if($applicantSId !== '') ({{ $applicantSId }})@endif</div>
+					<div class="sign-row"><span>Nama</span>: {{ trim($rankName . ' ' . $applicantName) }}@if($applicantSId !== '') ({{ $applicantSId }})@endif</div>
+					<div class="sign-row"><span>Jawatan</span>: </div>
 					<div class="sign-row"><span>Tarikh</span>: {{ $order->created_at ? date('d/m/Y', strtotime($order->created_at)) : '' }}</div>
 				</td>
-				<td colspan="2" class="sign-cell">
+				<td colspan="3" class="sign-cell">
 					<div class="sign-title">Pegawai Pelulus:</div>
+					<div class="sign-stroke">.............................................</div>
+					<div class="sign-note">(Tandatangan)</div>
+					<div class="sign-row"><span>Nama</span>: </div>
+					<div class="sign-row"><span>Jawatan</span>: </div>
+					<div class="sign-row"><span>Tarikh</span>: </div>
+				</td>
+				<td colspan="2" class="sign-cell">
+					<div class="sign-title">Pemohon/ Wakil:</div>
 					<div class="sign-stroke">.............................................</div>
 					<div class="sign-note">(Tandatangan)</div>
 					<div class="sign-row"><span>Nama</span>: </div>
