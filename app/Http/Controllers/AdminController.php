@@ -195,11 +195,15 @@
 				$nestedData=array();
 					$nestedData[] = $requestData['start'] + $row_id+1;
 				
+					// Marks whether the user has ever ordered. "No orders" is a neutral
+					// fact, not a warning, so it uses the neutral tone rather than the
+					// gold reserved for pending states. Both carry an icon and a title
+					// so the distinction is not conveyed by colour alone.
 					$orders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $row->id)->first();
 					if ($orders && $orders->id) {
-				$nestedData[] = '<strong class="text-success">' . $row->s_id . '</strong>';
+				$nestedData[] = '<span class="cell-id cell-id-ordered" title="Has placed orders">' . $row->s_id . '</span>';
 					} else {
-				$nestedData[] = '<span class="text-warning">' . $row->s_id . '</span>';
+				$nestedData[] = '<span class="cell-id cell-id-none" title="No orders yet">' . $row->s_id . '</span>';
 					}
 				
 				if(!empty($row->pangkat)) {

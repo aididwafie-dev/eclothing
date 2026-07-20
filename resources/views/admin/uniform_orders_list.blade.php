@@ -11,7 +11,7 @@
 		<br>
 		@if($orders && $orders->count())
 		<div class="table-responsive">
-			<table class="table table-orders">
+			<table class="table table-orders table-orders-wide">
 				<thead>
 					<tr>
 						<th>Order</th>

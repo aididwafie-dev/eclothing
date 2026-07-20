@@ -64,6 +64,26 @@
 					closeSidebar();
 				}
 			});
+
+			// Wide data tables scroll sideways on small screens. Flag only the
+			// containers that genuinely overflow, so the "scroll for more"
+			// hint never appears on a table that already fits.
+			function markScrollableTables() {
+				$(".content.full, .table-responsive").each(function() {
+					var el = this;
+					var overflowing = el.scrollWidth > el.clientWidth + 1;
+					$(el).toggleClass("is-scrollable", overflowing);
+					if (overflowing && !$(el).children(".scroll-hint").length) {
+						$(el).append(
+							'<div class="scroll-hint"><i class="fa fa-arrows-h" aria-hidden="true"></i> Scroll sideways for more columns</div>'
+						);
+					}
+				});
+			}
+			markScrollableTables();
+			$(window).on("resize", markScrollableTables);
+			// DataTables redraws rows via AJAX after load.
+			$(document).on("draw.dt init.dt", markScrollableTables);
 		});
 
 	</script>

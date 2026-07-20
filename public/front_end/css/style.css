@@ -737,10 +737,63 @@ body.sidebar-open .sidebar-backdrop {
 
 .dataTables_wrapper .dataTables_filter input,
 .dataTables_wrapper .dataTables_length select {
-	border-radius: 12px;
-	border: 1px solid rgba(0,0,0,0.12);
-	box-shadow: var(--shadow-sm);
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--border-strong);
+	box-shadow: none;
 	padding: 8px 10px;
+	min-height: 40px;
+}
+.dataTables_wrapper .dataTables_filter input:focus,
+.dataTables_wrapper .dataTables_length select:focus {
+	border-color: var(--brand);
+	box-shadow: 0 0 0 3px var(--brand-ring);
+	outline: none;
+}
+/* Wide admin grids (13 columns with action buttons) stay a scrolling table on
+   small screens -- collapsing them to cards would be far taller than it is
+   useful. Make that scroll discoverable rather than hiding it. */
+.dataTables_wrapper .dataTables_scrollBody,
+.content.full {
+	scrollbar-width: thin;
+}
+@media screen and (max-width: 820px) {
+	.dataTables_wrapper .dataTables_length,
+	.dataTables_wrapper .dataTables_filter {
+		float: none;
+		text-align: left;
+		margin-bottom: 10px;
+	}
+	.dataTables_wrapper .dataTables_filter input {
+		width: 100%;
+		margin-left: 0;
+		display: block;
+		margin-top: 4px;
+	}
+	.dataTables_wrapper .dataTables_filter label,
+	.dataTables_wrapper .dataTables_length label {
+		width: 100%;
+		font-size: var(--fs-small);
+	}
+	/* .is-scrollable is set by the script in static-layout/header.blade.php
+	   only when the content actually overflows, so the hint never lies. */
+	.scroll-hint {
+		display: none;
+	}
+	.is-scrollable > .scroll-hint {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 2px 0;
+		color: var(--faint);
+		font-size: 11px;
+		letter-spacing: 0.03em;
+	}
+	.dataTables_wrapper .dataTables_info,
+	.dataTables_wrapper .dataTables_paginate {
+		float: none;
+		text-align: left;
+		margin-top: 8px;
+	}
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button {
 	border: 0 !important;
@@ -1707,13 +1760,16 @@ label {
 	word-break: normal;
 	overflow-wrap: break-word;
 }
-/* Identifiers, counts and dates should never wrap. */
-.table.table-orders tbody tr td:nth-child(1),
-.table.table-orders tbody tr td:nth-child(2),
-.table.table-orders tbody tr td:nth-child(6),
-.table.table-orders tbody tr td:nth-child(8),
-.table.table-orders tbody tr td:nth-child(9),
-.table.table-orders tbody tr td:nth-child(10) {
+/* Identifiers, counts and dates should never wrap. Scoped to the admin orders
+   list via .table-orders-wide -- .table-orders alone is also used by narrow
+   two-column tables (e.g. the user's order detail panel) where forcing nowrap
+   on the first columns would push long item names out of view. */
+.table.table-orders-wide tbody tr td:nth-child(1),
+.table.table-orders-wide tbody tr td:nth-child(2),
+.table.table-orders-wide tbody tr td:nth-child(6),
+.table.table-orders-wide tbody tr td:nth-child(8),
+.table.table-orders-wide tbody tr td:nth-child(9),
+.table.table-orders-wide tbody tr td:nth-child(10) {
 	white-space: nowrap;
 }
 .item-icon {
@@ -1725,6 +1781,41 @@ label {
 	line-height: 1;
 	margin-right: 8px;
 }
+/* Service-ID cell: identifier stays legible, with a leading glyph marking
+   whether the user has ordered, so the state is not colour-only. */
+.cell-id {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+.cell-id::before {
+	font: normal normal normal 11px/1 FontAwesome;
+	-webkit-font-smoothing: antialiased;
+}
+.cell-id-ordered {
+	color: var(--success-ink);
+}
+.cell-id-ordered::before {
+	content: "\f058";           /* check-circle */
+}
+.cell-id-none {
+	color: var(--muted);
+}
+.cell-id-none::before {
+	content: "\f10c";           /* circle-o */
+	opacity: 0.6;
+}
+
+/* Bootstrap's contextual text helpers, remapped onto the palette so any
+   remaining use matches the indicator scale. */
+.text-success { color: var(--success-ink) !important; }
+.text-danger  { color: var(--danger-ink) !important; }
+.text-warning { color: var(--warning-ink) !important; }
+.text-info    { color: var(--info-ink) !important; }
+.text-muted   { color: var(--muted) !important; }
+
 .item-icon-clothes {
 	color: var(--brand);
 }
@@ -2111,7 +2202,7 @@ label {
 	}
 	/* :nth-child(n) matches every cell at the same specificity as the desktop
 	   nowrap rules above, so stacked cards wrap freely again. */
-	.table.table-orders tbody tr td:nth-child(n) {
+	.table.table-orders-wide tbody tr td:nth-child(n) {
 		white-space: normal;
 	}
 	.table.table-orders tbody tr td::before {
@@ -2211,17 +2302,31 @@ label {
 	.shop-img {
 		height: 96px;
 	}
+	/* Tighter label gutter — the side-by-side card layout still fits here and
+	   is roughly half the height of the stacked fallback. */
 	.table.table-orders tbody tr td {
-		padding: 34px 12px 10px;
+		padding: 10px 12px 10px 104px;
+	}
+	.table.table-orders tbody tr td::before {
+		left: 12px;
+		width: 84px;
+	}
+	.table-responsive > .table {
+		margin-bottom: 0;
+	}
+}
+
+/* Only genuinely narrow screens fall back to stacking the label above the
+   value; above this the two-column card stays compact. */
+@media screen and (max-width: 359px) {
+	.table.table-orders tbody tr td {
+		padding: 32px 12px 10px;
 	}
 	.table.table-orders tbody tr td::before {
 		position: static;
 		display: block;
 		width: auto;
-		margin-bottom: 6px;
-	}
-	.table-responsive > .table {
-		margin-bottom: 0;
+		margin-bottom: 5px;
 	}
 }
 .ms-drop input[type="radio"], .ms-drop input[type="checkbox"] {

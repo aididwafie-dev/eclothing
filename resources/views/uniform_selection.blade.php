@@ -23,7 +23,7 @@
 			@endforeach
 		</div>
 
-		<div id="clothLoader" class="text-center" style="color: #1f2a44;margin-top: 2em; display:none;">
+		<div id="clothLoader" class="text-center" style="color: var(--text);margin-top: 2em; display:none;">
 			<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><br />
 			<span style="font-size: 125%;">Loading items....</span>
 		</div>
@@ -120,6 +120,9 @@
 		$(document).on('click', '.cart-remove', function(e) {
 			e.preventDefault();
 			var $btn = $(this);
+			if ($btn.hasClass('disabled')) {
+				return;
+			}
 			var uniformsId = $btn.data('uniform-id');
 			var clothesSlug = $btn.data('clothes-slug');
 			$.ajax({
@@ -138,6 +141,9 @@
 		$(document).on('click', '.cart-checkout', function(e) {
 			e.preventDefault();
 			var $btn = $(this);
+			if ($btn.hasClass('disabled')) {
+				return;
+			}
 			$btn.prop('disabled', true);
 			$.ajax({
 				type: 'post',
