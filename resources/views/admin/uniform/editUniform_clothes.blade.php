@@ -88,7 +88,7 @@
 										$uniformId = base64_encode($stringId);
 									?>
 			<div class="text-center"><br />
-				<button class="btn btn-default btn-success" type="submit" id="submit" name="submit">SAVE CHANGES</button>
+				<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE CHANGES</button>
 				<a href="{{ url('/admin/clothes-edit-cancel/'.$uniformId) }}" class="btn btn-default"> CANCEL</a>
 			</div>
 		</form>

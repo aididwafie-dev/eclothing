@@ -5,7 +5,7 @@
 					<div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> All Sizes</div>
 					<hr>
 					<div class="text-center">
-					<a href="{{ url('admin/size/add') }}" class="btn btn-success"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW SIZE</a>
+					<a href="{{ url('admin/size/add') }}" class="btn btn-primary"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW SIZE</a>
 </div>
 					<div class="content full table-responsive">
 					<table id="table" class="display" cellspacing="0" width="100%">

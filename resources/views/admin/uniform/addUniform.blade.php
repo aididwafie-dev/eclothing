@@ -30,7 +30,7 @@
 
 
 			<div class="text-center"><br />
-				<button class="btn btn-default btn-success" type="submit" id="submit" name="submit">SAVE UNIFORM</button>
+				<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE UNIFORM</button>
 				<a href="{{ url('/admin/uniform') }}" class="btn btn-default"> CANCEL</a>
 			</div>
 		</form>

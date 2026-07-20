@@ -9,7 +9,7 @@ $uniformId = base64_encode($stringId);
 <div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> All accessories of Uniform <B>{{$uniform->uniform_type}}</B></div>
 <hr>
 <div class="text-center">
-	<a href="{{ url('accessories/add-accessory/' . $uniformId) }}" class="btn btn-success"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW ACCESSORY</a>
+	<a href="{{ url('accessories/add-accessory/' . $uniformId) }}" class="btn btn-primary"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW ACCESSORY</a>
 </div>
 <div class="content full table-responsive">
 	<table id="table" class="display" cellspacing="0" width="100%">

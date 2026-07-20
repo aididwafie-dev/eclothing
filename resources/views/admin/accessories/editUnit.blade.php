@@ -23,7 +23,7 @@
 											<input class="form-control" type = "text" name="value" value="{{ $units->value }}" required/>
 											
 									<div class="subBtn text-center"><br />
-										<button class="btn btn-default btn-success" type="submit" id="submit" name="submit">SAVE CHANGES</button>
+										<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE CHANGES</button>
 										<a href="{{ url('/admin/unit') }}" class="btn btn-default"> CANCEL</a>
 									</div>
 								</form>

@@ -22,7 +22,7 @@
 					                </select>
 					            </div>
 				                
-				                <div id="clothLoader" style="color: #007acc">
+				                <div id="clothLoader" style="color: var(--brand)">
 									<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
 									<span style="font-size: 125%">Loading clothes....</span>
 								</div>

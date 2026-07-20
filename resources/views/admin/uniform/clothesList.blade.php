@@ -10,7 +10,7 @@
 <div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> All Clothes of Uniform <B>{{$data['uniforms'][0]->uniform_type}}</B></div>
 <hr>
 <div class="text-center">
-	<a href="{{ url('uniform/add-cloth/'.$uniformsId) }}" class="btn btn-xs btn-success"><span class="glyphicon glyphicon-plus-sign"></span> ADD NEW CLOTH</a>
+	<a href="{{ url('uniform/add-cloth/'.$uniformsId) }}" class="btn btn-xs btn-primary"><span class="glyphicon glyphicon-plus-sign"></span> ADD NEW CLOTH</a>
 </div>
 <div class="content full table-responsive">
 	<table id="table" class="display" cellspacing="0" width="100%">

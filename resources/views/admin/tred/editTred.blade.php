@@ -23,7 +23,7 @@
 											<option value="3" <?= $tred->officer_recruit == '3' ? 'selected': ''; ?>>Both</option>
 											</select>
 									<div class="subBtn text-center"><br />
-										<button class="btn btn-default btn-success" type="submit" id="submit" name="submit">SAVE CHANGES</button>
+										<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE CHANGES</button>
 										<a href="{{ url('/admin/tred') }}" class="btn btn-default"> CANCEL</a>
 									</div>
 								</form>

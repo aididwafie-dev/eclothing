@@ -22,7 +22,7 @@
 											</select>
 											
 									<div class="subBtn text-center"><br />
-										<button class="btn btn-default btn-success" type="submit" id="submit" name="submit">SAVE TRED</button>
+										<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE TRED</button>
 										<a href="{{ url('/admin/tred') }}" class="btn btn-default"> CANCEL</a>
 									</div>
 								</form>

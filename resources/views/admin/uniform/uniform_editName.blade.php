@@ -41,7 +41,7 @@
 																	</div>
 															
 									<div class="text-center">
-										<input class="btn btn-default btn-success" type="submit" value="SAVE CHANGES" id="submit" name="submit" /> 
+										<input class="btn btn-primary" type="submit" value="SAVE CHANGES" id="submit" name="submit" /> 
 										<a href="{{ url('/admin/uniform-edit-cancel') }}" class="btn btn-default"> CANCEL</a>
 									</div>
 								</form>

@@ -11,7 +11,7 @@
 <div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> All Uniforms</div>
 <hr>
 <div class="text-center">
-	<a href="{{ url('uniform/add-uniform') }}" class="btn btn-success"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW UNIFORM TYPE</a>
+	<a href="{{ url('uniform/add-uniform') }}" class="btn btn-primary"><i class="fa fa-plus" aria-hidden="true"></i> ADD NEW UNIFORM TYPE</a>
 </div>
 <div class="content full table-responsive">
 	<table id="table" class="display" cellspacing="0" width="100%">
@@ -43,7 +43,7 @@
 				@if ($values->active)
 				<td><a href="javascript:void(0)" class="block_unblock btn btn-sm btn-warning" data-url="<?= url("uniform_enable_disable/" .$uniformId); ?>"><i class="fa fa-lock" aria-hidden="true"></i> Disable</a></td>
 				@else
-				<td><a href="javascript:void(0)" class="block_unblock btn btn-sm btn-success" data-url="<?= url("uniform_enable_disable/" .$uniformId); ?>"><i class="fa fa-unlock" aria-hidden="true"></i> Enable</a></td>
+				<td><a href="javascript:void(0)" class="block_unblock btn btn-sm btn-primary" data-url="<?= url("uniform_enable_disable/" .$uniformId); ?>"><i class="fa fa-unlock" aria-hidden="true"></i> Enable</a></td>
 				@endif
 			</tr>
 			@endforeach
