@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+	<title>PLAS UI — design system preview</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no">
+	<link rel="stylesheet" href="/front_end/bootstrap-3.3.7-dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/front_end/font-awesome-4.7.0/css/font-awesome.min.css">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+	<link href="/front_end/css/style.css" rel="stylesheet" />
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<!-- Mirrors the sidebar toggle in resources/views/static-layout/header.blade.php -->
+	<script type="text/javascript">
+		$(document).ready(function() {
+			var mobileBreakpoint = 820;
+			function isMobileLayout() { return window.innerWidth <= mobileBreakpoint; }
+			function openSidebar() {
+				$(".bd-sidebar").addClass("show");
+				$("body").addClass("sidebar-open");
+				$(".navbar-togglee").attr("aria-expanded", "true");
+			}
+			function closeSidebar() {
+				$(".bd-sidebar").removeClass("show");
+				$("body").removeClass("sidebar-open");
+				$(".navbar-togglee").attr("aria-expanded", "false");
+			}
+			$(".navbar-togglee").click(function() {
+				if ($(".bd-sidebar").hasClass("show")) { closeSidebar(); } else { openSidebar(); }
+			});
+			$(document).on("click", ".sidebar-backdrop, .sidebar-close", function(e) { e.preventDefault(); closeSidebar(); });
+			$(document).on("keydown", function(e) { if (e.key === "Escape") { closeSidebar(); } });
+			$(window).on("resize", function() { if (!isMobileLayout()) { closeSidebar(); } });
+			$(document).on("click", ".bd-sidebar a", function() { if (isMobileLayout()) { closeSidebar(); } });
+		});
+	</script>
+</head>
+<body class="flag">
+	<div class="app-shell">
+		<div class="app-grid">
+			<header class="header">
+				<div class="topbar">
+					<div class="topbar-left">
+						<button type="button" class="navbar-togglee" aria-label="Menu">
+							<span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span>
+						</button>
+						<div class="topbar-title">Personnel Logistic Accounting System</div>
+					</div>
+					<div class="topbar-right">
+						<button type="button" class="btn btn-default topbar-action"><i class="fa fa-search"></i></button>
+						<button type="button" class="btn btn-default topbar-action"><i class="fa fa-bell-o"></i></button>
+					</div>
+				</div>
+			</header>
+			<div class="sidebar-backdrop"></div>
+
+			<div class="bd-sidebar pull-left">
+				<nav class="collapse bd-links">
+					<div class="sidebar-brand">
+						<img src="/front_end/images/logo.png" class="sidebar-logo" alt="logo" />
+						<div class="sidebar-brand-title">PLAS</div>
+					</div>
+					<a href="#" class="btn btn-link btn-pnl btn-block sidebar-close"><i class="fa fa-times"></i> Close</a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-user-plus"></i> Add New Admin</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-user-circle-o"></i> All Admins</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-users"></i> All Users</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block active"><i class="fa fa-clipboard"></i> Uniform Orders</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-shirtsinbulk"></i> Uniforms</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-arrows-h"></i> Units</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-print"></i> Order Reports</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-cog"></i> Tetapan Sistem</button></a>
+					<a href="#"><button type="button" class="btn btn-pnl btn-block"><i class="fa fa-sign-out"></i> Logout</button></a>
+				</nav>
+			</div>
+
+			<div class="rightPanel app-main">
+				<br>
+				<div class="title"><i class="fa fa-clipboard"></i> Uniform Orders</div>
+				<hr>
+				<div class="containerMain">
+
+					<div class="content">
+						<div class="orders-toolbar">
+							<div><strong>All order requests</strong> <span class="order-card-meta">— 4 records</span></div>
+							<a href="#" class="btn btn-primary"><i class="fa fa-plus"></i> New Order</a>
+						</div>
+						<hr>
+
+						<div class="alert alert-info">Orders pending more than 14 days are auto-expired.</div>
+
+						<table class="table table-orders">
+							<thead><tr><th>Order</th><th>Uniform</th><th>Requested</th><th>Status</th><th>Action</th></tr></thead>
+							<tbody>
+								<tr>
+									<td data-label="Order">#1042</td>
+									<td data-label="Uniform"><span class="item-icon item-icon-clothes"><i class="fa fa-shirtsinbulk"></i></span> No. 3 Ceremonial</td>
+									<td data-label="Requested">12 Jul 2026</td>
+									<td data-label="Status"><span class="status-badge status-pending">Pending</span></td>
+									<td data-label="Action"><a href="#" class="btn btn-default btn-sm"><i class="fa fa-eye"></i> View</a></td>
+								</tr>
+								<tr>
+									<td data-label="Order">#1041</td>
+									<td data-label="Uniform"><span class="item-icon item-icon-accessory"><i class="fa fa-star"></i></span> Rank Insignia</td>
+									<td data-label="Requested">10 Jul 2026</td>
+									<td data-label="Status"><span class="status-badge status-approved">Approved</span></td>
+									<td data-label="Action"><a href="#" class="btn btn-default btn-sm"><i class="fa fa-eye"></i> View</a></td>
+								</tr>
+								<tr>
+									<td data-label="Order">#1039</td>
+									<td data-label="Uniform"><span class="item-icon item-icon-clothes"><i class="fa fa-shirtsinbulk"></i></span> No. 4 Working Dress</td>
+									<td data-label="Requested">02 Jul 2026</td>
+									<td data-label="Status"><span class="status-badge status-rejected">Rejected</span></td>
+									<td data-label="Action"><a href="#" class="btn btn-default btn-sm"><i class="fa fa-eye"></i> View</a></td>
+								</tr>
+								<tr>
+									<td data-label="Order">#1021</td>
+									<td data-label="Uniform"><span class="item-icon item-icon-clothes"><i class="fa fa-shirtsinbulk"></i></span> Mess Kit</td>
+									<td data-label="Requested">14 Jun 2026</td>
+									<td data-label="Status"><span class="status-badge status-expired">Expired</span></td>
+									<td data-label="Action"><a href="#" class="btn btn-default btn-sm"><i class="fa fa-eye"></i> View</a></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<br>
+					<div class="content">
+						<div class="report-card-title" style="margin-bottom:14px"><strong>Buttons &amp; indicators</strong></div>
+						<p>
+							<button class="btn btn-primary"><i class="fa fa-check"></i> Primary</button>
+							<button class="btn btn-info"><i class="fa fa-info-circle"></i> Secondary</button>
+							<button class="btn btn-success"><i class="fa fa-check-circle"></i> Approve</button>
+							<button class="btn btn-danger"><i class="fa fa-times-circle"></i> Reject</button>
+							<button class="btn btn-warning"><i class="fa fa-clock-o"></i> Pending</button>
+							<button class="btn btn-default"><i class="fa fa-ban"></i> Expire</button>
+						</p>
+						<hr>
+						<div class="alert alert-success">Order approved and recorded.</div>
+						<div class="alert alert-warning">This request is awaiting quartermaster review.</div>
+						<div class="alert alert-danger">Stock unavailable for the selected size.</div>
+						<hr>
+						<div class="form-group"><label>Service ID</label><input class="form-control" placeholder="Enter your Service ID"></div>
+					</div>
+
+					<br>
+					<div class="content">
+						<div class="report-card-title" style="margin-bottom:14px"><strong>Report cards</strong></div>
+						<div class="report-grid">
+							<a href="#" class="report-card"><span class="report-icon report-icon-1"><i class="fa fa-users"></i></span>
+								<div class="report-card-title">Userwise Report</div><div class="report-card-subtitle">Per-personnel breakdown</div></a>
+							<a href="#" class="report-card"><span class="report-icon report-icon-2"><i class="fa fa-shirtsinbulk"></i></span>
+								<div class="report-card-title">Uniformwise Report</div><div class="report-card-subtitle">Grouped by uniform type</div></a>
+							<a href="#" class="report-card"><span class="report-icon report-icon-3"><i class="fa fa-sitemap"></i></span>
+								<div class="report-card-title">Unitwise Report</div><div class="report-card-subtitle">Grouped by unit</div></a>
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
