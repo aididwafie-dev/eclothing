@@ -712,7 +712,6 @@ button.btn {
 }
 .btn[disabled],
 .btn.disabled {
-	opacity: 0.55;
 	cursor: not-allowed;
 }
 
@@ -1010,8 +1009,10 @@ label {
 	box-shadow: var(--shadow-md);
 }
 .uniform-pill.active {
-	background: rgba(95, 107, 255, 0.12);
-	border-color: rgba(95, 107, 255, 0.20);
+	background: var(--brand-soft);
+	border-color: var(--brand-ring);
+	color: var(--brand-dark);
+	font-weight: 700;
 }
 .uniform-pill-title {
 	font-size: 12px;
@@ -1070,7 +1071,7 @@ label {
 }
 .shop-board-columns {
 	display: grid;
-	grid-template-columns: minmax(280px, 2.3fr) minmax(180px, 1.25fr) minmax(120px, 0.8fr) minmax(120px, 0.9fr);
+	grid-template-columns: minmax(200px, 2.3fr) minmax(150px, 1.25fr) minmax(100px, 0.8fr) minmax(96px, 0.9fr);
 	gap: 16px;
 	padding: 0 4px 10px;
 	font-size: 12px;
@@ -1085,7 +1086,7 @@ label {
 }
 .shop-line {
 	display: grid;
-	grid-template-columns: minmax(280px, 2.3fr) minmax(180px, 1.25fr) minmax(120px, 0.8fr) minmax(120px, 0.9fr);
+	grid-template-columns: minmax(200px, 2.3fr) minmax(150px, 1.25fr) minmax(100px, 0.8fr) minmax(96px, 0.9fr);
 	gap: 16px;
 	align-items: center;
 	background: var(--surface);
@@ -1156,21 +1157,37 @@ label {
 	margin: 0;
 	font-weight: 600;
 }
+/* "Not added" is a neutral starting state, not an error — red implied the
+   user had done something wrong just by opening the page. */
 .shop-status-badge {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: 6px;
 	min-height: 34px;
 	padding: 6px 12px;
-	border-radius: 999px;
-	background: var(--danger-soft);
-	color: var(--danger-ink);
+	border-radius: var(--radius-pill);
+	background: var(--neutral-soft);
+	color: var(--neutral-ink);
+	border: 1px solid rgba(100, 116, 139, 0.24);
 	font-size: 12px;
-	font-weight: 800;
+	font-weight: 700;
+	white-space: nowrap;
+}
+.shop-status-badge::before {
+	font: normal normal normal 11px/1 FontAwesome;
+	-webkit-font-smoothing: antialiased;
+	content: "\f10c";           /* circle-o — not yet added */
+	opacity: 0.65;
 }
 .shop-status-badge.is-in-cart {
 	background: var(--success-soft);
 	color: var(--success-ink);
+	border-color: rgba(18, 161, 80, 0.28);
+}
+.shop-status-badge.is-in-cart::before {
+	content: "\f058";           /* check-circle — in cart */
+	opacity: 1;
 }
 .shop-status-note {
 	font-size: 12px;
@@ -1196,14 +1213,15 @@ label {
 	font-size: 14px;
 	font-weight: 800;
 }
+/* Gold needs dark ink — white on #f9d116 is about 1.6:1 and unreadable. */
 .shop-line-action-add {
 	background: var(--accent);
-	color: #fff;
+	color: var(--accent-ink);
 }
 .shop-line-action-add:hover,
 .shop-line-action-add:focus {
 	background: var(--accent-strong);
-	color: #fff;
+	color: var(--accent-ink);
 	text-decoration: none;
 	box-shadow: var(--shadow-md);
 }
@@ -1463,6 +1481,26 @@ label {
 	color: #fff;
 	border: 0;
 }
+/* --- disabled state (authoritative) ------------------------------------
+   Declared after every colour variant and at .btn.btn specificity (0,3,0) so
+   a variant like .btn.btn-brand cannot win on source order. A solid muted
+   fill reads as "inactive"; the previous translucent azure just looked like
+   a rendering fault and dropped the label to roughly 2:1 contrast.
+   ---------------------------------------------------------------------- */
+.btn.btn[disabled],
+.btn.btn.disabled,
+.btn.btn[disabled]:hover,
+.btn.btn.disabled:hover,
+.btn.btn[disabled]:focus,
+.btn.btn.disabled:focus {
+	background: var(--surface-2);
+	border: 1px solid var(--border-strong);
+	color: var(--faint);
+	opacity: 1;
+	box-shadow: none;
+	cursor: not-allowed;
+}
+
 .btn.btn-brand:hover,
 .btn.btn-brand:focus {
 	background: var(--brand-dark);
