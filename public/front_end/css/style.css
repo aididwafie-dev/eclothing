@@ -1693,11 +1693,21 @@ label {
 	border-left-color: var(--brand);
 	color: var(--info-ink);
 }
-.order-summary-grid,
-.order-detail-layout {
+/* Photo beside the meta list: narrow fixed image column, text takes the rest. */
+.order-summary-grid {
 	display: grid;
 	grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
 	gap: 20px;
+}
+/* Page layout: wide detail column with a narrow action rail beside it.
+   These two used to share the rule above, which handed the 220px track to the
+   main column and 1fr to the sidebar. The main column then overflowed its
+   track and the remarks panel painted straight over the order details. */
+.order-detail-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(288px, 340px);
+	gap: 20px;
+	align-items: start;
 }
 .order-summary-table {
 	margin: 10px 0 12px;
@@ -1869,16 +1879,47 @@ label {
 .order-detail-main {
 	min-width: 0;
 }
+/* Action rail: stays in view while the clothing table scrolls, so an admin
+   never has to scroll back up to approve. */
 .order-detail-sidebar {
-	background: rgba(248, 250, 252, 0.92);
+	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 20px;
+	border-radius: var(--radius);
 	padding: 18px;
+	position: sticky;
+	top: 16px;
+	min-width: 0;
+}
+.order-detail-sidebar .form-control {
+	background: var(--card);
+}
+.order-detail-sidebar .help-block {
+	font-size: 12px;
+	color: var(--faint);
+	margin-top: 6px;
+	margin-bottom: 0;
+}
+.order-actions-heading {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--muted);
+	padding-top: 14px;
+	margin-top: 4px;
+	margin-bottom: 10px;
+	border-top: 1px solid var(--border);
 }
 .order-admin-actions {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 8px;
+	margin-top: 10px;
+}
+/* Expire is a rarely-used, non-reversible tidy-up: set it apart from the
+   three routine decisions rather than lining it up as a fourth equal option. */
+.order-admin-actions .btn-default {
+	margin-top: 6px;
 }
 
 .table-responsive {

@@ -76,8 +76,8 @@
 							<tbody>
 								@foreach($ordered_clothes as $cloth)
 								<tr>
-									<td>{{ $cloth->clothes }}</td>
-									<td>{{ $cloth->size }}</td>
+									<td data-label="Clothing Item">{{ $cloth->clothes }}</td>
+									<td data-label="Size Ordered">{{ $cloth->size }}</td>
 								</tr>
 								@endforeach
 							</tbody>
@@ -90,16 +90,20 @@
 						{{ csrf_field() }}
 						<input type="hidden" name="order_id" value="{{ $order->id }}">
 
+						<div class="order-actions-heading" style="padding-top:0;border-top:0;">Review this order</div>
+
 						<div class="form-group">
-							<label class="label_">Remarks</label>
-							<textarea name="remarks" class="form-control" rows="5" placeholder="Add approval or rejection remarks here">{{ old('remarks', $order->remarks) }}</textarea>
+							<label class="label_" for="orderRemarks">Remarks</label>
+							<textarea id="orderRemarks" name="remarks" class="form-control" rows="4" placeholder="Add approval or rejection remarks here">{{ old('remarks', $order->remarks) }}</textarea>
 						</div>
 
 						<div class="form-group">
-							<label class="label_">Collection Date</label>
-							<input type="date" name="collection_date" class="form-control" value="{{ old('collection_date', $order->collection_date ? date('Y-m-d', strtotime($order->collection_date)) : '') }}">
+							<label class="label_" for="orderCollectionDate">Collection Date</label>
+							<input id="orderCollectionDate" type="date" name="collection_date" class="form-control" value="{{ old('collection_date', $order->collection_date ? date('Y-m-d', strtotime($order->collection_date)) : '') }}">
 							<p class="help-block">Leave empty if the collection date will be updated later.</p>
 						</div>
+
+						<div class="order-actions-heading">Set status</div>
 
 						<div class="order-admin-actions">
 							<button type="submit" name="status" value="3" class="btn btn-success btn-block"><i class="fa fa-check" aria-hidden="true"></i> Approve Order</button>
