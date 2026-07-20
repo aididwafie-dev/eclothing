@@ -34,16 +34,16 @@
 						$statusLabel = !empty($order->status_label) ? $order->status_label : 'Pending';
 					@endphp
 					<tr>
-						<td>#{{ $order->id }}</td>
-						<td>{{ $order->s_id ? $order->s_id : '-' }}</td>
-						<td>{{ $order->name ? $order->name : 'N/A' }}</td>
-						<td>{{ $order->unit_name ? $order->unit_name : 'N/A' }}</td>
-						<td>{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</td>
-						<td>{{ $order->items_count }}</td>
-						<td><span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
-						<td>{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : 'To be updated' }}</td>
-						<td>{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</td>
-						<td><a href="{{ route('admin.uniform-orders.show', ['id' => $orderId]) }}" class="btn btn-sm btn-info"><i class="fa fa-eye" aria-hidden="true"></i> View Detail</a></td>
+						<td data-label="Order">#{{ $order->id }}</td>
+						<td data-label="Service ID">{{ $order->s_id ? $order->s_id : '-' }}</td>
+						<td data-label="Name">{{ $order->name ? $order->name : 'N/A' }}</td>
+						<td data-label="Unit">{{ $order->unit_name ? $order->unit_name : 'N/A' }}</td>
+						<td data-label="Uniform">{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</td>
+						<td data-label="Items">{{ $order->items_count }}</td>
+						<td data-label="Status"><span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
+						<td data-label="Collection Date">{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : 'To be updated' }}</td>
+						<td data-label="Ordered At">{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</td>
+						<td data-label="Action"><a href="{{ route('admin.uniform-orders.show', ['id' => $orderId]) }}" class="btn btn-sm btn-default"><i class="fa fa-eye" aria-hidden="true"></i> View Detail</a></td>
 					</tr>
 					@endforeach
 				</tbody>

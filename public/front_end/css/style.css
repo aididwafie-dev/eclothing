@@ -808,12 +808,18 @@ ul.pagination,
 	box-shadow: var(--shadow-md);
 	overflow: hidden;
 	min-height: calc(100vh - 24px);
+	/* Column layout so .app-grid can stretch to the shell's full height —
+	   without this the grid only grows to its content and the navy sidebar
+	   stops partway down on sparse pages. */
+	display: flex;
+	flex-direction: column;
 }
 .app-grid {
 	display: grid;
 	grid-template-columns: var(--sidebar-w) 1fr;
 	grid-template-rows: auto 1fr;
 	min-width: 0;
+	flex: 1 1 auto;
 }
 .app-main {
 	padding-top: 4px;
@@ -1693,8 +1699,22 @@ label {
 .table.table-orders tbody tr td:last-child {
 	border-radius: 0 14px 14px 0;
 }
+/* `word-break: break-word` allowed breaks at any character, which collapsed
+   each column's min-content width and split short tokens ("#13783" -> "#1378
+   3", "PUSPEKA" -> "PUSPE KA"). `overflow-wrap` leaves intrinsic width alone
+   and only breaks a word that genuinely cannot fit. */
 .table.table-orders tbody tr td {
-	word-break: break-word;
+	word-break: normal;
+	overflow-wrap: break-word;
+}
+/* Identifiers, counts and dates should never wrap. */
+.table.table-orders tbody tr td:nth-child(1),
+.table.table-orders tbody tr td:nth-child(2),
+.table.table-orders tbody tr td:nth-child(6),
+.table.table-orders tbody tr td:nth-child(8),
+.table.table-orders tbody tr td:nth-child(9),
+.table.table-orders tbody tr td:nth-child(10) {
+	white-space: nowrap;
 }
 .item-icon {
 	display: inline-flex;
@@ -2088,6 +2108,11 @@ label {
 	}
 	.table.table-orders tbody tr td:last-child {
 		border-bottom: 0;
+	}
+	/* :nth-child(n) matches every cell at the same specificity as the desktop
+	   nowrap rules above, so stacked cards wrap freely again. */
+	.table.table-orders tbody tr td:nth-child(n) {
+		white-space: normal;
 	}
 	.table.table-orders tbody tr td::before {
 		content: attr(data-label);
