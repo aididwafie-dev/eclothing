@@ -99,13 +99,25 @@
 				}
 			}
 
+			// Quantity is capped server-side by the entitlement scale; this just
+			// sends what the user picked.
+			var quantityVal = 1;
+			var $qty = $('#qty_' + clothesSlug);
+			if ($qty.length) {
+				quantityVal = parseInt($qty.val(), 10);
+				if (isNaN(quantityVal) || quantityVal < 1) {
+					quantityVal = 1;
+				}
+			}
+
 			$.ajax({
 				type: 'post',
 				url: '/uniform-cart/add',
 				data: {
 					uniforms_id: uniformsId,
 					clothes_slug: clothesSlug,
-					size: sizeVal
+					size: sizeVal,
+					quantity: quantityVal
 				},
 				success: function(resp) {
 					if (resp && resp.redirect) {
@@ -113,6 +125,15 @@
 						return;
 					}
 					loadDynamicForm(uniformsId);
+				},
+				error: function(xhr) {
+					var message = 'Tidak dapat menambah item ini.';
+					if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+						message = xhr.responseJSON.message;
+					}
+					if (window.showAppPopup) {
+						window.showAppPopup(message, 'danger');
+					}
 				}
 			});
 		});

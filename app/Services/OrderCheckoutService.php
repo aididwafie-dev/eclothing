@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Ordered_clothe;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Converts a cart (grouped by uniform, then by clothes_slug) into
@@ -93,9 +94,17 @@ class OrderCheckoutService
             ->where('clothes_slug', '=', $item['clothes_slug'])
             ->first();
 
+        // Carts written before the quantity column existed have no quantity
+        // key; those rows are one piece each, matching the old behaviour.
+        $quantity = isset($item['quantity']) ? max(1, (int) $item['quantity']) : 1;
+        $hasQuantityColumn = $this->orderedClothesHasQuantity();
+
         if ($existing) {
             $orderedCloth = Ordered_clothe::find($existing->id);
             $orderedCloth->size = $sizeValue;
+            if ($hasQuantityColumn) {
+                $orderedCloth->quantity = $quantity;
+            }
             $orderedCloth->save();
         } else {
             $orderedCloth = new Ordered_clothe;
@@ -103,7 +112,25 @@ class OrderCheckoutService
             $orderedCloth->clothes = $cloth->clothes_type;
             $orderedCloth->clothes_slug = $item['clothes_slug'];
             $orderedCloth->size = $sizeValue;
+            if ($hasQuantityColumn) {
+                $orderedCloth->quantity = $quantity;
+            }
             $orderedCloth->save();
         }
+    }
+
+    private function orderedClothesHasQuantity(): bool
+    {
+        static $has = null;
+
+        if ($has === null) {
+            try {
+                $has = Schema::hasColumn('ordered_clothes', 'quantity');
+            } catch (\Throwable $e) {
+                $has = false;
+            }
+        }
+
+        return $has;
     }
 }

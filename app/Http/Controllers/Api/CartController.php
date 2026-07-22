@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\OrderCheckoutService;
 use App\Services\UniformCartRules;
+use App\Services\UniformScaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -56,9 +57,20 @@ class CartController extends Controller
             return response()->json($this->snapshot($genUser->id));
         }
 
+        // Same entitlement scale as the web cart, so the API cannot be used to
+        // exceed a rank's allowance.
+        $scaleService = app(UniformScaleService::class);
+        $rankId = $scaleService->rankForUser($genUser->id);
+
+        if ($scaleService->isBlocked($rankId, (int) $cloth->id)) {
+            return response()->json(['message' => 'Item ini tidak layak untuk pangkat anda.'], 422);
+        }
+
+        $quantity = $scaleService->clampQuantity($rankId, (int) $cloth->id, $request->input('quantity', 1));
+
         DB::table('cart_items')->updateOrInsert(
             ['gen_user_id' => $genUser->id, 'uniforms_id' => $uniformsId, 'clothes_slug' => $clothesSlug],
-            ['clothes_type' => $cloth->clothes_type, 'size' => json_encode($normalizedSize), 'updated_at' => now(), 'created_at' => now()]
+            ['clothes_type' => $cloth->clothes_type, 'size' => json_encode($normalizedSize), 'quantity' => $quantity, 'updated_at' => now(), 'created_at' => now()]
         );
 
         return response()->json($this->snapshot($genUser->id));
@@ -91,6 +103,7 @@ class CartController extends Controller
             $cartByUniform[$row->uniforms_id][$row->clothes_slug] = [
                 'clothes_slug' => $row->clothes_slug,
                 'size' => json_decode($row->size, true),
+                'quantity' => isset($row->quantity) ? (int) $row->quantity : 1,
             ];
         }
 
@@ -111,8 +124,12 @@ class CartController extends Controller
     {
         $rows = DB::table('cart_items')
             ->join('uniforms', 'uniforms.id', '=', 'cart_items.uniforms_id')
+            ->leftJoin('uniform_clothes', function ($join) {
+                $join->on('uniform_clothes.uniforms_id', '=', 'cart_items.uniforms_id')
+                    ->on('uniform_clothes.clothes_slug', '=', 'cart_items.clothes_slug');
+            })
             ->where('cart_items.gen_user_id', '=', $genUserId)
-            ->select('cart_items.*', 'uniforms.uniform_type', 'uniforms.uniform_name')
+            ->select('cart_items.*', 'uniforms.uniform_type', 'uniforms.uniform_name', 'uniform_clothes.clothes_photo')
             ->get();
 
         $items = $rows->map(function ($row) {
@@ -123,6 +140,8 @@ class CartController extends Controller
                 'clothesSlug' => $row->clothes_slug,
                 'clothesType' => $row->clothes_type,
                 'size' => $size,
+                'quantity' => isset($row->quantity) ? (int) $row->quantity : 1,
+                'imageUrl' => AssetController::urlFor($row->clothes_photo ?? null),
             ];
         })->values();
 
