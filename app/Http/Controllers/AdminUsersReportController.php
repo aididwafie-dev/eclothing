@@ -21,25 +21,6 @@ class AdminUsersReportController extends Controller
         return view('admin/orders/users_report');
     }
 
-    public function orderSelectUniformWise(Request $request)
-    {
-        if ($request->session()->get('admin_id') == '') {
-            return redirect()->route('site-admin.login');
-        }
-        $uniforms = DB::table('uniforms')->where("active", 1)->get();
-        return view('admin/orders/selectUniformwise_report', ["uniforms" => $uniforms]);
-    }
-
-    public function orderSelectUniformUnitWise(Request $request)
-    {
-        if ($request->session()->get('admin_id') == '') {
-            return redirect()->route('site-admin.login');
-        }
-        $uniforms = DB::table('uniforms')->where("active", 1)->get();
-        $units = DB::table('units')->get();
-        return view('admin/orders/selectUniformUnitwise_report', ["uniforms" => $uniforms, "units" => $units]);
-    }
-
     public function orderedSizeCountUniformwise($uniforms_id)
     {
         $uniform_clothes = DB::table('uniform_clothes')->where('uniforms_id', '=', $uniforms_id)->get();
@@ -75,28 +56,6 @@ class AdminUsersReportController extends Controller
         }
 
         return !empty($orders_detail) ? $orders_detail : 0;
-    }
-
-    public function getReportUniformWise(Request $request)
-    {
-        if ($request->session()->get('admin_id') == '') {
-            return redirect()->route('site-admin.login');
-        }
-        $uniforms_id = $request->input('uniforms_id');
-        $uniforms = DB::table('uniforms')->where('id', '=', $uniforms_id)->first();
-        $orders = DB::table('orders')->where('deleted', '=', 0)->where('uniforms_id', '=', $uniforms_id)->first();
-        $ordered_clothes = !empty($orders) ? $this->orderedSizeCountUniformwise($uniforms_id) : 0;
-
-        return view('admin/orders/uniformwise_orderReport', ["uniforms" => $uniforms, "ordered_clothes" => $ordered_clothes]);
-    }
-
-    public function orderSelectUserWise(Request $request)
-    {
-        if ($request->session()->get('admin_id') == '') {
-            return redirect()->route('site-admin.login');
-        }
-        $uniforms = DB::table('uniforms')->where("active", 1)->get();
-        return view('admin/orders/selectUserwise_report', ["uniforms" => $uniforms]);
     }
 
     public function userSelectUnitWise(Request $request)
@@ -163,15 +122,6 @@ class AdminUsersReportController extends Controller
         }
 
         return view('admin/users/StrengthUnitsReport', ["totals" => $totals]);
-    }
-
-    public function orderSelectUnitWise(Request $request)
-    {
-        if ($request->session()->get('admin_id') == '') {
-            return redirect()->route('site-admin.login');
-        }
-        $units = DB::table('units')->get();
-        return view('admin/orders/selectUnitwise_report', ["units" => $units]);
     }
 
     public function loadClothAjax(Request $request)
