@@ -119,6 +119,9 @@ Route::middleware('admin.auth')->group(function (): void {
 	Route::post('/send-announcements', [AdminController::class, 'sendAnnouncement'])->name('send.announcements');
 	Route::get('/admin/system-settings', [AdminController::class, 'systemSettings'])->name('admin.system-settings');
 	Route::post('/admin/system-settings', [AdminController::class, 'saveSystemSettings'])->name('admin.system-settings.save');
+	// Scale tab auto-save (AJAX, no form submit).
+	Route::post('/admin/scale/uniform-visibility', [AdminController::class, 'toggleUniformVisibility'])->name('admin.scale.uniform-visibility');
+	Route::post('/admin/scale/item', [AdminController::class, 'saveUniformScaleItem'])->name('admin.scale.item');
 
 	/************	AdminNewListController	************/
 	Route::get('/new-admin', [AdminNewListController::class, 'index'])->name('admin.new-admin');

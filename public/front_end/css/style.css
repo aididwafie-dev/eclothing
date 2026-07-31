@@ -82,11 +82,20 @@ img {
 	--sidebar-w: 252px;
 	--topbar-offset: 0px;
 
-	/* --- type ---------------------------------------------------------- */
-	--fs-base: clamp(14px, 0.95vw + 10px, 15px);
-	--fs-title: clamp(18px, 1.1vw + 14px, 22px);
-	--fs-brand: clamp(14px, 1.0vw + 12px, 18px);
-	--fs-small: clamp(12px, 0.7vw + 10px, 13px);
+	/* --- type scale ----------------------------------------------------
+	   One standard set of steps. Every text size in the app maps to one of
+	   these; icon glyph sizes and responsive @media step-downs are kept
+	   separate. Steps, largest to smallest:
+	     display > title > lg > md > base > small > xs
+	   ------------------------------------------------------------------- */
+	--fs-display: clamp(24px, 1.4vw + 18px, 30px); /* hero / large display */
+	--fs-title: clamp(18px, 1.1vw + 14px, 22px);   /* page titles */
+	--fs-lg: 18px;                                  /* section / modal headings */
+	--fs-md: 16px;                                  /* prominent buttons, subtitles */
+	--fs-base: clamp(14px, 0.95vw + 10px, 15px);    /* body default */
+	--fs-small: clamp(12px, 0.7vw + 10px, 13px);    /* labels, meta, help */
+	--fs-xs: 12px;                                  /* captions, chips, table headers */
+	--fs-brand: clamp(14px, 1.0vw + 12px, 18px);    /* header brand */
 
 	--ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -160,7 +169,7 @@ header.header .navbar-icon {
 	object-fit: contain;
 }
 .topbar-title {
-	font-size: clamp(18px, 1.25vw + 14px, 24px);
+	font-size: var(--fs-title);
 	font-weight: 800;
 	letter-spacing: 0.01em;
 	line-height: 1.2;
@@ -198,7 +207,7 @@ header.header .topbar-right {
 	color: currentColor;
 }
 header.header h2 {
-    font-size: 18px;
+    font-size: var(--fs-lg);
     margin: 0;
 	line-height: 18px;
 	margin-left: 10px;
@@ -214,7 +223,7 @@ header.header h2 {
     left: 15px;
     border: 0;
     background: transparent;
-    font-size: 16px;
+    font-size: var(--fs-md);
     font-weight: 600;
 }
 .content {
@@ -351,7 +360,7 @@ header.header h2 {
 
 
 .bd-links h1 {
-    font-size: 24px;
+    font-size: var(--fs-title);
 }
 .bd-links {
     padding-bottom: 1rem;
@@ -377,7 +386,7 @@ header.header h2 {
 	flex: 0 0 auto;
 }
 .sidebar-brand-title {
-	font-size: 11px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -419,7 +428,7 @@ body.flag {
 	border: 0;
 	border-radius: var(--radius-sm);
 	color: rgba(255, 255, 255, 0.66);
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 600;
 	letter-spacing: 0.01em;
 	text-transform: none;
@@ -506,7 +515,7 @@ nav.bd-links a:hover {
 .bd-links a:last-child button { border: 0 none; }
 h1.dsHead {
     color: #333;
-    font-size: 31px;
+    font-size: var(--fs-display);
 }
 
 .navbar-left img {
@@ -555,7 +564,7 @@ h1.dsHead {
 }
 .containerMain label.error {
     color: red;
-    font-size: 12px;
+    font-size: var(--fs-xs);
     font-weight: 600;
     margin-top: 5px;
 }
@@ -612,7 +621,7 @@ h1.dsHead {
 }
 .content.content-log h2 {
     text-transform: uppercase;
-    font-size: 20px;
+    font-size: var(--fs-lg);
     font-weight: bold;
     color: var(--brand-dark);
 }
@@ -633,7 +642,7 @@ h1.dsHead {
     border: 0 !important;
     padding: 11px 18px;
     margin: 0 0 10px;
-    font-size: 15px;
+    font-size: var(--fs-base);
     font-weight: 600;
     border-radius: var(--radius-sm);
     width: 100%;
@@ -657,7 +666,7 @@ h1.dsHead {
 }
 .content.full .table thead tr th,
 .table_center .table tr th, .table.fixedHeader-floating tr th {
-    font-size: 11px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -673,7 +682,7 @@ h1.dsHead {
 }
 .content.full .table tbody tr td,
 .table_center .table tr td {
-    font-size: 12px;
+    font-size: var(--fs-xs);
 }
 
 /* Flat zebra: a single tint, not two competing greys. */
@@ -1060,7 +1069,7 @@ label {
 	font-weight: 700;
 }
 .uniform-pill-title {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	white-space: nowrap;
@@ -1091,13 +1100,13 @@ label {
 	margin-bottom: 16px;
 }
 .shop-board-title {
-	font-size: clamp(26px, 1.6vw + 18px, 34px);
+	font-size: var(--fs-display);
 	font-weight: 900;
 	line-height: 1.1;
 	color: var(--text);
 }
 .shop-board-subtitle {
-	font-size: 14px;
+	font-size: var(--fs-base);
 	color: var(--muted);
 	margin-top: 6px;
 }
@@ -1109,7 +1118,7 @@ label {
 	border: 1px solid var(--border);
 	border-radius: 14px;
 	padding: 12px 14px;
-	font-size: 13px;
+	font-size: var(--fs-small);
 	font-weight: 700;
 	color: var(--text);
 	white-space: nowrap;
@@ -1119,7 +1128,7 @@ label {
 	grid-template-columns: minmax(200px, 2.3fr) minmax(150px, 1.25fr) minmax(100px, 0.8fr) minmax(96px, 0.9fr);
 	gap: 16px;
 	padding: 0 4px 10px;
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 800;
 	color: var(--muted);
 	text-transform: uppercase;
@@ -1163,19 +1172,19 @@ label {
 	min-width: 0;
 }
 .shop-line-name {
-	font-size: 15px;
+	font-size: var(--fs-base);
 	font-weight: 800;
 	color: var(--text);
 	word-break: break-word;
 }
 .shop-line-meta {
-	font-size: 13px;
+	font-size: var(--fs-small);
 	color: var(--muted);
 	margin-top: 4px;
 	word-break: break-word;
 }
 .shop-line-hint {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--faint);
 	margin-top: 6px;
 	word-break: break-word;
@@ -1215,7 +1224,7 @@ label {
 	background: var(--neutral-soft);
 	color: var(--neutral-ink);
 	border: 1px solid rgba(100, 116, 139, 0.24);
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	white-space: nowrap;
 }
@@ -1235,7 +1244,7 @@ label {
 	opacity: 1;
 }
 .shop-status-note {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	margin-top: 8px;
 	word-break: break-word;
@@ -1255,7 +1264,7 @@ label {
 	border-radius: 999px;
 	text-decoration: none;
 	box-shadow: var(--shadow-sm);
-	font-size: 14px;
+	font-size: var(--fs-base);
 	font-weight: 800;
 }
 /* Gold needs dark ink — white on #f9d116 is about 1.6:1 and unreadable. */
@@ -1301,7 +1310,7 @@ label {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
-	font-size: 13px;
+	font-size: var(--fs-small);
 	color: var(--muted);
 }
 .shop-policy i.fa {
@@ -1322,12 +1331,12 @@ label {
 	margin-bottom: 14px;
 }
 .shop-summary-title {
-	font-size: 18px;
+	font-size: var(--fs-lg);
 	font-weight: 900;
 	color: var(--text);
 }
 .shop-summary-subtitle {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	margin-top: 4px;
 }
@@ -1344,14 +1353,14 @@ label {
 	padding: 14px 12px;
 }
 .shop-summary-total-label {
-	font-size: 11px;
+	font-size: var(--fs-xs);
 	font-weight: 800;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--faint);
 }
 .shop-summary-total-value {
-	font-size: 28px;
+	font-size: var(--fs-display);
 	font-weight: 900;
 	line-height: 1;
 	color: var(--text);
@@ -1360,7 +1369,7 @@ label {
 .shop-checkout-btn {
 	min-height: 52px;
 	border-radius: 14px;
-	font-size: 16px;
+	font-size: var(--fs-md);
 	font-weight: 800;
 	width: 100%;
 }
@@ -1383,7 +1392,7 @@ label {
 	margin-top: 0;
 }
 .shop-cart-preview-title {
-	font-size: 15px;
+	font-size: var(--fs-base);
 	font-weight: 800;
 	color: var(--text);
 	margin-bottom: 12px;
@@ -1402,12 +1411,12 @@ label {
 	min-width: 0;
 }
 .shop-cart-preview-name {
-	font-size: 13px;
+	font-size: var(--fs-small);
 	font-weight: 800;
 	color: var(--text);
 }
 .shop-cart-preview-meta {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	word-break: break-word;
 }
@@ -1430,7 +1439,7 @@ label {
 	box-shadow: var(--shadow-md);
 }
 .shop-summary-empty {
-	font-size: 13px;
+	font-size: var(--fs-small);
 	color: var(--muted);
 	background: var(--surface);
 	border-radius: 16px;
@@ -1441,13 +1450,13 @@ label {
 	margin-top: 16px;
 }
 .shop-empty {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	padding: 6px 0;
 }
 .shop-controls .label_ {
 	display: block;
-	font-size: 11px;
+	font-size: var(--fs-xs);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--muted);
@@ -1500,13 +1509,13 @@ label {
 .report-icon-5 { background: var(--navy-soft);   color: var(--navy); }
 .report-icon-6 { background: var(--accent-soft); color: var(--accent-ink); }
 .report-card-title {
-	font-size: 14px;
+	font-size: var(--fs-base);
 	font-weight: 700;
 	line-height: 1.35;
 	margin-bottom: 8px;
 }
 .report-card-subtitle {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	font-weight: 500;
 }
@@ -1576,13 +1585,13 @@ label {
 	box-shadow: none;
 }
 .app-popup-title {
-	font-size: 20px;
+	font-size: var(--fs-lg);
 	font-weight: 700;
 	color: var(--text);
 	margin-bottom: 8px;
 }
 .app-popup-message {
-	font-size: 14px;
+	font-size: var(--fs-base);
 	line-height: 1.6;
 	color: var(--muted);
 	margin-bottom: 20px;
@@ -1616,6 +1625,50 @@ label {
 	gap: 12px;
 	flex-wrap: wrap;
 }
+
+/* --- Order ID search ---------------------------------------------------- */
+.orders-search {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 16px;
+}
+.orders-search-field {
+	position: relative;
+	flex: 1 1 320px;
+	min-width: 0;
+	max-width: 420px;
+}
+.orders-search-field i.fa {
+	position: absolute;
+	left: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	color: var(--faint);
+	font-size: 14px;
+	pointer-events: none;
+}
+.orders-search-field .form-control {
+	padding-left: 38px;
+}
+.orders-search-result {
+	font-size: var(--fs-small);
+	color: var(--muted);
+	margin-bottom: 14px;
+}
+.orders-search-result strong {
+	color: var(--text);
+}
+@media screen and (max-width: 640px) {
+	.orders-search-field {
+		flex-basis: 100%;
+		max-width: none;
+	}
+	.orders-search .btn {
+		flex: 1 1 auto;
+	}
+}
 .order-card {
 	background: var(--card);
 	border: 1px solid var(--border);
@@ -1636,7 +1689,7 @@ label {
 	margin-bottom: 12px;
 }
 .order-card-meta {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--muted);
 	font-weight: 500;
 }
@@ -1652,7 +1705,7 @@ label {
 	gap: 7px;
 	padding: 6px 12px;
 	border-radius: var(--radius-pill);
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	letter-spacing: .01em;
 	line-height: 1.4;
@@ -1808,13 +1861,13 @@ label {
 	padding-bottom: 0;
 }
 .order-info-label {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	color: var(--muted);
 	text-transform: uppercase;
 }
 .order-info-value {
-	font-size: 14px;
+	font-size: var(--fs-base);
 	font-weight: 600;
 	color: var(--text);
 	text-align: right;
@@ -1828,7 +1881,7 @@ label {
 .table.table-orders thead tr th {
 	border-top: 0;
 	border-bottom: 0;
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	color: var(--muted);
 	text-transform: uppercase;
@@ -1970,7 +2023,7 @@ label {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 13px;
+	font-size: var(--fs-small);
 	font-weight: 700;
 	color: var(--text);
 	padding-bottom: 8px;
@@ -2001,6 +2054,139 @@ label {
 	font-weight: 700;
 }
 
+/* --- Uniform visibility (first-row tickboxes) -------------------------- */
+.scale-visibility {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 16px;
+	margin-bottom: 20px;
+}
+.scale-visibility-head {
+	margin-bottom: 12px;
+}
+.scale-visibility-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--fs-small);
+	font-weight: 700;
+	color: var(--text);
+}
+.scale-visibility-title i.fa {
+	color: var(--brand);
+}
+.scale-visibility-hint {
+	font-size: var(--fs-small);
+	color: var(--muted);
+	margin-top: 4px;
+}
+.scale-visibility-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 8px;
+}
+.scale-visibility-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--card);
+	font-weight: 500;
+	cursor: pointer;
+	transition: border-color .15s var(--ease), background .15s var(--ease);
+}
+.scale-visibility-item:hover {
+	border-color: var(--border-strong);
+}
+.scale-visibility-item input[type="checkbox"] {
+	width: 17px;
+	height: 17px;
+	flex: 0 0 auto;
+	accent-color: var(--danger);
+	margin: 0;
+}
+.scale-visibility-name {
+	font-size: var(--fs-small);
+	color: var(--text);
+	line-height: 1.3;
+}
+/* Ticked = hidden from cart -> danger tint, since it removes an option. */
+.scale-visibility-item.is-hidden {
+	border-color: rgba(229, 72, 77, 0.32);
+	background: var(--danger-soft);
+}
+.scale-visibility-item.is-hidden .scale-visibility-name {
+	color: var(--danger-ink);
+	font-weight: 700;
+	text-decoration: line-through;
+}
+
+/* A uniform group whose uniform is hidden: dimmed, inputs disabled. */
+.scale-group-hidden-tag {
+	display: none;
+	margin-left: 8px;
+	padding: 2px 8px;
+	border-radius: var(--radius-pill);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	text-transform: none;
+	letter-spacing: 0;
+	background: var(--danger-soft);
+	color: var(--danger-ink);
+	vertical-align: middle;
+}
+.scale-group.is-uniform-hidden {
+	opacity: 0.55;
+}
+.scale-group.is-uniform-hidden .scale-group-hidden-tag {
+	display: inline-block;
+}
+
+.scale-autosave-note {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--fs-small);
+	color: var(--success-ink);
+	padding: 10px 0 2px;
+}
+.scale-autosave-note i.fa {
+	color: var(--success);
+}
+
+/* Save confirmation toast (bottom-right). */
+.scale-toast {
+	position: fixed;
+	right: 18px;
+	bottom: 18px;
+	z-index: 1080;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 16px;
+	border-radius: var(--radius);
+	background: var(--success);
+	color: #fff;
+	font-size: var(--fs-small);
+	font-weight: 700;
+	box-shadow: var(--shadow-md);
+	opacity: 0;
+	transform: translateY(8px);
+	pointer-events: none;
+	transition: opacity .18s var(--ease), transform .18s var(--ease);
+}
+.scale-toast.is-shown {
+	opacity: 1;
+	transform: translateY(0);
+}
+.scale-toast.is-error {
+	background: var(--danger);
+}
+
 /* User-side quantity picker in the cart. */
 .shop-qty-row {
 	display: flex;
@@ -2015,7 +2201,7 @@ label {
 	font-variant-numeric: tabular-nums;
 }
 .shop-qty-max {
-	font-size: 11px;
+	font-size: var(--fs-xs);
 	color: var(--faint);
 	white-space: nowrap;
 }
@@ -2044,13 +2230,13 @@ label {
 	background: var(--card);
 }
 .order-detail-sidebar .help-block {
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	color: var(--faint);
 	margin-top: 6px;
 	margin-bottom: 0;
 }
 .order-actions-heading {
-	font-size: 11px;
+	font-size: var(--fs-xs);
 	font-weight: 700;
 	letter-spacing: 0.07em;
 	text-transform: uppercase;

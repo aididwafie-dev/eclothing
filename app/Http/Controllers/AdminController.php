@@ -19,10 +19,12 @@
 	use Illuminate\Support\Facades\Validator;
 	use Illuminate\Support\Facades\Schema;
 	use App\Support\PasswordHasher;
-	use App\Services\OrderStatusService;
 
 	class AdminController extends Controller
 	{
+		use \App\Http\Controllers\Concerns\ResolvesOrderStatus;
+		use \App\Http\Controllers\Concerns\LoadsPersonalDetailDropdowns;
+
 	    public function index(Request $request) {
 				
 			if($request->session()->get('admin_id') != '')
@@ -83,8 +85,21 @@
 			return base64_encode('DCS'.$id.'DCS');
 		}
 
-		private function orderStatus(): OrderStatusService {
-			return app(OrderStatusService::class);
+		private function hasUniformClothesPhotoColumn() {
+			static $hasUniformClothesPhotoColumn = null;
+
+			if ($hasUniformClothesPhotoColumn !== null) {
+				return $hasUniformClothesPhotoColumn;
+			}
+
+			try {
+				$hasUniformClothesPhotoColumn = Schema::hasTable('uniform_clothes')
+					&& Schema::hasColumn('uniform_clothes', 'clothes_photo');
+			} catch (\Throwable $e) {
+				$hasUniformClothesPhotoColumn = false;
+			}
+
+			return $hasUniformClothesPhotoColumn;
 		}
 
 		private function uniformOrdersListQuery() {
@@ -359,29 +374,6 @@ $nestedData[] = $row->updated_at;
 			return view('admin/personalDetails_formAdmin', array("data"=>$data));
 		}
 
-		public function personalDetailsDropdownValues() {
-
-			$piliih_angkatans = DB::table('piliih_angkatans')->get();
-			$ketukangans_officer = DB::table('ketukangans')->where('officer_recruit', '=', 1)->get();
-			$ketukangans_recruit = DB::table('ketukangans')->where('officer_recruit', '=', 2)->get();
-			$ketukangans_both = DB::table('ketukangans')->where('officer_recruit', '=', 3)->get();
-			$units = DB::table('units')->get();
-			$jantinas = DB::table('jantinas')->get();
-			$status_penggunaans = DB::table('status_penggunaans')->get();
-
-			$result = array(
-				'piliih_angkatans'=>$piliih_angkatans,
-				'ketukangans_officer'=>$ketukangans_officer,
-				'ketukangans_recruit'=>$ketukangans_recruit,
-				'ketukangans_both'=>$ketukangans_both,
-				'units'=>$units,
-				'jantinas'=>$jantinas,
-				'status_penggunaans'=>$status_penggunaans,
-			);
-			
-			return $result;
-		}
-		 
 		public function ajaxLoadRankValuesForAdmin(Request $request) {
 			
 			$service_id = $request->input('serviceId');
@@ -543,16 +535,31 @@ $nestedData[] = $row->updated_at;
 				->get();
 			*/
 
-			$orders = $this->uniformOrdersListQuery()
+			// Search by Order ID. Tolerate a leading '#' and stray spacing; an
+			// empty search shows the full list. A non-empty search with no digits
+			// resolves to id 0, which matches nothing -> "not found".
+			$search = trim((string) $request->query('search', ''));
+			$hasSearch = $search !== '';
+
+			$query = $this->uniformOrdersListQuery();
+			if ($hasSearch) {
+				$query->where('orders.id', '=', (int) preg_replace('/\D+/', '', $search));
+			}
+
+			$orders = $query
 				->orderBy('orders.created_at', 'desc')
 				->orderBy('orders.id', 'desc')
 				->simplePaginate(25);
+
+			if ($hasSearch) {
+				$orders->appends(['search' => $search]);
+			}
 
 			$orders->getCollection()->transform(function ($order) {
 				return $this->orderStatus()->normalizeOrderLifecycle($order);
 			});
 
-			return view('admin/uniform_orders_list', array('orders' => $orders));
+			return view('admin/uniform_orders_list', array('orders' => $orders, 'search' => $search));
 		}
 
 		public function uniformOrderDetail(Request $request, $id) {
@@ -794,7 +801,344 @@ $nestedData[] = $row->updated_at;
 				$uniforms = [];
 			}
 
-			return view('admin/system_settings', ['site_title' => $site_title, 'uniforms' => $uniforms]);
+			$uniformItemsByUniform = [];
+			try {
+				$uniformItemsQuery = DB::table('uniform_clothes')
+					->select('id', 'uniforms_id', 'clothes_type', 'accessory');
+
+				if ($this->hasUniformClothesPhotoColumn()) {
+					$uniformItemsQuery->addSelect('clothes_photo');
+				} else {
+					$uniformItemsQuery->addSelect(DB::raw('NULL as clothes_photo'));
+				}
+
+				$uniformItems = $uniformItemsQuery
+					->orderBy('uniforms_id')
+					->orderBy('accessory')
+					->orderBy('clothes_type')
+					->get();
+
+				foreach ($uniformItems as $uniformItem) {
+					$uniformId = (int) $uniformItem->uniforms_id;
+					if (!isset($uniformItemsByUniform[$uniformId])) {
+						$uniformItemsByUniform[$uniformId] = [];
+					}
+					$uniformItemsByUniform[$uniformId][] = $uniformItem;
+				}
+			} catch (\Throwable $e) {
+				$uniformItemsByUniform = [];
+			}
+
+			// --- Skala Kelayakan Pakaian -------------------------------------
+			// Air Force ranks only, grouped Officer / Non-Officer via
+			// pangkats.officer_recruit (1 = officer, 2 = non-officer).
+			$ranksByCategory = ['officer' => [], 'non_officer' => []];
+			try {
+				$ranks = DB::table('pangkats')
+					->select('id', 'value', 'officer_recruit', 'pangkats_order')
+					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
+					->orderBy('pangkats_order')
+					->get();
+
+				foreach ($ranks as $rank) {
+					$key = (int) $rank->officer_recruit === 1 ? 'officer' : 'non_officer';
+					$ranksByCategory[$key][] = $rank;
+				}
+			} catch (\Throwable $e) {
+				$ranksByCategory = ['officer' => [], 'non_officer' => []];
+			}
+
+			$selectedRankId = (int) $request->query('pangkat_id');
+			if (!$selectedRankId) {
+				$firstGroup = count($ranksByCategory['officer']) ? 'officer' : 'non_officer';
+				if (count($ranksByCategory[$firstGroup])) {
+					$selectedRankId = (int) $ranksByCategory[$firstGroup][0]->id;
+				}
+			}
+
+			$scaleService = app(\App\Services\UniformScaleService::class);
+
+			return view('admin/system_settings', [
+				'site_title' => $site_title,
+				'uniforms' => $uniforms,
+				'uniformItemsByUniform' => $uniformItemsByUniform,
+				'ranksByCategory' => $ranksByCategory,
+				'selectedRankId' => $selectedRankId,
+				'rankScales' => $scaleService->scalesForRank($selectedRankId ?: null),
+				'scaleStorageReady' => $scaleService->tableExists(),
+				'hiddenUniformIds' => $scaleService->hiddenUniformsForRank($selectedRankId ?: null),
+				'hiddenStorageReady' => $scaleService->hiddenTableExists(),
+			]);
+		}
+
+		/**
+		 * id of the Air Force branch in piliih_angkatans.
+		 *
+		 * Resolved by name rather than hardcoded, because the stored label
+		 * carries a double space ("AIR  FORCE") and the ids are data, not
+		 * constants. Falls back to 1, which is the current value.
+		 */
+		private function airForceAngkatanId(): int {
+			static $airForceId = null;
+
+			if ($airForceId !== null) {
+				return $airForceId;
+			}
+
+			try {
+				$match = DB::table('piliih_angkatans')
+					->whereRaw("REPLACE(UPPER(value), ' ', '') = ?", ['AIRFORCE'])
+					->value('id');
+
+				$airForceId = $match ? (int) $match : 1;
+			} catch (\Throwable $e) {
+				$airForceId = 1;
+			}
+
+			return $airForceId;
+		}
+
+		/**
+		 * Saves the entitlement scale for one rank.
+		 *
+		 * A blank field means "not configured" and removes any stored row, so the
+		 * item falls back to being orderable without a cap. An explicit 0 stores a
+		 * row that blocks the item. This keeps the three states distinguishable --
+		 * see App\Services\UniformScaleService.
+		 */
+		private function saveUniformScales(Request $request) {
+			$pangkatId = (int) $request->input('pangkat_id');
+			$redirect = route('admin.system-settings') . '?tab=scale' . ($pangkatId > 0 ? '&pangkat_id=' . $pangkatId : '');
+
+			if ($pangkatId <= 0) {
+				\Session::flash('message', 'Sila pilih pangkat terlebih dahulu.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->to($redirect);
+			}
+
+			// The form only offers Air Force ranks; re-check server-side so a
+			// crafted post cannot set a scale against another branch.
+			$isAirForceRank = false;
+			try {
+				$isAirForceRank = DB::table('pangkats')
+					->where('id', '=', $pangkatId)
+					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
+					->exists();
+			} catch (\Throwable $e) {
+				$isAirForceRank = false;
+			}
+
+			if (!$isAirForceRank) {
+				\Session::flash('message', 'Pangkat tidak sah. Hanya pangkat AIR FORCE dibenarkan.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->to(route('admin.system-settings') . '?tab=scale');
+			}
+
+			$scaleService = app(\App\Services\UniformScaleService::class);
+			if (!$scaleService->tableExists()) {
+				\Session::flash('message', 'Jadual skala belum wujud. Sila jalankan "php artisan migrate".');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->to($redirect);
+			}
+
+			$submitted = $request->input('scales');
+			$submitted = is_array($submitted) ? $submitted : [];
+
+			// Only touch items that were actually on the submitted form, so saving
+			// one rank never disturbs another.
+			$validIds = [];
+			try {
+				$validIds = DB::table('uniform_clothes')->pluck('id')->map(fn ($id) => (int) $id)->toArray();
+			} catch (\Throwable $e) {
+				$validIds = [];
+			}
+			$validIds = array_flip($validIds);
+
+			$saved = 0;
+			$cleared = 0;
+
+			try {
+				DB::transaction(function () use ($submitted, $validIds, $pangkatId, &$saved, &$cleared) {
+					foreach ($submitted as $clothesId => $rawValue) {
+						$clothesId = (int) $clothesId;
+						if (!isset($validIds[$clothesId])) {
+							continue;
+						}
+
+						$value = is_string($rawValue) ? trim($rawValue) : $rawValue;
+
+						if ($value === '' || $value === null) {
+							DB::table('uniform_scales')
+								->where('pangkat_id', '=', $pangkatId)
+								->where('uniform_clothes_id', '=', $clothesId)
+								->delete();
+							$cleared++;
+							continue;
+						}
+
+						if (!is_numeric($value)) {
+							continue;
+						}
+
+						$quantity = (int) $value;
+						if ($quantity < 0) {
+							$quantity = 0;
+						}
+						if ($quantity > 999) {
+							$quantity = 999;
+						}
+
+						DB::table('uniform_scales')->updateOrInsert(
+							['pangkat_id' => $pangkatId, 'uniform_clothes_id' => $clothesId],
+							['max_quantity' => $quantity, 'updated_at' => now(), 'created_at' => now()]
+						);
+						$saved++;
+					}
+				});
+			} catch (\Throwable $e) {
+				\Session::flash('message', 'Gagal simpan skala kelayakan.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->to($redirect);
+			}
+
+			\Session::flash('message', 'Skala kelayakan disimpan. ' . $saved . ' item ditetapkan, ' . $cleared . ' item dikosongkan.');
+			\Session::flash('alert-class', 'alert-success');
+			return redirect()->to($redirect);
+		}
+
+		/**
+		 * AJAX: toggle whether a uniform is hidden from the order cart for a rank.
+		 * Presence of a uniform_rank_hidden row = hidden. Auto-saved from the
+		 * scale tab's tickboxes, so there is no form submit.
+		 */
+		public function toggleUniformVisibility(Request $request) {
+			if ($request->session()->get('admin_id') == '') {
+				return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+			}
+
+			$pangkatId = (int) $request->input('pangkat_id');
+			$uniformsId = (int) $request->input('uniforms_id');
+			$hidden = filter_var($request->input('hidden'), FILTER_VALIDATE_BOOLEAN);
+
+			if ($pangkatId <= 0 || $uniformsId <= 0) {
+				return response()->json(['ok' => false, 'message' => 'Permintaan tidak sah.'], 422);
+			}
+
+			$scaleService = app(\App\Services\UniformScaleService::class);
+			if (!$scaleService->hiddenTableExists()) {
+				return response()->json(['ok' => false, 'message' => 'Jadual belum wujud. Jalankan "php artisan migrate".'], 422);
+			}
+
+			// Only AIR FORCE ranks are configurable here (see saveUniformScales).
+			try {
+				$validRank = DB::table('pangkats')
+					->where('id', '=', $pangkatId)
+					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
+					->exists();
+				$validUniform = DB::table('uniforms')->where('id', '=', $uniformsId)->exists();
+			} catch (\Throwable $e) {
+				$validRank = false;
+				$validUniform = false;
+			}
+
+			if (!$validRank || !$validUniform) {
+				return response()->json(['ok' => false, 'message' => 'Pangkat atau uniform tidak sah.'], 422);
+			}
+
+			try {
+				if ($hidden) {
+					DB::table('uniform_rank_hidden')->updateOrInsert(
+						['pangkat_id' => $pangkatId, 'uniforms_id' => $uniformsId],
+						['updated_at' => now(), 'created_at' => now()]
+					);
+				} else {
+					DB::table('uniform_rank_hidden')
+						->where('pangkat_id', '=', $pangkatId)
+						->where('uniforms_id', '=', $uniformsId)
+						->delete();
+				}
+			} catch (\Throwable $e) {
+				return response()->json(['ok' => false, 'message' => 'Gagal menyimpan.'], 500);
+			}
+
+			return response()->json(['ok' => true, 'hidden' => $hidden]);
+		}
+
+		/**
+		 * AJAX: save one item's entitlement scale for a rank. Same blank/0/n
+		 * semantics as saveUniformScales, one item at a time so each number
+		 * field can auto-save on change without a form submit.
+		 */
+		public function saveUniformScaleItem(Request $request) {
+			if ($request->session()->get('admin_id') == '') {
+				return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+			}
+
+			$pangkatId = (int) $request->input('pangkat_id');
+			$clothesId = (int) $request->input('uniform_clothes_id');
+			$rawValue = $request->input('value');
+
+			if ($pangkatId <= 0 || $clothesId <= 0) {
+				return response()->json(['ok' => false, 'message' => 'Permintaan tidak sah.'], 422);
+			}
+
+			$scaleService = app(\App\Services\UniformScaleService::class);
+			if (!$scaleService->tableExists()) {
+				return response()->json(['ok' => false, 'message' => 'Jadual skala belum wujud. Jalankan "php artisan migrate".'], 422);
+			}
+
+			try {
+				$validRank = DB::table('pangkats')
+					->where('id', '=', $pangkatId)
+					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
+					->exists();
+				$validItem = DB::table('uniform_clothes')->where('id', '=', $clothesId)->exists();
+			} catch (\Throwable $e) {
+				$validRank = false;
+				$validItem = false;
+			}
+
+			if (!$validRank || !$validItem) {
+				return response()->json(['ok' => false, 'message' => 'Pangkat atau item tidak sah.'], 422);
+			}
+
+			$value = is_string($rawValue) ? trim($rawValue) : $rawValue;
+
+			try {
+				if ($value === '' || $value === null) {
+					DB::table('uniform_scales')
+						->where('pangkat_id', '=', $pangkatId)
+						->where('uniform_clothes_id', '=', $clothesId)
+						->delete();
+
+					return response()->json(['ok' => true, 'value' => null, 'state' => 'unset']);
+				}
+
+				if (!is_numeric($value)) {
+					return response()->json(['ok' => false, 'message' => 'Nilai mesti nombor.'], 422);
+				}
+
+				$quantity = (int) $value;
+				if ($quantity < 0) {
+					$quantity = 0;
+				}
+				if ($quantity > 999) {
+					$quantity = 999;
+				}
+
+				DB::table('uniform_scales')->updateOrInsert(
+					['pangkat_id' => $pangkatId, 'uniform_clothes_id' => $clothesId],
+					['max_quantity' => $quantity, 'updated_at' => now(), 'created_at' => now()]
+				);
+			} catch (\Throwable $e) {
+				return response()->json(['ok' => false, 'message' => 'Gagal menyimpan.'], 500);
+			}
+
+			return response()->json([
+				'ok' => true,
+				'value' => $quantity,
+				'state' => $quantity === 0 ? 'blocked' : 'set',
+			]);
 		}
 
 		public function saveSystemSettings(Request $request) {
@@ -802,14 +1146,22 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
+			// The scale tab is independent of the title/logo form, so it returns
+			// before that form's own validation runs.
+			if ($request->query('tab') === 'scale') {
+				return $this->saveUniformScales($request);
+			}
+
 			$redirectTab = $request->query('tab') === 'uniform' ? 'uniform' : 'system';
+			$selectedUniformId = (int) $request->input('selected_uniform_id');
+			$redirectUniformSuffix = $selectedUniformId > 0 ? '&uniform_id=' . $selectedUniformId : '';
 
 			$validator = Validator::make(
 				['site_title' => $request->input('site_title')],
 				['site_title' => 'required|string|max:255']
 			);
 			if($validator->fails()) {
-				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab)->withErrors($validator)->withInput();
+				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab . $redirectUniformSuffix)->withErrors($validator)->withInput();
 			}
 
 			$site_title = trim((string) $request->input('site_title'));
@@ -826,14 +1178,14 @@ $nestedData[] = $row->updated_at;
 			} catch (\Throwable $e) {
 				\Session::flash('message', 'Gagal simpan tajuk sistem.'); 
 				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab);
+				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab . $redirectUniformSuffix);
 			}
 
 			$uploadsPath = public_path('uploads');
 			if(!is_dir($uploadsPath) || !is_writable($uploadsPath)) {
 				\Session::flash('message', 'Folder public/uploads tidak boleh ditulis. Sila semak permission IIS (Modify).'); 
 				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab);
+				return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab . $redirectUniformSuffix);
 			}
 
 			$logoCandidate = null;
@@ -998,7 +1350,7 @@ $nestedData[] = $row->updated_at;
 					if ($uniformType === '') {
 						\Session::flash('message', 'Jenis uniform tidak boleh kosong.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform')->withInput();
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix)->withInput();
 					}
 
 					try {
@@ -1009,7 +1361,7 @@ $nestedData[] = $row->updated_at;
 					} catch (\Throwable $e) {
 						\Session::flash('message', 'Maklumat uniform gagal dikemaskini.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform')->withInput();
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix)->withInput();
 					}
 				}
 			}
@@ -1033,7 +1385,7 @@ $nestedData[] = $row->updated_at;
 					if (!$uniformFile->isValid()) {
 						\Session::flash('message', 'Gambar uniform tidak berjaya dimuat naik.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
 
 					$ext = strtolower((string) $uniformFile->getClientOriginalExtension());
@@ -1043,13 +1395,13 @@ $nestedData[] = $row->updated_at;
 					if (!in_array($ext, $allowedExt)) {
 						\Session::flash('message', 'Format gambar uniform tidak disokong. Sila guna PNG atau JPG.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
 					$size = (int) $uniformFile->getSize();
 					if ($size > $maxBytes) {
 						\Session::flash('message', 'Saiz fail gambar uniform terlalu besar. Maksimum 5MB.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
 
 					$filename = 'uniform_' . $uniformId . '_' . time() . '.' . $ext;
@@ -1058,21 +1410,84 @@ $nestedData[] = $row->updated_at;
 					} catch (\Throwable $e) {
 						\Session::flash('message', 'Gagal simpan fail gambar uniform.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
 
 					try {
-						DB::table('uniforms')->where('id', '=', $uniformId)->update(['uniform_photo' => $filename]);
+						DB::table('uniforms')->where('id', '=', $uniformId)->update(['uniform_photo' => 'uploads/' . $filename]);
 					} catch (\Throwable $e) {
 						\Session::flash('message', 'Gambar uniform berjaya dimuat naik tetapi gagal dikemaskini dalam sistem.'); 
 						\Session::flash('alert-class', 'alert-danger');
-						return redirect()->to(route('admin.system-settings') . '?tab=uniform');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+					}
+				}
+			}
+
+			$uniformClothesCandidates = null;
+			try {
+				$uniformClothesCandidates = $request->files->get('uniform_clothes_photos');
+			} catch (\Throwable $e) {
+				$uniformClothesCandidates = null;
+			}
+
+			if (is_array($uniformClothesCandidates) && !empty($uniformClothesCandidates)) {
+				if (!$this->hasUniformClothesPhotoColumn()) {
+					\Session::flash('message', 'Ruangan gambar clothes/accessories belum wujud. Sila jalankan migration terlebih dahulu.'); 
+					\Session::flash('alert-class', 'alert-danger');
+					return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+				}
+
+				foreach ($uniformClothesCandidates as $uniformClothesId => $uniformClothesFile) {
+					$uniformClothesId = (int) $uniformClothesId;
+					if ($uniformClothesId <= 0) {
+						continue;
+					}
+					if (!($uniformClothesFile instanceof \Symfony\Component\HttpFoundation\File\UploadedFile)) {
+						continue;
+					}
+					if (!$uniformClothesFile->isValid()) {
+						\Session::flash('message', 'Gambar clothes/accessories tidak berjaya dimuat naik.'); 
+						\Session::flash('alert-class', 'alert-danger');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+					}
+
+					$ext = strtolower((string) $uniformClothesFile->getClientOriginalExtension());
+					if ($ext === '') {
+						$ext = 'jpg';
+					}
+					if (!in_array($ext, $allowedExt)) {
+						\Session::flash('message', 'Format gambar clothes/accessories tidak disokong. Sila guna PNG atau JPG.'); 
+						\Session::flash('alert-class', 'alert-danger');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+					}
+					$size = (int) $uniformClothesFile->getSize();
+					if ($size > $maxBytes) {
+						\Session::flash('message', 'Saiz fail gambar clothes/accessories terlalu besar. Maksimum 5MB.'); 
+						\Session::flash('alert-class', 'alert-danger');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+					}
+
+					$filename = 'uniform_clothes_' . $uniformClothesId . '_' . time() . '.' . $ext;
+					try {
+						$uniformClothesFile->move($uploadsPath, $filename);
+					} catch (\Throwable $e) {
+						\Session::flash('message', 'Gagal simpan fail gambar clothes/accessories.'); 
+						\Session::flash('alert-class', 'alert-danger');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
+					}
+
+					try {
+						DB::table('uniform_clothes')->where('id', '=', $uniformClothesId)->update(['clothes_photo' => 'uploads/' . $filename]);
+					} catch (\Throwable $e) {
+						\Session::flash('message', 'Gambar clothes/accessories berjaya dimuat naik tetapi gagal dikemaskini dalam sistem.'); 
+						\Session::flash('alert-class', 'alert-danger');
+						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
 				}
 			}
 
 			\Session::flash('message', 'Tetapan sistem berjaya dikemaskini.'); 
 			\Session::flash('alert-class', 'alert-success');
-			return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab);
+			return redirect()->to(route('admin.system-settings') . '?tab=' . $redirectTab . $redirectUniformSuffix);
 		}
 	}

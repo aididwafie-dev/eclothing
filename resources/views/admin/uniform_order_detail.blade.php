@@ -5,7 +5,7 @@
 	$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
 	$statusLabel = !empty($order->status_label) ? $order->status_label : 'Pending';
 	if ($order->uniform_photo) {
-		$image = glob("uploads/" . $order->uniform_photo);
+		$image = glob(strpos($order->uniform_photo, '/') !== false ? $order->uniform_photo : "uploads/" . $order->uniform_photo);
 	} else {
 		$image = glob("front_end/images/uniforms/" . $order->uniform_type . ".jpg");
 	}

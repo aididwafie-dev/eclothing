@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * JSON counterpart to DashboardController's personal-details flow
- * (index/getDropdownValues/savePersonalDetails/ajaxLoadRankValues).
+ * (index/personalDetailsDropdownValues/savePersonalDetails/ajaxLoadRankValues).
  *
  * Deliberately narrower than the web form: next-of-kin
  * (nama_waris/telephone_number_waris), address lines 1-4, name_tag,

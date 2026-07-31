@@ -9,6 +9,25 @@
 	<div class="content full">
 		<div class="shop-subtitle">Review all submitted uniform orders and open a detail page to approve or reject them.</div>
 		<br>
+
+		@php $search = isset($search) ? $search : ''; @endphp
+		<form method="get" action="{{ route('admin.uniform-orders') }}" class="orders-search" role="search">
+			<div class="orders-search-field">
+				<i class="fa fa-search" aria-hidden="true"></i>
+				<input type="text" name="search" value="{{ $search }}" class="form-control"
+					placeholder="Search by Order ID (e.g. 1042)" inputmode="numeric"
+					aria-label="Search by Order ID" autocomplete="off" />
+			</div>
+			<button type="submit" class="btn btn-primary"><i class="fa fa-search" aria-hidden="true"></i> Search</button>
+			@if($search !== '')
+			<a href="{{ route('admin.uniform-orders') }}" class="btn btn-default"><i class="fa fa-times" aria-hidden="true"></i> Clear</a>
+			@endif
+		</form>
+
+		@if($search !== '' && $orders && $orders->count())
+		<div class="orders-search-result">Showing results for Order ID <strong>#{{ $search }}</strong>.</div>
+		@endif
+
 		@if($orders && $orders->count())
 		<div class="table-responsive">
 			<table class="table table-orders table-orders-wide">
@@ -57,7 +76,13 @@
 		</div>
 		@endif
 		@else
-		<div class="alert alert-info">No uniform orders found.</div>
+		<div class="alert alert-info">
+			@if($search !== '')
+			No order found for Order ID <strong>#{{ $search }}</strong>.
+			@else
+			No uniform orders found.
+			@endif
+		</div>
 		@endif
 	</div>
 </div>

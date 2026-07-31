@@ -97,6 +97,7 @@ class UniformController extends Controller
                 'sizeOptions' => $shape['options'],
                 'inCart' => (bool) $cartRow,
                 'cartValue' => $cartRow ? $this->decodeSize($cartRow->size) : $orderedSize,
+                'imageUrl' => AssetController::urlFor($cloth->clothes_photo ?? null),
             ];
         });
 

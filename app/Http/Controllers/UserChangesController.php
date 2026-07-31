@@ -13,12 +13,14 @@
 
 	class UserChangesController extends Controller {
 
+		use \App\Http\Controllers\Concerns\LoadsSidebarUser;
+
    		public function changePassword(Request $request) {
 			
 			if($request->session()->get('user_id') == '') {
 				return redirect()->route('user.login');
 			}
-			$userDetails = $this->checkuserDetails($request); //this data is for the sidebar portion.
+			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 			return view('edit_password', array("userDetails" => $userDetails));
 		}
 
@@ -42,19 +44,12 @@
 			}
 		}
 
-		public function checkuserDetails(Request $request) {
-
-			$user_id = $request->session()->get('user_id');
-			$userDetails = DB::table('gen_users')->where('id', '=', $user_id)->first();
-			return $userDetails;
-		}
-
 		public function changeEmail(Request $request) {
 
 			if($request->session()->get('user_id') == '') {
 				return redirect()->route('user.login');
 			}
-			$userDetails = $this->checkuserDetails($request); //this data is for the sidebar portion.
+			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 			return view('edit_email', array("userDetails" => $userDetails));
 		}
 

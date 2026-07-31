@@ -14,13 +14,18 @@
 	use Illuminate\Mail\Mailer;
 	use Mail;
 	use Session;
-	use App\Services\OrderStatusService;
 	use App\Services\AssignedUniformService;
 	use App\Services\UniformCartRules;
+	use App\Services\UniformScaleService;
 	use App\Services\OrderCheckoutService;
 
 	class DashboardController extends Controller {
-		
+
+		use \App\Http\Controllers\Concerns\ResolvesOrderStatus;
+		use \App\Http\Controllers\Concerns\BuildsKewPs8Report;
+		use \App\Http\Controllers\Concerns\LoadsSidebarUser;
+		use \App\Http\Controllers\Concerns\LoadsPersonalDetailDropdowns;
+
 		public function index(Request $request) {
 			
 			if($request->session()->get('user_id') == '')
@@ -33,7 +38,7 @@
 			$service_id = $user_details ? $user_details->s_id : ($personal_detail ? $personal_detail->s_id : '');
 			$data=['personal_data'=>[
 			 	'service_id' => $service_id,
-			 	'dropdown_data' => $this->getDropdownValues(),
+			 	'dropdown_data' => $this->personalDetailsDropdownValues(),
 			 	'personal_detail' => $personal_detail,
 			]];
 			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
@@ -41,39 +46,6 @@
 			return view('personal_details', array("data"=>$data,"userDetails"=>$userDetails));
 		}
 
-		public function checkUserDetails(Request $request) {
-
-			$user_id = $request->session()->get('user_id');
-			$userDetails = DB::table('gen_users')->where('id', '=', $user_id)->first();
-			return $userDetails;
-		}
-
-		public function getDropdownValues() {
-
-			$piliih_angkatans = DB::table('piliih_angkatans')->get();
-			$ketukangans_officer = DB::table('ketukangans')->where('officer_recruit', '=', 1)->get();
-			
-			$ketukangans_recruit = DB::table('ketukangans')->where('officer_recruit', '=', 2)->get();
-			
-			$ketukangans_both = DB::table('ketukangans')->where('officer_recruit', '=', 3)->get();
-
-			$units = DB::table('units')->get();
-			$jantinas = DB::table('jantinas')->get();
-			$status_penggunaans = DB::table('status_penggunaans')->get();
-
-			$result = array(
-				'piliih_angkatans'=>$piliih_angkatans,				
-				'ketukangans_officer'=>$ketukangans_officer,
-				'ketukangans_recruit'=>$ketukangans_recruit,
-				'ketukangans_both'=>$ketukangans_both,
-				'units'=>$units,
-				'jantinas'=>$jantinas,
-				'status_penggunaans'=>$status_penggunaans,
-			);
-			
-			return $result;
-		}
-		
 		public function ajaxLoadRankValues(Request $request) {
 			if (!$request->session()) {
 				die(json_encode(["refresh"=>1]));
@@ -168,14 +140,6 @@
 			return ['uniforms' => app(AssignedUniformService::class)->forPersonalDetail($personalDetails)];
 		}
 
-		public function getAccessoriesInfo(Request $request) {
-
-			$user_id = $request->session()->get('user_id');
-			$personalDetails = DB::table('personal_details')->where('user_id', '=', $user_id)->first();
-
-			return ['uniforms' => app(AssignedUniformService::class)->forPersonalDetail($personalDetails)];
-		}
-
 		public function userUniformSelection(Request $request) {
 
 			if($request->session()->get('user_id') == '') {
@@ -260,11 +224,24 @@
 				$cartCount += is_array($cartGroup) ? count($cartGroup) : 0;
 			}
 
+			// Entitlement scale for this user's rank: drop items the rank is not
+			// entitled to, and expose the cap so the form can bound its input.
+			$scaleService = app(UniformScaleService::class);
+			$rankId = $scaleService->rankForUser($user_id);
+
 			foreach ($uniform_clothes as $id => $uniform_cloth) {
-				$uniform_clothes[$id]->in_cart = isset($cartItems[$uniform_cloth->clothes_slug]);
-				$uniform_clothes[$id]->cart_value = $uniform_clothes[$id]->in_cart ? $cartItems[$uniform_cloth->clothes_slug]['size'] : null;
+				if ($scaleService->isBlocked($rankId, (int) $uniform_cloth->id)) {
+					unset($uniform_clothes[$id]);
+					continue;
+				}
+
+				$cartLine = isset($cartItems[$uniform_cloth->clothes_slug]) ? $cartItems[$uniform_cloth->clothes_slug] : null;
+				$uniform_clothes[$id]->in_cart = $cartLine !== null;
+				$uniform_clothes[$id]->cart_value = $cartLine ? $cartLine['size'] : null;
+				$uniform_clothes[$id]->cart_quantity = $cartLine && isset($cartLine['quantity']) ? (int) $cartLine['quantity'] : 1;
+				$uniform_clothes[$id]->max_quantity = $scaleService->maxFor($rankId, (int) $uniform_cloth->id);
 			}
-			
+
 			return view('uniform_selection_form',array(
 				'uniform_clothes'=>$uniform_clothes,
 				'sizes'=>$sizes,
@@ -281,10 +258,6 @@
 
 		private function setUniformCart(Request $request, $cart) {
 			$request->session()->put('uniform_cart', $cart);
-		}
-
-		private function orderStatus(): OrderStatusService {
-			return app(OrderStatusService::class);
 		}
 
 		public function addUniformCartItem(Request $request) {
@@ -323,6 +296,21 @@
 				return response()->json(['ok' => true]);
 			}
 
+			// Entitlement scale: refuse blocked items outright and clamp the
+			// requested count to the rank's allowance.
+			$scaleService = app(UniformScaleService::class);
+			$rankId = $scaleService->rankForUser($request->session()->get('user_id'));
+
+			if ($scaleService->isBlocked($rankId, (int) $cloth->id)) {
+				return response()->json([
+					'ok' => false,
+					'message' => 'Item ini tidak layak untuk pangkat anda.',
+				], 422);
+			}
+
+			$maxQuantity = $scaleService->maxFor($rankId, (int) $cloth->id);
+			$quantity = $scaleService->clampQuantity($rankId, (int) $cloth->id, $request->input('quantity', 1));
+
 			$displayName = $uniform->uniform_name ? $uniform->uniform_name : $uniform->uniform_type;
 			$cart[$uniforms_id][$clothes_slug] = [
 				'uniforms_id' => $uniforms_id,
@@ -330,10 +318,15 @@
 				'clothes_type' => $cloth->clothes_type,
 				'uniform_name' => $displayName,
 				'size' => $normalizedSize,
+				'quantity' => $quantity,
 			];
 
 			$this->setUniformCart($request, $cart);
-			return response()->json(['ok' => true]);
+			return response()->json([
+				'ok' => true,
+				'quantity' => $quantity,
+				'maxQuantity' => $maxQuantity,
+			]);
 		}
 
 		public function removeUniformCartItem(Request $request) {
@@ -388,7 +381,8 @@
 
 			if ($uniform && $uniform->uniform_type) {
 				if ($uniform->uniform_photo) {
-				$images = glob("uploads/" . $uniform->uniform_photo);
+				$imagePath = strpos($uniform->uniform_photo, '/') !== false ? $uniform->uniform_photo : "uploads/" . $uniform->uniform_photo;
+				$images = glob($imagePath);
 				} else {
 				$images = glob("front_end/images/uniforms/" . $uniform->uniform_type . ".jpg");
 				}
@@ -599,44 +593,5 @@
 			]);
 		}
 
-		private function buildKewPs8Rows($items, int $minimumRows = 8, int $startIndex = 1): array {
-			$rows = [];
-			$index = $startIndex;
-
-			foreach ($items as $item) {
-				$rows[] = [
-					'bil' => (string) $index,
-					'perihal' => (string) ($item->clothes ?? ''),
-					'dimohon' => '1',
-					'catatan' => (string) ($item->size ?? ''),
-				];
-				$index++;
-			}
-
-			while (count($rows) < $minimumRows) {
-				$rows[] = ['bil' => '', 'perihal' => '', 'dimohon' => '', 'catatan' => ''];
-			}
-
-			return $rows;
-		}
-
-		private function chunkKewPs8Rows($items, int $rowsPerForm = 8): array {
-			$items = collect($items)->values()->all();
-
-			if (empty($items)) {
-				return [$this->buildKewPs8Rows([], $rowsPerForm, 1)];
-			}
-
-			$chunks = array_chunk($items, $rowsPerForm);
-			$forms = [];
-			$startIndex = 1;
-
-			foreach ($chunks as $chunk) {
-				$forms[] = $this->buildKewPs8Rows($chunk, $rowsPerForm, $startIndex);
-				$startIndex += count($chunk);
-			}
-
-			return $forms;
-		}
 	}
 ?>

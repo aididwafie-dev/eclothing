@@ -34,7 +34,7 @@
 				<input class="form-control" name="uniform_image" type="file" accept=".jpg,.png" />
 				<span class="text-muted">Please upload only .JPG or .PNG files. The images have to be of correct resolution. We recommend you download <a href="{{ url('front_end/images/uniforms/2.jpg')}}" download>this sample image</a> and modify it in Photoshop.</span>
 				<?php if ($uniforms->uniform_photo) { ?>
-<img class="img img-thumbnail" src="{{ url("uploads/" . $uniforms->uniform_photo) }}" />
+<img class="img img-thumbnail" src="{{ url(strpos($uniforms->uniform_photo, '/') !== false ? $uniforms->uniform_photo : "uploads/" . $uniforms->uniform_photo) }}" />
 								<?php } else { ?>
 <img class="img img-thumbnail" src="{{ url("front_end/images/uniforms/" . $uniforms->uniform_type . ".jpg") }}" />
 <?php } ?>

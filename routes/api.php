@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\OrderController;
@@ -24,6 +25,9 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 /************	Public	************/
+// Uploaded images, served under api/* so CORS headers are attached (see AssetController).
+Route::get('/uploads/{path}', [AssetController::class, 'upload'])->where('path', '.*');
+
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::get('/auth/check-availability', [AuthController::class, 'checkAvailability']);
@@ -47,6 +51,7 @@ Route::middleware('api.auth')->group(function (): void {
 	Route::post('/cart/checkout', [CartController::class, 'checkout']);
 
 	Route::get('/orders', [OrderController::class, 'index']);
+	Route::get('/orders/{id}/kew-ps8', [OrderController::class, 'kewPs8']);
 	Route::post('/orders/email-details', [OrderController::class, 'emailDetails']);
 	Route::delete('/orders', [OrderController::class, 'destroyAll']);
 

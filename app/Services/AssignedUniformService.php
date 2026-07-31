@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Which uniforms a user may order depends on their trade (ketukangan)
  * and, for a handful of special-case ranks, their rank (pangkat) too.
- * Extracted from DashboardController::getUniformInfo (previously
- * duplicated near-identically as getAccessoriesInfo) so the mobile
+ * Extracted from DashboardController::getUniformInfo so the mobile
  * API's UniformController resolves the same assignment.
  */
 class AssignedUniformService
@@ -45,6 +44,20 @@ class AssignedUniformService
             if ($uniform) {
                 $uniforms[] = $uniform;
             }
+        }
+
+        // Drop uniforms an admin has hidden from the cart for this rank. Applied
+        // here so both the web selection page and the mobile API respect it.
+        $rankId = ($personalDetail->pangkat !== null && $personalDetail->pangkat !== '')
+            ? (int) $personalDetail->pangkat
+            : null;
+        $hidden = app(UniformScaleService::class)->hiddenUniformsForRank($rankId);
+        if (!empty($hidden)) {
+            $hiddenSet = array_flip($hidden);
+            $uniforms = array_values(array_filter(
+                $uniforms,
+                fn ($uniform) => !isset($hiddenSet[(int) $uniform->id])
+            ));
         }
 
         return $uniforms;

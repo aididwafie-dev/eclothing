@@ -33,12 +33,12 @@
 			border: 1px solid #999;
 		}
 		.kewps8-topbar {
-			display: flex;
-			justify-content: space-between;
-			align-items: flex-start;
+			width: 100%;
+			border-collapse: collapse;
 			font-size: 11px;
 			margin-bottom: 8px;
 		}
+		.kewps8-topbar td { border: none; padding: 0; vertical-align: top; }
 		.kewps8-code { font-weight: bold; text-align: right; }
 		.kewps8-no, .kewps8-page-note { text-align: right; }
 		.kewps8-heading { text-align: center; margin-bottom: 12px; }
@@ -72,6 +72,15 @@
 			.kewps8-sheet { border: none; margin: 0 0 12px 0; page-break-after: always; }
 		}
 	</style>
+	@if($forPdf ?? false)
+		{{-- Server-side PDF (dompdf) doesn't honour @media print, so apply the
+		     same print appearance unconditionally when rendering to a file. --}}
+		<style>
+			body { background: #fff; padding: 0; }
+			.no-print { display: none; }
+			.kewps8-sheet { border: none; margin: 0 0 12px 0; page-break-after: always; }
+		</style>
+	@endif
 </head>
 <body>
 
@@ -81,16 +90,18 @@
 
 @foreach($reportForms as $formIndex => $reportRows)
 	<section class="kewps8-sheet">
-		<div class="kewps8-topbar">
-			<div>Pekeliling Perbendaharaan Malaysia</div>
-			<div>
-				<div class="kewps8-code">KEW.PS-8</div>
-				<div class="kewps8-no">No. Order : {{ $order->id }}</div>
-				@if(count($reportForms) > 1)
-					<div class="kewps8-page-note">Borang {{ $formIndex + 1 }} / {{ count($reportForms) }}</div>
-				@endif
-			</div>
-		</div>
+		<table class="kewps8-topbar">
+			<tr>
+				<td style="text-align: left;">Pekeliling Perbendaharaan Malaysia</td>
+				<td style="text-align: right;">
+					<div class="kewps8-code">KEW.PS-8</div>
+					<div class="kewps8-no">No. Order : {{ $order->id }}</div>
+					@if(count($reportForms) > 1)
+						<div class="kewps8-page-note">Borang {{ $formIndex + 1 }} / {{ count($reportForms) }}</div>
+					@endif
+				</td>
+			</tr>
+		</table>
 
 		<div class="kewps8-heading">
 			<div class="kewps8-title">BORANG PERMOHONAN STOK</div>

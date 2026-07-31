@@ -25,11 +25,7 @@
 			$statusLabel = !empty($array['userOrders']->status_label) ? $array['userOrders']->status_label : 'Pending';
 			$remarks = trim((string) $array['userOrders']->remarks);
 			$collectionDate = $array['userOrders']->collection_date ? date('d M Y', strtotime($array['userOrders']->collection_date)) : 'To be updated';
-			if ($array['orderedUniform']->uniform_photo) {
-				$image = glob("uploads/" . $array['orderedUniform']->uniform_photo);
-			} else {
-				$image = glob("front_end/images/uniforms/" . $array['orderedUniform']->uniform_type . ".jpg");
-			}
+			$detailsId = 'order-details-' . $array['userOrders']->id;
 		@endphp
 		<div class="order-card">
 			<div class="order-card-header">
@@ -44,47 +40,51 @@
 				<a href="{{ route('user.order.kew-ps8', $array['userOrders']->id) }}" target="_blank" class="btn btn-default btn-sm">
 					<i class="fa fa-file-text-o" aria-hidden="true"></i> Jana Borang KEW.PS-8
 				</a>
+				<a href="javascript:void(0)" class="btn btn-brand btn-sm order-details-toggle" data-target="#{{ $detailsId }}" aria-expanded="false">
+					<i class="fa fa-chevron-down" aria-hidden="true"></i> <span>Show Details</span>
+				</a>
 			</div>
 
-			<div class="order-summary-grid">
-				<div class="order-photo-block">
-					@if($image)
-					<img src="../{{$image[0]}}" class="uniform_photo order-photo-preview" alt="Uniform photo" />
-					@endif
-				</div>
-				<div class="order-meta-block">
-					<div class="order-info-row">
+			<div class="order-summary-table">
+				<div class="order-summary-row">
+					<div class="order-summary-cell">
 						<span class="order-info-label">Collection Date</span>
 						<span class="order-info-value">{{ $collectionDate }}</span>
 					</div>
-					<div class="order-info-row">
+					<div class="order-summary-cell">
 						<span class="order-info-label">Remarks</span>
 						<span class="order-info-value">{{ $remarks !== '' ? $remarks : 'No remarks yet.' }}</span>
 					</div>
-					<div class="order-info-row">
+					<div class="order-summary-cell">
 						<span class="order-info-label">Last Updated</span>
 						<span class="order-info-value">{{ $array['userOrders']->updated_at ? date('d M Y h:i A', strtotime($array['userOrders']->updated_at)) : '-' }}</span>
+					</div>
+					<div class="order-summary-cell">
+						<span class="order-info-label">Items Ordered</span>
+						<span class="order-info-value">{{ $array['orderCount'] }}</span>
 					</div>
 				</div>
 			</div>
 
-			<div class="table-responsive">
-				<table class="table table-orders">
-					<thead>
-						<tr>
-							<th>Clothe Name</th>
-							<th>Size Ordered</th>
-						</tr>
-					</thead>
-					<tbody>
-						@foreach($array['orderDetails'] as $clothsDetails)
-						<tr>
-							<td data-label="Clothing Item">{{ $clothsDetails->clothes }}</td>
-							<td data-label="Size Ordered">{{ $clothsDetails->size }}</td>
-						</tr>
-						@endforeach
-					</tbody>
-				</table>
+			<div id="{{ $detailsId }}" class="order-details-panel" style="display: none;">
+				<div class="table-responsive">
+					<table class="table table-orders">
+						<thead>
+							<tr>
+								<th>Clothe Name</th>
+								<th>Size Ordered</th>
+							</tr>
+						</thead>
+						<tbody>
+							@foreach($array['orderDetails'] as $clothsDetails)
+							<tr>
+								<td data-label="Clothing Item">{{ $clothsDetails->clothes }}</td>
+								<td data-label="Size Ordered">{{ $clothsDetails->size }}</td>
+							</tr>
+							@endforeach
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 		@endforeach
@@ -136,6 +136,18 @@
 					}
 				});
 			}
+		});
+
+		$(document).on('click', '.order-details-toggle', function() {
+			var $btn = $(this);
+			var target = $btn.data('target');
+			var $panel = $(target);
+			var isVisible = $panel.is(':visible');
+
+			$panel.stop(true, true).slideToggle(180);
+			$btn.attr('aria-expanded', isVisible ? 'false' : 'true');
+			$btn.find('span').text(isVisible ? 'Show Details' : 'Hide Details');
+			$btn.find('i.fa').toggleClass('fa-chevron-down', isVisible).toggleClass('fa-chevron-up', !isVisible);
 		});
 	});
 

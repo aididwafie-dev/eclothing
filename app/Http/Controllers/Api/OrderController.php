@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\OrderStatusService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class OrderController extends Controller
 {
+    use \App\Http\Controllers\Concerns\BuildsKewPs8Report;
+
     public function index(Request $request)
     {
         $genUser = $request->attributes->get('gen_user');
@@ -35,7 +38,7 @@ class OrderController extends Controller
                 'itemCount' => $items->count(),
                 'status' => $order->status_key,
                 'statusLabel' => $order->status_label,
-                'uniformPhotoUrl' => $uniform && $uniform->uniform_photo ? asset('uploads/' . $uniform->uniform_photo) : null,
+                'uniformPhotoUrl' => AssetController::urlFor($uniform->uniform_photo ?? null),
                 'collectionDate' => $order->collection_date,
                 'remarks' => $order->remarks,
                 'updatedAt' => $order->updated_at,
@@ -81,5 +84,45 @@ class OrderController extends Controller
         DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $genUser->id)->update(['deleted' => 1]);
 
         return response()->json(['message' => 'Your orders have been deleted.']);
+    }
+
+    /**
+     * Printable KEW.PS-8 (Borang Permohonan Stok) for a single order, for the
+     * mobile app. Mirrors DashboardController::generateKewPs8Report but resolves
+     * the user from the mobile bearer token instead of the web session, and
+     * renders the same reports.kew_ps8 blade so the layout stays identical to
+     * the web app. Ownership is enforced via the where('user_id', ...) clause.
+     */
+    public function kewPs8(Request $request, $id)
+    {
+        $genUser = $request->attributes->get('gen_user');
+
+        $order = DB::table('orders')->where('id', '=', $id)->where('user_id', '=', $genUser->id)->where('deleted', '=', 0)->first();
+        if (!$order) {
+            abort(404);
+        }
+
+        $personalDetail = DB::table('personal_details')->where('user_id', '=', $genUser->id)->first();
+
+        $rankName = '';
+        if ($personalDetail && !empty($personalDetail->pangkat)) {
+            $rank = DB::table('pangkats')->where('id', '=', $personalDetail->pangkat)->first();
+            $rankName = $rank->value ?? '';
+        }
+
+        $uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
+        $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
+
+        $pdf = Pdf::loadView('reports.kew_ps8', [
+            'order' => $order,
+            'uniform' => $uniform,
+            'rankName' => $rankName,
+            'applicantName' => $personalDetail->name ?? '',
+            'applicantSId' => $personalDetail->s_id ?? '',
+            'reportForms' => $this->chunkKewPs8Rows($items),
+            'forPdf' => true,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('KEW-PS8-Order-' . $order->id . '.pdf');
     }
 }

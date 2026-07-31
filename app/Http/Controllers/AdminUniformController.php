@@ -49,7 +49,7 @@
 					$target_file = time() . $_FILES['uniform_image']['name'];
 
 					if (move_uploaded_file($_FILES["uniform_image"]["tmp_name"], base_path('public/uploads/') . $target_file)) {
-			$uniforms->uniform_photo = $target_file;
+			$uniforms->uniform_photo = 'uploads/' . $target_file;
 						}
 				}
 			
@@ -121,7 +121,7 @@
 					$target_file = time() . $_FILES['uniform_image']['name'];
 
 					if (move_uploaded_file($_FILES["uniform_image"]["tmp_name"], base_path('public/uploads/') . $target_file)) {
-			$tred->uniform_photo = $target_file;
+			$tred->uniform_photo = 'uploads/' . $target_file;
 						}
 				}
 				

@@ -26,6 +26,9 @@ class UniformScaleService
     /** Cache per request: pangkat_id => [uniform_clothes_id => max_quantity] */
     private array $cache = [];
 
+    /** Cache per request: pangkat_id => [uniforms_id, ...] hidden from the cart */
+    private array $hiddenCache = [];
+
     public function tableExists(): bool
     {
         try {
@@ -33,6 +36,48 @@ class UniformScaleService
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    public function hiddenTableExists(): bool
+    {
+        try {
+            return Schema::hasTable('uniform_rank_hidden');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Uniform ids hidden from the order cart for a rank.
+     *
+     * @return array<int> list of uniforms_id
+     */
+    public function hiddenUniformsForRank(?int $pangkatId): array
+    {
+        if (!$pangkatId || !$this->hiddenTableExists()) {
+            return [];
+        }
+
+        if (isset($this->hiddenCache[$pangkatId])) {
+            return $this->hiddenCache[$pangkatId];
+        }
+
+        try {
+            $ids = DB::table('uniform_rank_hidden')
+                ->where('pangkat_id', '=', $pangkatId)
+                ->pluck('uniforms_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            $ids = [];
+        }
+
+        return $this->hiddenCache[$pangkatId] = $ids;
+    }
+
+    public function isUniformHidden(?int $pangkatId, int $uniformsId): bool
+    {
+        return in_array($uniformsId, $this->hiddenUniformsForRank($pangkatId), true);
     }
 
     /**
