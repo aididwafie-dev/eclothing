@@ -23,6 +23,7 @@ yarn-error.log
 /.vscode
 /.zed
 /.claude
+/.mcp.json
 
 storage/framework/cache/*
 !storage/framework/cache/.gitignore

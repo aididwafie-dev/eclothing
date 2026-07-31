@@ -1,0 +1,89 @@
+name: CI
+
+# Build + test on every push and PR to the main branches.
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # MySQL for the test database. Pinned to 8.0 to match typical deploy hosts
+    # (Hostinger / Tencent / most VPS repos). The stored schema was generated
+    # by MySQL 9.7 locally; standard DDL loads on 8.0, but if a schema load ever
+    # fails here, regenerate database/schema/mysql-schema.sql on 8.0 or bump
+    # this image to the version you dumped from.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: plasdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    # Real env vars take precedence over .env, so these point Laravel at the
+    # MySQL service (DB_PASSWORD is blank in .env.example).
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: plasdb
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, bcmath, gd, zip, exif
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment file
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Laravel loads database/schema/mysql-schema.sql via the mysql CLI, so the
+      # client must be on the runner (the service's client is inside the container).
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client || sudo apt-get install -y default-mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -uroot -proot --silent; then
+              echo "MySQL is up"; break
+            fi
+            echo "waiting for MySQL ($i)..."; sleep 2
+          done
+
+      # Loads the stored schema (all tables), then applies any newer migrations.
+      - name: Migrate database
+        run: php artisan migrate --force
+
+      - name: Run tests
+        run: php artisan test
