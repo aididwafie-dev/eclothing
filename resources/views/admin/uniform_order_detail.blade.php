@@ -106,6 +106,7 @@
 						<div class="order-actions-heading">Set status</div>
 
 						<div class="order-admin-actions">
+							<button type="submit" name="status" value="5" class="btn btn-info btn-block"><i class="fa fa-cogs" aria-hidden="true"></i> Mark Processing</button>
 							<button type="submit" name="status" value="3" class="btn btn-success btn-block"><i class="fa fa-check" aria-hidden="true"></i> Approve Order</button>
 							<button type="submit" name="status" value="2" class="btn btn-danger btn-block"><i class="fa fa-times" aria-hidden="true"></i> Reject Order</button>
 							<button type="submit" name="status" value="1" class="btn btn-warning btn-block"><i class="fa fa-clock-o" aria-hidden="true"></i> Mark Pending</button>

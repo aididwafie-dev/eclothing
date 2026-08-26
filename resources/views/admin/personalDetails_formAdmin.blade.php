@@ -48,6 +48,11 @@
 
 			<div id="rank_dropdown"></div>
 
+			<div class="form-group col-sm-6">
+				<label class="label_">JAWATAN (POSITION)</label>
+				<input class="form-control" type="text" id="position" name="position" value="<?php echo isset($data['user_position']) ? $data['user_position'] : ''; ?>" placeholder="e.g. PEGAWAI TADBIR GRED W29" maxlength="255" />
+			</div>
+
 			<div class="form-group col-sm-6" id="officer_drop">
 				<label class="label_">TRED</label>
 				<!--Ketukangan-->

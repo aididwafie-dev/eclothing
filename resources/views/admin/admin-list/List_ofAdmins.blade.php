@@ -12,7 +12,9 @@
 				<th>Name</th>
 				<th>Email ID</th>
 				<th>Service ID</th>
+				<th>Jawatan / Rank</th>
 				<th>Status</th>
+				<th>Edit</th>
 				<th>Delete</th>
 			</tr>
 		</thead>

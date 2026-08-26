@@ -29,6 +29,48 @@
 
 								<input class="form-control" type="hidden" id="password" name="password" value="{{$data['genDetails_newAdmin']->password}}" />
 
+								<div class="form-group">
+									<label class="label_">Service ID / No. Tentera (for approver signature):</label>
+									<input class="form-control" type="text" id="s_id" name="s_id" maxlength="255"
+										   placeholder="e.g. {{$data['genDetails_newAdmin']->s_id}}"
+										   value="{{$data['genDetails_newAdmin']->s_id ?? ''}}" />
+								</div>
+
+								<div class="form-group">
+									<label class="label_">Pangkat (Rank for Pegawai Pelulus signatory):</label>
+									<select class="form-control" id="pangkat_id" name="pangkat_id">
+										<option value="">-- Choose Rank (Optional) --</option>
+										@if(isset($data['pangkats']))
+											@foreach($data['pangkats'] as $rank)
+												<?php $id = (int) ($rank->id ?? 0); ?>
+												<option value="{{ $id }}"
+													<?php
+														if (isset($data['personalDetails_newAdmin']->pangkat)
+															&& (int) $data['personalDetails_newAdmin']->pangkat === $id
+															&& $id > 0) {
+															echo 'selected';
+														}
+													?>
+												>
+													{{ htmlspecialchars(trim((string)($rank->value ?? '')), ENT_QUOTES) }}
+													<?php
+														$ofc = (int) ($rank->officer_recruit ?? 0);
+														if ($ofc === 1) echo ' [Officer]';
+														else if ($ofc === 2) echo ' [Other Rank]';
+													?>
+												</option>
+											@endforeach
+										@endif
+									</select>
+								</div>
+
+								<div class="form-group">
+									<label class="label_">Jawatan (Position for Pegawai Pelulus):</label>
+									<input class="form-control" type="text" id="jawatan" name="jawatan" maxlength="255"
+										   placeholder="e.g. PEGAWAI TADBIR GRED W29"
+										   value="" />
+								</div>
+
 								<div class="subBtn">
 									<input class="btn btn-default" type="submit" value="ADD" id="submit" name="submit" />
 									<a href="{{ url('/new-admin') }}" class="btn btn-default"> CANCEL</a>

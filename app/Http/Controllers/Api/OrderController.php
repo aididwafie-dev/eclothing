@@ -80,6 +80,24 @@ class OrderController extends Controller
     public function destroyAll(Request $request)
     {
         $genUser = $request->attributes->get('gen_user');
+        $statusSvc = app(OrderStatusService::class);
+
+        $hasProcessing = false;
+        if ($statusSvc->hasOrderLifecycleColumns()) {
+            $userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $genUser->id)->get();
+            foreach ($userOrders as $o) {
+                $meta = $statusSvc->orderStatusMeta($o->status ?? null);
+                if ($meta['key'] === 'processing') {
+                    $hasProcessing = true;
+                    break;
+                }
+            }
+        }
+        if ($hasProcessing) {
+            return response()->json([
+                'message' => 'One or more orders are currently being processed and cannot be deleted. Please contact the administrator.',
+            ], 403);
+        }
 
         DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $genUser->id)->update(['deleted' => 1]);
 
@@ -104,25 +122,22 @@ class OrderController extends Controller
 
         $personalDetail = DB::table('personal_details')->where('user_id', '=', $genUser->id)->first();
 
-        $rankName = '';
-        if ($personalDetail && !empty($personalDetail->pangkat)) {
-            $rank = DB::table('pangkats')->where('id', '=', $personalDetail->pangkat)->first();
-            $rankName = $rank->value ?? '';
-        }
-
         $uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
         $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
 
         $pdf = Pdf::loadView('reports.kew_ps8', [
             'order' => $order,
             'uniform' => $uniform,
-            'rankName' => $rankName,
-            'applicantName' => $personalDetail->name ?? '',
-            'applicantSId' => $personalDetail->s_id ?? '',
+            'applicantName' => $this->kewPs8SignatoryName($personalDetail),
+            'applicantPosition' => $this->kewPs8ApplicantPosition($genUser->id),
+            'printedAt' => $this->kewPs8PrintedAt(),
+            'orderReference' => $this->kewPs8OrderReference($order),
+            'uniformName' => $this->kewPs8UniformName($uniform),
+            'approver' => $this->kewPs8Approver($order),
             'reportForms' => $this->chunkKewPs8Rows($items),
             'forPdf' => true,
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->download('KEW-PS8-Order-' . $order->id . '.pdf');
+        return $pdf->download('KEW-PS8-' . $this->kewPs8OrderReference($order) . '.pdf');
     }
 }

@@ -6,18 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Personal_detail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * JSON counterpart to DashboardController's personal-details flow
  * (index/personalDetailsDropdownValues/savePersonalDetails/ajaxLoadRankValues).
  *
- * Deliberately narrower than the web form: next-of-kin
- * (nama_waris/telephone_number_waris), address lines 1-4, name_tag,
- * unit_lama, kem_lama and spl_lama aren't exposed here yet -- see
- * API_CONTRACT.md for the documented scope cut. `pangkat` (rank) IS
- * included despite not being in the original plas-mobile contract,
- * because AssignedUniformService requires it to resolve which
- * uniforms a user may order.
+ * Mirrors every field in personal_details.blade.php's form — see that file
+ * for the canonical field names and required/optional semantics.
  */
 class ProfileController extends Controller
 {
@@ -25,9 +21,11 @@ class ProfileController extends Controller
     {
         $genUser = $request->attributes->get('gen_user');
         $personalDetail = DB::table('personal_details')->where('user_id', '=', $genUser->id)->first();
+        $hasPositionCol = Schema::hasTable('gen_users') && Schema::hasColumn('gen_users', 'position');
 
         return response()->json([
             'personalDetails' => $personalDetail ? $this->formatDetails($genUser->s_id, $personalDetail) : null,
+            'position' => $hasPositionCol ? trim((string) ($genUser->position ?? '')) : '',
             'dropdowns' => $this->dropdowns(),
         ]);
     }
@@ -36,9 +34,6 @@ class ProfileController extends Controller
     {
         $genUser = $request->attributes->get('gen_user');
 
-        // service/tred/unit/gender/duty_status are all backed by NOT NULL
-        // int columns in personal_details, so - like the web form's
-        // dropdowns - they're effectively required, not optional.
         $validated = $request->validate([
             'name' => ['required', 'string'],
             'service' => ['required'],
@@ -50,25 +45,29 @@ class ProfileController extends Controller
             'telephone_number' => ['required', 'string'],
             'duty_status' => ['required'],
             'religion' => ['nullable', 'string'],
+            'position' => ['nullable', 'string', 'max:255'],
+            'address_line1' => ['nullable', 'string'],
+            'address_city' => ['nullable', 'string'],
+            'address_state' => ['nullable', 'string'],
+            'address_postcode' => ['nullable', 'string'],
+            'nama_waris' => ['nullable', 'string'],
+            'telephone_number_waris' => ['nullable', 'string'],
+            'name_tag' => ['nullable', 'string', 'max:8'],
+            'unit_lama' => ['nullable', 'string'],
+            'kem_lama' => ['nullable', 'string', 'max:255'],
+            'spl_lama' => ['nullable', 'string'],
         ]);
 
         $existing = DB::table('personal_details')->where('user_id', '=', $genUser->id)->first();
         $personalDetail = $existing ? Personal_detail::find($existing->id) : new Personal_detail;
 
-        if (!$existing) {
-            // Columns this API doesn't expose yet (next-of-kin, address
-            // lines, name_tag, unit_lama, kem_lama) are all NOT NULL with
-            // no default. Only fill them in on a brand-new row - on an
-            // update, leaving them untouched preserves whatever the web
-            // form (or a previous mobile save) already put there instead
-            // of silently blanking real data.
-            $personalDetail->address = '';
-            $personalDetail->nama_waris = '';
-            $personalDetail->telephone_number_waris = '';
-            $personalDetail->name_tag = '';
-            $personalDetail->unit_lama = '';
-            $personalDetail->kem_lama = '';
-        }
+        $addressParts = [
+            trim((string) ($validated['address_line1'] ?? '')),
+            trim((string) ($validated['address_city'] ?? '')),
+            trim((string) ($validated['address_state'] ?? '')),
+            trim((string) ($validated['address_postcode'] ?? '')),
+        ];
+        $address = implode('|', $addressParts);
 
         $personalDetail->user_id = $genUser->id;
         $personalDetail->s_id = $genUser->s_id;
@@ -82,12 +81,32 @@ class ProfileController extends Controller
         $personalDetail->telephone_number = $validated['telephone_number'];
         $personalDetail->status_penggunaan = $validated['duty_status'];
         $personalDetail->religion = $validated['religion'] ?? null;
+        $personalDetail->address = $address;
+        $personalDetail->nama_waris = $validated['nama_waris'] ?? '';
+        $personalDetail->telephone_number_waris = $validated['telephone_number_waris'] ?? '';
+        $personalDetail->name_tag = $validated['name_tag'] ?? '';
+        $personalDetail->unit_lama = $validated['unit_lama'] ?? '';
+        $personalDetail->kem_lama = $validated['kem_lama'] ?? '';
+        $personalDetail->spl_lama = $validated['spl_lama'] ?? '';
         $personalDetail->save();
 
-        DB::table('gen_users')->where('id', '=', $genUser->id)->update(['profile_status' => 1]);
+        $genUsersUpdate = ['profile_status' => 1];
+        $hasPositionCol = Schema::hasTable('gen_users') && Schema::hasColumn('gen_users', 'position');
+        if ($hasPositionCol && array_key_exists('position', $validated)) {
+            $position = trim((string) ($validated['position'] ?? ''));
+            $genUsersUpdate['position'] = $position !== '' ? $position : null;
+        }
+        DB::table('gen_users')->where('id', '=', $genUser->id)->update($genUsersUpdate);
+
+        $savedPosition = '';
+        if ($hasPositionCol) {
+            $refreshedUser = DB::table('gen_users')->where('id', '=', $genUser->id)->first();
+            $savedPosition = $refreshedUser ? trim((string) ($refreshedUser->position ?? '')) : '';
+        }
 
         return response()->json([
             'personalDetails' => $this->formatDetails($genUser->s_id, DB::table('personal_details')->where('id', '=', $personalDetail->id)->first()),
+            'position' => $savedPosition,
         ]);
     }
 
@@ -109,6 +128,8 @@ class ProfileController extends Controller
 
     private function formatDetails(string $sId, $row): array
     {
+        $addressParts = array_pad(explode('|', (string) ($row->address ?? ''), 4), 4, '');
+
         return [
             's_id' => $sId,
             'name' => $row->name,
@@ -121,6 +142,16 @@ class ProfileController extends Controller
             'telephone_number' => $row->telephone_number,
             'duty_status' => $row->status_penggunaan !== null ? (string) $row->status_penggunaan : null,
             'religion' => $row->religion,
+            'address_line1' => $addressParts[0] ?? '',
+            'address_city' => $addressParts[1] ?? '',
+            'address_state' => $addressParts[2] ?? '',
+            'address_postcode' => $addressParts[3] ?? '',
+            'nama_waris' => $row->nama_waris ?? '',
+            'telephone_number_waris' => $row->telephone_number_waris ?? '',
+            'name_tag' => $row->name_tag ?? '',
+            'unit_lama' => $row->unit_lama ?? '',
+            'kem_lama' => $row->kem_lama ?? '',
+            'spl_lama' => $row->spl_lama ?? '',
         ];
     }
 
@@ -136,6 +167,25 @@ class ProfileController extends Controller
             'units' => $toOptions(DB::table('units')->get()),
             'genders' => $toOptions(DB::table('jantinas')->get()),
             'dutyStatuses' => $toOptions(DB::table('status_penggunaans')->get()),
+            'states' => [
+                ['id' => 'JOHOR', 'value' => 'JOHOR'],
+                ['id' => 'W.P. KUALA LUMPUR', 'value' => 'W.P. KUALA LUMPUR'],
+                ['id' => 'W.P. LABUAN', 'value' => 'W.P. LABUAN'],
+                ['id' => 'W.P. PUTRAJAYA', 'value' => 'W.P. PUTRAJAYA'],
+                ['id' => 'KEDAH', 'value' => 'KEDAH'],
+                ['id' => 'KELANTAN', 'value' => 'KELANTAN'],
+                ['id' => 'MELAKA', 'value' => 'MELAKA'],
+                ['id' => 'NEGERI SEMBILAN', 'value' => 'NEGERI SEMBILAN'],
+                ['id' => 'PAHANG', 'value' => 'PAHANG'],
+                ['id' => 'PERAK', 'value' => 'PERAK'],
+                ['id' => 'PERLIS', 'value' => 'PERLIS'],
+                ['id' => 'PULAU PINANG', 'value' => 'PULAU PINANG'],
+                ['id' => 'SABAH', 'value' => 'SABAH'],
+                ['id' => 'SARAWAK', 'value' => 'SARAWAK'],
+                ['id' => 'SELANGOR', 'value' => 'SELANGOR'],
+                ['id' => 'TERENGGANU', 'value' => 'TERENGGANU'],
+                ['id' => 'OTHERS', 'value' => 'OTHERS'],
+            ],
         ];
     }
 }

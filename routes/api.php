@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\UniformController;
@@ -54,6 +55,11 @@ Route::middleware('api.auth')->group(function (): void {
 	Route::get('/orders/{id}/kew-ps8', [OrderController::class, 'kewPs8']);
 	Route::post('/orders/email-details', [OrderController::class, 'emailDetails']);
 	Route::delete('/orders', [OrderController::class, 'destroyAll']);
+
+	Route::get('/notifications', [NotificationController::class, 'index']);
+	Route::post('/notifications/read', [NotificationController::class, 'markRead']);
+	Route::post('/devices', [NotificationController::class, 'registerDevice']);
+	Route::delete('/devices', [NotificationController::class, 'unregisterDevice']);
 
 	Route::put('/account/email', [AccountController::class, 'updateEmail']);
 	Route::put('/account/password', [AccountController::class, 'updatePassword']);

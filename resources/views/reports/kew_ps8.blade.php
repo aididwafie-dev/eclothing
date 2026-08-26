@@ -2,7 +2,7 @@
 <html lang="ms">
 <head>
 	<meta charset="utf-8">
-	<title>KEW.PS-8 - Order #{{ $order->id }}</title>
+	<title>KEW.PS-8 - {{ $orderReference ?? 'Order #'.$order->id }}</title>
 	<style>
 		* { box-sizing: border-box; }
 		body {
@@ -44,6 +44,12 @@
 		.kewps8-heading { text-align: center; margin-bottom: 12px; }
 		.kewps8-title { font-weight: bold; font-size: 15px; letter-spacing: 0.5px; }
 		.kewps8-subtitle { font-size: 12px; }
+		.kewps8-order-info {
+			width: 100%;
+			font-size: 11px;
+			margin-bottom: 10px;
+		}
+		.kewps8-order-info td { padding: 1px 0; }
 		table.kewps8-table {
 			width: 100%;
 			border-collapse: collapse;
@@ -60,7 +66,7 @@
 		}
 		table.kewps8-table thead th { text-align: center; background: #eee; line-height: 1.3; height: auto; }
 		.text-center { text-align: center; }
-		.sign-cell { vertical-align: top; height: auto; line-height: normal; }
+		.sign-cell { vertical-align: top; height: auto; line-height: normal; overflow: visible; }
 		.sign-title { font-weight: bold; margin-bottom: 24px; }
 		.sign-stroke { margin-bottom: 2px; }
 		.sign-note { font-style: italic; margin-bottom: 6px; }
@@ -95,7 +101,7 @@
 				<td style="text-align: left;">Pekeliling Perbendaharaan Malaysia</td>
 				<td style="text-align: right;">
 					<div class="kewps8-code">KEW.PS-8</div>
-					<div class="kewps8-no">No. Order : {{ $order->id }}</div>
+					<div class="kewps8-no">No. Rujukan : {{ $orderReference ?? $order->id }}</div>
 					@if(count($reportForms) > 1)
 						<div class="kewps8-page-note">Borang {{ $formIndex + 1 }} / {{ count($reportForms) }}</div>
 					@endif
@@ -145,11 +151,11 @@
 					<td>{{ $row['perihal'] }}</td>
 					<td class="text-center">{{ $row['dimohon'] }}</td>
 					<td>{{ $row['catatan'] }}</td>
-					<td></td>
-					<td></td>
-					<td></td>
-					<td></td>
-					<td></td>
+					<td class="text-center">{{ $row['baki'] ?? '' }}</td>
+					<td class="text-center">{{ $row['diluluskan'] ?? '' }}</td>
+					<td>{{ $row['catatan_pelulus'] ?? '' }}</td>
+					<td class="text-center">{{ $row['diterima'] ?? '' }}</td>
+					<td>{{ $row['catatan_terima'] ?? '' }}</td>
 				</tr>
 			@endforeach
 			</tbody>
@@ -159,17 +165,17 @@
 					<div class="sign-title">Pemohon:</div>
 					<div class="sign-stroke">.............................................</div>
 					<div class="sign-note">(Tandatangan)</div>
-					<div class="sign-row"><span>Nama</span>: {{ trim($rankName . ' ' . $applicantName) }}@if($applicantSId !== '') ({{ $applicantSId }})@endif</div>
-					<div class="sign-row"><span>Jawatan</span>: </div>
-					<div class="sign-row"><span>Tarikh</span>: {{ $order->created_at ? date('d/m/Y', strtotime($order->created_at)) : '' }}</div>
+					<div class="sign-row"><span>Nama</span>: {{ $applicantName }}</div>
+					<div class="sign-row"><span>Jawatan</span>: {{ $applicantPosition ?? '' }}</div>
+					<div class="sign-row"><span>Tarikh</span>: {{ $printedAt ?? '' }}</div>
 				</td>
 				<td colspan="3" class="sign-cell">
 					<div class="sign-title">Pegawai Pelulus:</div>
 					<div class="sign-stroke">.............................................</div>
 					<div class="sign-note">(Tandatangan)</div>
-					<div class="sign-row"><span>Nama</span>: </div>
-					<div class="sign-row"><span>Jawatan</span>: </div>
-					<div class="sign-row"><span>Tarikh</span>: </div>
+					<div class="sign-row"><span>Nama</span>: {{ $approver['name'] ?? '' }}</div>
+					<div class="sign-row"><span>Jawatan</span>: {{ $approver['position'] ?? '' }}</div>
+					<div class="sign-row"><span>Tarikh</span>: {{ $approver['approved_at'] ?? '' }}</div>
 				</td>
 				<td colspan="2" class="sign-cell">
 					<div class="sign-title">Pemohon/ Wakil:</div>

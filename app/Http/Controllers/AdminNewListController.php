@@ -7,6 +7,7 @@
 	use Illuminate\Support\Facades\Route;
 	use App\Http\Requests;
 	use DB;
+	use Illuminate\Support\Facades\Schema;
 	use App\Models\Admin;
 	use App\Models\Gen_user;
 	use App\Models\Personal_detail;
@@ -18,6 +19,43 @@
 	use Illuminate\Mail\Mailer;
 
 	class AdminNewListController extends Controller {
+
+		private function decodeProtectedId($encodedId) {
+			$stringId = base64_decode((string) $encodedId);
+			return (int) str_replace('DCS', '', (string) $stringId);
+		}
+
+		private function encodeProtectedId($id) {
+			return base64_encode('DCS' . ((int) $id) . 'DCS');
+		}
+
+		private function allPangkats(): array {
+			try {
+				$rows = DB::table('pangkats')
+					->orderBy('pangkats_order', 'asc')
+					->orderBy('value', 'asc')
+					->get();
+				return $rows ? $rows->all() : [];
+			} catch (\Throwable $e) {
+				return [];
+			}
+		}
+
+		private function adminIdentityColumns(): array {
+			$cols = ['id', 'name', 'email', 'username', 'status'];
+			if (Schema::hasTable('admins')) {
+				if (Schema::hasColumn('admins', 'jawatan')) {
+					$cols[] = 'jawatan';
+				}
+				if (Schema::hasColumn('admins', 's_id')) {
+					$cols[] = 's_id';
+				}
+				if (Schema::hasColumn('admins', 'pangkat_id')) {
+					$cols[] = 'pangkat_id';
+				}
+			}
+			return $cols;
+		}
 
 	    public function index(Request $request) {
 
@@ -42,6 +80,7 @@
 			$data = [
 				'genDetails_newAdmin' => DB::table('gen_users')->where('s_id', '=', $s_id)->first(),
 				'personalDetails_newAdmin' => DB::table('personal_details')->where('s_id', '=', $s_id)->first(),
+				'pangkats' => $this->allPangkats(),
 			];
 			if(!empty($data['genDetails_newAdmin'])) {
 				if($data['genDetails_newAdmin']->profile_status == 0) {
@@ -83,7 +122,31 @@
 			$admin->password = $request->password;
 			$admin->status = 1;
 			$admin->save();
-			\Session::flash('message', $name.' have been successfully added as admin.'); 
+
+			$newAdminId = (int) $admin->id;
+			if ($newAdminId > 0 && Schema::hasTable('admins')) {
+				$update = [];
+				$hasSId = Schema::hasColumn('admins', 's_id');
+				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
+				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
+				if ($hasSId) {
+					$sId = trim((string) $request->input('s_id'));
+					$update['s_id'] = $sId !== '' ? $sId : null;
+				}
+				if ($hasPangkat) {
+					$pangkatId = (int) $request->input('pangkat_id');
+					$update['pangkat_id'] = $pangkatId > 0 ? $pangkatId : null;
+				}
+				if ($hasJawatan) {
+					$jawatan = trim((string) $request->input('jawatan'));
+					$update['jawatan'] = $jawatan !== '' ? $jawatan : null;
+				}
+				if (!empty($update)) {
+					DB::table('admins')->where('id', '=', $newAdminId)->update($update);
+				}
+			}
+
+			\Session::flash('message', $name.' have been successfully added as admin.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('admin.new-admin');
 		}
@@ -98,16 +161,16 @@
 
 		public function ajaxDatatableAdminsList(Request $request) {
 
+			$identityCols = $this->adminIdentityColumns();
+			$select = 'SELECT ' . implode(', ', $identityCols);
 			$requestData= $_REQUEST;
-			$columns = ['id', 'name', 'email', 'username', 'status', 'id'];
-			$sql = "SELECT id, name, email, username, status ";
-			$sql.=" FROM admins";
+			$columns = ['id', 'name', 'email', 'username', 'jawatan_rank', 'status', 'id_edit', 'id_del'];
+			$sql = $select . " FROM admins";
 			$query=DB::select($sql);
 			$totalData = DB::table('admins')->count();
 			$totalFiltered = $totalData;
 
-			$sql = "SELECT id, name, email, username, status ";
-			$sql.=" FROM admins";
+			$sql = $select . " FROM admins";
 			
 			if( !empty($requestData['search']['value']) ) {
 				$sql.=" AND ( id LIKE '".$requestData['search']['value']."%' ";
@@ -120,22 +183,48 @@
 
 			$sql.=" ORDER BY ". $columns[$requestData['order'][0]['column']]."   ".$requestData['order'][0]['dir']."  LIMIT ".$requestData['start']." ,".$requestData['length']."   ";	
 			$query=DB::select($sql);
+
+			$rankMap = [];
+			try {
+				$rankRows = DB::table('pangkats')->select(['id', 'value'])->get();
+				foreach ($rankRows as $rr) {
+					$rankMap[(int) $rr->id] = trim((string) ($rr->value ?? ''));
+				}
+			} catch (\Throwable $e) {
+				$rankMap = [];
+			}
+
 			$data = array();
 			foreach($query as $row_id => $row) {
 				$nestedData=array(); 
 				$stringId = "DCS".$row->id."DCS";
 				$adminID = base64_encode($stringId);
 
+				$serviceId = isset($row->s_id) ? trim((string) $row->s_id) : '';
+				$jawatan   = isset($row->jawatan) ? trim((string) $row->jawatan) : '';
+				$pangkatId = isset($row->pangkat_id) ? (int) $row->pangkat_id : 0;
+				$rankLabel = $pangkatId > 0 && isset($rankMap[$pangkatId]) ? $rankMap[$pangkatId] : '';
+				$jrParts = [];
+				if ($rankLabel !== '') {
+					$jrParts[] = $rankLabel;
+				}
+				if ($jawatan !== '') {
+					$jrParts[] = $jawatan;
+				}
+				$jrText = implode(' / ', $jrParts);
+
 				$nestedData[] = $row_id+1;
-				$nestedData[] = $row->name;
-				$nestedData[] = $row->email;
-				$nestedData[] = $row->username;
+				$nestedData[] = htmlspecialchars($row->name, ENT_QUOTES);
+				$nestedData[] = htmlspecialchars($row->email, ENT_QUOTES);
+				$nestedData[] = htmlspecialchars($serviceId !== '' ? $serviceId : (string) $row->username, ENT_QUOTES);
+				$nestedData[] = htmlspecialchars($jrText, ENT_QUOTES);
 				if($row->status == 0) {
 					$nestedData[] = "<td><a href='javascript:void(0)' class='btn btn-sm btn-warning admin_active' data-url=".url('change-admin-status/'.$adminID)."><i class='fa fa-unlock-alt' aria-hidden='true'></i> Inactive</a></td>";
 				}
 				else {
 					$nestedData[] = "<td><a href='javascript:void(0)' class='btn btn-sm btn-warning admin_active' data-url=".url('change-admin-status/'.$adminID)."><i class='fa fa-lock' aria-hidden='true'></i> Active</a></td>";
 				}
+				$nestedData[] = "<a href='".url('/edit/admin_details/'.$adminID)."' class='btn btn-sm btn-info edit_admin'><i class='fa fa-pencil' aria-hidden='true'></i></a>";
 				$nestedData[] = "<a href='javascript:void(0)' class='btn btn-sm btn-danger delete_admin' data-url=".url('delete-admin/'.$adminID)."><span class='glyphicon glyphicon-trash'></span></a>";
 				$data[] = $nestedData;
 			}
@@ -147,6 +236,82 @@
 						"data"            => $data
 						);
 			echo json_encode($json_data);
+		}
+
+		public function fromEditAdminDetails(Request $request, $id) {
+
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+			$adminId = $this->decodeProtectedId($id);
+			if ($adminId <= 0) {
+				\Session::flash('message', 'Invalid admin ID.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('all.admins');
+			}
+			$cols = $this->adminIdentityColumns();
+			$admin = DB::table('admins')
+				->where('id', '=', $adminId)
+				->select($cols)
+				->first();
+			if(empty($admin)) {
+				\Session::flash('message', 'Admin not found');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('all.admins');
+			}
+			return view('admin/admin-list/edit_adminDetails', [
+				'data' => [
+					'admin_id_encoded' => (string) $id,
+					'admin' => $admin,
+					'pangkats' => $this->allPangkats(),
+				],
+			]);
+		}
+
+		public function changeAdminDetails(Request $request) {
+
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+			$adminId = $this->decodeProtectedId((string) $request->input('admin_id'));
+			if ($adminId <= 0) {
+				\Session::flash('message', 'Invalid admin ID.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('all.admins');
+			}
+			$existing = DB::table('admins')->where('id', '=', $adminId)->first();
+			if(empty($existing)) {
+				\Session::flash('message', 'Admin not found');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('all.admins');
+			}
+
+			if (Schema::hasTable('admins')) {
+				$update = [];
+				$hasSId = Schema::hasColumn('admins', 's_id');
+				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
+				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
+				if ($hasSId) {
+					$sId = trim((string) $request->input('s_id'));
+					$update['s_id'] = $sId !== '' ? $sId : null;
+				}
+				if ($hasPangkat) {
+					$pangkatId = (int) $request->input('pangkat_id');
+					$update['pangkat_id'] = $pangkatId > 0 ? $pangkatId : null;
+				}
+				if ($hasJawatan) {
+					$jawatan = trim((string) $request->input('jawatan'));
+					$update['jawatan'] = $jawatan !== '' ? $jawatan : null;
+				}
+				if (!empty($update)) {
+					$update['updated_at'] = date('Y-m-d H:i:s');
+					DB::table('admins')->where('id', '=', $adminId)->update($update);
+				}
+			}
+
+			\Session::flash('message', 'Admin details updated.');
+			\Session::flash('alert-class', 'alert-success');
+			return redirect()->route('all.admins');
 		}
 
 		public function changeAdminStatus(Request $request, $id) {

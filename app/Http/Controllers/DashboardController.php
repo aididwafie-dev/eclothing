@@ -40,6 +40,7 @@
 			 	'service_id' => $service_id,
 			 	'dropdown_data' => $this->personalDetailsDropdownValues(),
 			 	'personal_detail' => $personal_detail,
+			 	'user_position' => $user_details ? ($user_details->position ?? '') : '',
 			]];
 			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 			
@@ -113,7 +114,12 @@
 			$personal_detail->save();
 
 			$time = date("Y-m-d h:i:s");
-			DB::table('gen_users')->where('id', '=', $request->session()->get('user_id'))->update(['profile_status' => 1]);
+			$genUsersUpdate = ['profile_status' => 1];
+			$position = trim((string) $request->input('position'));
+			if (\Illuminate\Support\Facades\Schema::hasTable('gen_users') && \Illuminate\Support\Facades\Schema::hasColumn('gen_users', 'position')) {
+				$genUsersUpdate['position'] = $position !== '' ? $position : null;
+			}
+			DB::table('gen_users')->where('id', '=', $request->session()->get('user_id'))->update($genUsersUpdate);
 
 			return redirect()->route('user.uniform');
 		}
@@ -404,6 +410,17 @@
 			$user_order = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->where('uniforms_id', '=', $uniforms_id)->first();
 			if(!empty($user_order))
 			{
+				$orderStatusKey = $this->orderStatus()->hasOrderLifecycleColumns()
+					? $this->orderStatus()->orderStatusMeta($user_order->status ?? null)['key']
+					: 'pending';
+				if ($orderStatusKey === 'processing') {
+					\Session::flash('message', 'Order is currently being processed and cannot be updated. Please contact the administrator if you need assistance.');
+					\Session::flash('alert-class', 'alert-danger');
+					if ($request->input('last_uniform') == "true") {
+						return redirect()->route('user.ordered-uniform');
+					}
+					return redirect()->route('user.uniform');
+				}
 				if ($this->orderStatus()->hasOrderLifecycleColumns()) {
 					DB::table('orders')->where('id', '=', $user_order->id)->update([
 						'status' => '1',
@@ -549,6 +566,21 @@
 
 			$user_id = $request->session()->get('user_id');
 
+			$hasProcessing = false;
+			if ($this->orderStatus()->hasOrderLifecycleColumns()) {
+				$userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->get();
+				foreach ($userOrders as $o) {
+					$meta = $this->orderStatus()->orderStatusMeta($o->status ?? null);
+					if ($meta['key'] === 'processing') {
+						$hasProcessing = true;
+						break;
+					}
+				}
+			}
+			if ($hasProcessing) {
+				abort(403, 'One or more orders are being processed and cannot be deleted. Please contact the administrator.');
+			}
+
 			$userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->update(['deleted' => 1]);
 
 			echo 'Order deleted';
@@ -574,21 +606,18 @@
 
 			$personalDetail = DB::table('personal_details')->where('user_id', '=', $user_id)->first();
 
-			$rankName = '';
-			if ($personalDetail && !empty($personalDetail->pangkat)) {
-				$rank = DB::table('pangkats')->where('id', '=', $personalDetail->pangkat)->first();
-				$rankName = $rank->value ?? '';
-			}
-
 			$uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
 			$items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
 
 			return view('reports.kew_ps8', [
 				'order' => $order,
 				'uniform' => $uniform,
-				'rankName' => $rankName,
-				'applicantName' => $personalDetail->name ?? '',
-				'applicantSId' => $personalDetail->s_id ?? '',
+				'applicantName' => $this->kewPs8SignatoryName($personalDetail),
+				'applicantPosition' => $this->kewPs8ApplicantPosition($user_id),
+				'printedAt' => $this->kewPs8PrintedAt(),
+				'orderReference' => $this->kewPs8OrderReference($order),
+				'uniformName' => $this->kewPs8UniformName($uniform),
+				'approver' => $this->kewPs8Approver($order),
 				'reportForms' => $this->chunkKewPs8Rows($items),
 			]);
 		}

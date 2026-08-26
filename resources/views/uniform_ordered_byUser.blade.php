@@ -12,9 +12,6 @@
 			<a class="mail_user_order_details">
 				<button type="button" class="btn btn-brand"><i class="fa fa-envelope" aria-hidden="true"></i> Send Mail</button>
 			</a>
-			<a class="delete_user_order">
-				<button type="button" class="btn btn-danger"><i class="fa fa-trash" aria-hidden="true"></i> Delete Order</button>
-			</a>
 		</div>
 		<hr>
 		<div class="shop-subtitle">Track each uniform order by its current approval status.</div>
@@ -114,28 +111,6 @@
 					showAppPopup(result, 'success');
 				}
 			});
-		});
-
-		$(".delete_user_order").click(function() {
-			var check = confirm('Are you sure you would like to delete your order?');
-			if (check == true) {
-				showAppPopup('Deleting your order...', 'warning', { title: 'Please Wait', autoClose: false });
-				$.ajaxSetup({
-					headers: {
-						'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
-					}
-				});
-				$.ajax({
-					type: 'post',
-					url: '/ajax-delete-user-order',
-					success: function(result) {
-						showAppPopup(result, 'success');
-						setTimeout(function() {
-							window.location.reload();
-						}, 2000);
-					}
-				});
-			}
 		});
 
 		$(document).on('click', '.order-details-toggle', function() {

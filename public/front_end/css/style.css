@@ -1968,6 +1968,34 @@ label {
 .item-icon-accessory {
 	color: var(--accent-ink);
 }
+/* --- Tambah uniform / item (Tetapan Pakaian) ---------------------------
+   The two "add" forms sit outside the main save form, so they need a
+   visible boundary or they read as part of it.
+   ---------------------------------------------------------------------- */
+.uniform-add-panel {
+	padding: 16px 18px;
+	margin-bottom: 22px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+.uniform-add-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--fs-small);
+	font-weight: 700;
+	color: var(--text);
+}
+.uniform-add-title i.fa {
+	color: var(--brand);
+}
+.uniform-add-hint {
+	margin: 4px 0 14px;
+	font-size: var(--fs-small);
+	color: var(--muted);
+}
+
 /* --- Skala Kelayakan Pakaian -------------------------------------------
    Three states must be readable at a glance: blank = no limit, 0 = not
    entitled, n = capped at n. Colour follows the indicator scale, and each

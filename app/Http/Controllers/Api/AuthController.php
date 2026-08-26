@@ -156,6 +156,18 @@ class AuthController extends Controller
         $tokenHash = hash('sha256', $request->bearerToken());
         DB::table('mobile_api_tokens')->where('token_hash', '=', $tokenHash)->delete();
 
+        // Stop pushing this member's order updates to a handset they just
+        // signed out of. Accepted here as well as on DELETE /devices so a
+        // logout is enough on its own.
+        $deviceToken = trim((string) $request->input('device_token'));
+        if ($deviceToken !== '') {
+            try {
+                DB::table('device_tokens')->where('token', '=', $deviceToken)->delete();
+            } catch (\Throwable $e) {
+                // Table may not exist yet; logout still succeeds.
+            }
+        }
+
         return response()->noContent();
     }
 }

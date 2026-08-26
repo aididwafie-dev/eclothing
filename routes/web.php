@@ -119,6 +119,9 @@ Route::middleware('admin.auth')->group(function (): void {
 	Route::post('/send-announcements', [AdminController::class, 'sendAnnouncement'])->name('send.announcements');
 	Route::get('/admin/system-settings', [AdminController::class, 'systemSettings'])->name('admin.system-settings');
 	Route::post('/admin/system-settings', [AdminController::class, 'saveSystemSettings'])->name('admin.system-settings.save');
+	// Uniform tab: add a new uniform category, and clothes/accessories under it.
+	Route::post('/admin/system-settings/uniform', [AdminController::class, 'storeUniform'])->name('admin.system-settings.uniform.store');
+	Route::post('/admin/system-settings/uniform-item', [AdminController::class, 'storeUniformItem'])->name('admin.system-settings.uniform-item.store');
 	// Scale tab auto-save (AJAX, no form submit).
 	Route::post('/admin/scale/uniform-visibility', [AdminController::class, 'toggleUniformVisibility'])->name('admin.scale.uniform-visibility');
 	Route::post('/admin/scale/item', [AdminController::class, 'saveUniformScaleItem'])->name('admin.scale.item');
@@ -131,6 +134,8 @@ Route::middleware('admin.auth')->group(function (): void {
 	Route::post('/ajax-admin-list', [AdminNewListController::class, 'ajaxDatatableAdminsList'])->name('ajax.admin-list');
 	Route::get('/change-admin-status/{id}', [AdminNewListController::class, 'changeAdminStatus'])->name('change.admin-status');
 	Route::get('/delete-admin/{id}', [AdminNewListController::class, 'deleteUserAsAdmin'])->name('admin.delete-admin');
+	Route::get('/edit/admin_details/{id}', [AdminNewListController::class, 'fromEditAdminDetails'])->name('edit.admin_details');
+	Route::post('/change-adminDetails', [AdminNewListController::class, 'changeAdminDetails'])->name('change.adminDetails');
 
 	/************	AdminUniformController / AdminAccessoriesController / AdminUnitController / AdminSizeController / AdminTredController	************/
 	Route::get('/admin/uniform', [AdminUniformController::class, 'index'])->name('admin.uniform');

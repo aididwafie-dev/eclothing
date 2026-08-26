@@ -52,11 +52,53 @@
 				<br>
 
 				@php
-					$selectedUniformId = (int) Request::get('uniform_id');
-					if ((!$selectedUniformId || !isset($uniformItemsByUniform[$selectedUniformId])) && isset($uniforms) && count($uniforms)) {
-						$selectedUniformId = (int) $uniforms[0]->id;
+					$requestedUniformId = (int) Request::get('uniform_id');
+					$uniformIdList = [];
+					if (isset($uniforms) && $uniforms) {
+						foreach ($uniforms as $uniformOption) {
+							$uniformIdList[] = (int) $uniformOption->id;
+						}
+					}
+					$selectedUniformId = in_array($requestedUniformId, $uniformIdList, true) ? $requestedUniformId : 0;
+					if (!$selectedUniformId && count($uniformIdList)) {
+						$selectedUniformId = $uniformIdList[0];
 					}
 				@endphp
+
+				<div class="uniform-add-panel">
+					<div class="uniform-add-title"><i class="fa fa-plus-circle" aria-hidden="true"></i> Tambah Kategori Uniform Baharu</div>
+					<div class="uniform-add-hint">Kategori baharu akan terus muncul dalam tab <strong>Tetapan Skala Kelayakan Pakaian</strong> selepas disimpan.</div>
+
+					<form autocomplete="off" method="post" action="{{ url('/admin/system-settings/uniform') }}" enctype="multipart/form-data">
+						<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
+
+						<div class="row">
+							<div class="col-sm-3">
+								<div class="form-group">
+									<label class="label_">Kod Jenis Uniform</label>
+									<input class="form-control" type="text" name="uniform_type" maxlength="3" placeholder="cth: 3A" value="{{ old('uniform_type') }}" required />
+									<p class="help-block">Maksimum 3 aksara.</p>
+								</div>
+							</div>
+							<div class="col-sm-5">
+								<div class="form-group">
+									<label class="label_">Nama Uniform</label>
+									<input class="form-control" type="text" name="uniform_name" placeholder="cth: BAJU KERJA" value="{{ old('uniform_name') }}" />
+								</div>
+							</div>
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="label_">Gambar Uniform (PNG/JPG)</label>
+									<input class="form-control" type="file" name="uniform_photo" accept="image/png,image/jpeg" />
+								</div>
+							</div>
+						</div>
+
+						<div class="subBtn" style="text-align: left;">
+							<input class="btn btn-primary text-uppercase" type="submit" value="Tambah Uniform" />
+						</div>
+					</form>
+				</div>
 
 				@if(isset($uniforms) && $uniforms && count($uniforms))
 				<div class="form-group">
@@ -178,6 +220,53 @@
 					</div>
 				</form>
 
+				@if(isset($uniforms) && $uniforms && count($uniforms))
+				<div class="uniform-add-panel">
+					<div class="uniform-add-title"><i class="fa fa-plus-circle" aria-hidden="true"></i> Tambah Pakaian / Aksesori</div>
+					<div class="uniform-add-hint">Item baharu ditambah kepada uniform yang dipilih di atas: <strong class="js-add-item-uniform-label"></strong></div>
+
+					<form autocomplete="off" method="post" action="{{ url('/admin/system-settings/uniform-item') }}" enctype="multipart/form-data">
+						<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
+						<input type="hidden" name="uniforms_id" class="js-add-item-uniform-id" value="{{ $selectedUniformId }}">
+
+						<div class="row">
+							<div class="col-sm-4">
+								<div class="form-group">
+									<label class="label_">Nama Item</label>
+									<input class="form-control" type="text" name="clothes_type" placeholder="cth: Inner Shirt" value="{{ old('clothes_type') }}" required />
+								</div>
+							</div>
+							<div class="col-sm-2">
+								<div class="form-group">
+									<label class="label_">Jenis</label>
+									<select class="form-control" name="item_kind">
+										<option value="clothes" {{ old('item_kind') === 'accessory' ? '' : 'selected' }}>Pakaian</option>
+										<option value="accessory" {{ old('item_kind') === 'accessory' ? 'selected' : '' }}>Aksesori</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-3">
+								<div class="form-group">
+									<label class="label_">Saiz</label>
+									<input class="form-control" type="text" name="clothes_size" placeholder="cth: FIX atau S | M | L" value="{{ old('clothes_size') }}" />
+									<p class="help-block">Kosong = tiada saiz (checkbox sahaja). <code>FIX</code> = saiz tetap. Senarai pilihan dipisahkan dengan <code>|</code>, julat dengan <code>-</code>.</p>
+								</div>
+							</div>
+							<div class="col-sm-3">
+								<div class="form-group">
+									<label class="label_">Gambar Item (PNG/JPG)</label>
+									<input class="form-control" type="file" name="clothes_photo" accept="image/png,image/jpeg" />
+								</div>
+							</div>
+						</div>
+
+						<div class="subBtn" style="text-align: left;">
+							<input class="btn btn-primary text-uppercase" type="submit" value="Tambah Item" />
+						</div>
+					</form>
+				</div>
+				@endif
+
 				<script>
 					(function () {
 						var selector = document.querySelector('.js-uniform-settings-selector');
@@ -187,10 +276,23 @@
 
 						var hiddenInput = document.querySelector('.js-selected-uniform-id');
 						var panels = document.querySelectorAll('.js-uniform-settings-panel');
+						// The "add item" form sits outside the save form (forms cannot
+						// nest), so it tracks the selected uniform through these.
+						var addItemUniformId = document.querySelector('.js-add-item-uniform-id');
+						var addItemUniformLabel = document.querySelector('.js-add-item-uniform-label');
 
 						var updatePanels = function (uniformId) {
 							if (hiddenInput) {
 								hiddenInput.value = uniformId;
+							}
+
+							if (addItemUniformId) {
+								addItemUniformId.value = uniformId;
+							}
+
+							if (addItemUniformLabel) {
+								var option = selector.options[selector.selectedIndex];
+								addItemUniformLabel.textContent = option ? option.text : '';
 							}
 
 							var url = new URL(window.location.href);
@@ -304,7 +406,6 @@
 							$scaleItems = isset($uniformItemsByUniform[$uniform->id]) ? $uniformItemsByUniform[$uniform->id] : [];
 							$scaleUniformLabel = $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '');
 						@endphp
-						@if(count($scaleItems))
 						@php $groupHidden = in_array((int) $uniform->id, $hiddenUniformIds, true); @endphp
 						<div class="scale-group{{ $groupHidden ? ' is-uniform-hidden' : '' }}" data-uniform-id="{{ $uniform->id }}">
 							<div class="scale-group-title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> {{ $scaleUniformLabel }} <span class="scale-group-hidden-tag">Disembunyikan dari troli</span></div>
@@ -344,11 +445,15 @@
 											</td>
 										</tr>
 										@endforeach
+										@if(!count($scaleItems))
+										<tr>
+											<td colspan="3" class="text-muted">Tiada pakaian atau aksesori lagi. Tambah item di tab <strong>Uniform Setting</strong>, kemudian tetapkan skala di sini.</td>
+										</tr>
+										@endif
 									</tbody>
 								</table>
 							</div>
 						</div>
-						@endif
 						@endforeach
 					@else
 					<div class="alert alert-info">Tiada uniform dijumpai.</div>

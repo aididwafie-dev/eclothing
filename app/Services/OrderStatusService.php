@@ -59,10 +59,12 @@ class OrderStatusService
             '2' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
             '3' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
             '4' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
+            '5' => ['code' => '5', 'key' => 'processing', 'label' => 'Processing', 'class' => 'status-processing'],
             'pending' => ['code' => '1', 'key' => 'pending', 'label' => 'Pending', 'class' => 'status-pending'],
             'rejected' => ['code' => '2', 'key' => 'rejected', 'label' => 'Rejected', 'class' => 'status-rejected'],
             'approved' => ['code' => '3', 'key' => 'approved', 'label' => 'Approved', 'class' => 'status-approved'],
             'expired' => ['code' => '4', 'key' => 'expired', 'label' => 'Expired', 'class' => 'status-expired'],
+            'processing' => ['code' => '5', 'key' => 'processing', 'label' => 'Processing', 'class' => 'status-processing'],
         ];
 
         return $statusMap[$status] ?? $statusMap['1'];

@@ -35,4 +35,14 @@ return [
         'secret' => env('STRIPE_SECRET'),
     ],
 
+    /*
+    | Firebase Cloud Messaging, for push notifications to the plas-mobile app.
+    | Leave these unset and push is skipped -- notifications are still recorded
+    | and still reach the app's inbox. See docs/push-notifications.md.
+    */
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID'),
+        'credentials' => env('FCM_CREDENTIALS'),
+    ],
+
 ];
