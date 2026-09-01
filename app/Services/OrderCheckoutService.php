@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\OrderNotEditableException;
 use App\Models\Order;
 use App\Models\Ordered_clothe;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,17 @@ class OrderCheckoutService
     {
     }
 
+    /**
+     * @throws \App\Exceptions\OrderNotEditableException when the cart would
+     *         overwrite an order that has already left Pending.
+     */
     public function checkoutForUser(int $userId, array $cartByUniform): void
     {
+        // Checked up front, before anything is written, so a cart spanning
+        // several uniforms cannot be half-applied: either every affected
+        // order is editable or the whole checkout is refused.
+        $this->assertOrdersAreEditable($userId, $cartByUniform);
+
         foreach ($cartByUniform as $uniformsId => $items) {
             if (!is_array($items) || !count($items)) {
                 continue;
@@ -35,6 +45,49 @@ class OrderCheckoutService
             foreach ($items as $item) {
                 $this->upsertOrderedCloth($orderId, (int) $uniformsId, $item);
             }
+        }
+    }
+
+    private function assertOrdersAreEditable(int $userId, array $cartByUniform): void
+    {
+        if (!$this->orderStatus->hasOrderLifecycleColumns()) {
+            return;
+        }
+
+        $blocked = [];
+
+        foreach ($cartByUniform as $uniformsId => $items) {
+            if (!is_array($items) || !count($items)) {
+                continue;
+            }
+
+            $existing = DB::table('orders')
+                ->where('deleted', '=', 0)
+                ->where('user_id', '=', $userId)
+                ->where('uniforms_id', '=', (int) $uniformsId)
+                ->first();
+
+            // No existing order means this checkout creates a fresh one,
+            // which is always allowed.
+            if (!$existing || $this->orderStatus->isOrderEditable($existing->status ?? null)) {
+                continue;
+            }
+
+            $uniform = DB::table('uniforms')->where('id', '=', (int) $uniformsId)->first();
+            // uniform_type is often a bare numeric code, so prefer the
+            // readable name when the row carries one.
+            $label = trim((string) ($uniform->uniform_name ?? '')) !== ''
+                ? trim((string) $uniform->uniform_name)
+                : trim((string) ($uniform->uniform_type ?? ''));
+
+            $blocked[] = [
+                'uniform' => $label !== '' ? $label : ('uniform #' . (int) $uniformsId),
+                'status' => $this->orderStatus->orderStatusMeta($existing->status ?? null)['label'],
+            ];
+        }
+
+        if ($blocked) {
+            throw new OrderNotEditableException($blocked);
         }
     }
 

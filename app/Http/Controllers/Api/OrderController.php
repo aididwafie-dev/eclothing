@@ -33,11 +33,17 @@ class OrderController extends Controller
 
             return [
                 'id' => (string) $order->id,
+                // Lets the mobile app reopen the Order Uniform tab on the
+                // right uniform when a member edits a pending order.
+                'uniformsId' => (string) $order->uniforms_id,
                 'uniformType' => $uniform->uniform_type ?? '',
                 'uniformName' => $uniform->uniform_name ?? null,
                 'itemCount' => $items->count(),
                 'status' => $order->status_key,
                 'statusLabel' => $order->status_label,
+                // Authoritative answer to "can this still be changed?", so the
+                // client never has to re-derive the rule from the status key.
+                'editable' => app(OrderStatusService::class)->isOrderEditable($order->status ?? null),
                 'uniformPhotoUrl' => AssetController::urlFor($uniform->uniform_photo ?? null),
                 'collectionDate' => $order->collection_date,
                 'remarks' => $order->remarks,

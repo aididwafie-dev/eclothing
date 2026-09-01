@@ -177,6 +177,19 @@
 					}
 					window.location.href = '/user/ordered-uniform';
 				},
+				// The server refuses a checkout that would overwrite an order
+				// which has left Pending; show its reason rather than failing
+				// silently.
+				error: function(xhr) {
+					var message = (xhr.responseJSON && xhr.responseJSON.message)
+						? xhr.responseJSON.message
+						: 'Sorry, your order could not be saved. Please try again.';
+					if (window.showAppPopup) {
+						window.showAppPopup(message, 'danger', { autoClose: false });
+					} else {
+						alert(message);
+					}
+				},
 				complete: function() {
 					$btn.prop('disabled', false);
 				}

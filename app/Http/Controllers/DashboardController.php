@@ -371,7 +371,14 @@
 				return response()->json(['ok' => false, 'message' => 'Cart is empty'], 422);
 			}
 
-			app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart);
+			try {
+				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart);
+			} catch (\App\Exceptions\OrderNotEditableException $e) {
+				// Same rule as the mobile API: an order that has left Pending
+				// must not be silently reset by a re-checkout. The session cart
+				// is kept so the member can adjust it.
+				return response()->json(['ok' => false, 'message' => $e->getMessage()], 403);
+			}
 
 			$request->session()->forget('uniform_cart');
 			\Session::flash('message', 'Your Order is successfully saved.');

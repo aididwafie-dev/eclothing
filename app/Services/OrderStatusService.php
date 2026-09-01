@@ -50,6 +50,25 @@ class OrderStatusService
         return $order;
     }
 
+    /**
+     * A member may only change an order while it is still Pending. Once the
+     * store moves it to Processing -- or it is Approved/Rejected/Expired --
+     * a re-checkout must not silently reset it to Pending and wipe the
+     * admin's remarks and collection date.
+     *
+     * On schemas predating the lifecycle columns there is no status to read,
+     * so every order behaves as Pending and stays editable, exactly as it
+     * did before this rule existed.
+     */
+    public function isOrderEditable($status): bool
+    {
+        if (!$this->hasOrderLifecycleColumns()) {
+            return true;
+        }
+
+        return $this->orderStatusMeta($status)['key'] === 'pending';
+    }
+
     public function orderStatusMeta($status): array
     {
         $status = strtolower(trim((string) $status));

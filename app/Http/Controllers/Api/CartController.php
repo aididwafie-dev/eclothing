@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\OrderNotEditableException;
 use App\Http\Controllers\Controller;
 use App\Services\OrderCheckoutService;
+use App\Services\OrderStatusService;
 use App\Services\UniformCartRules;
 use App\Services\UniformScaleService;
 use Illuminate\Http\Request;
@@ -89,6 +91,124 @@ class CartController extends Controller
         return response()->json($this->snapshot($genUser->id));
     }
 
+    /**
+     * Seeds the cart with an existing order's contents so the member can see
+     * what they ordered - sizes and quantities - and adjust it.
+     *
+     * The mobile client cannot do this itself: `GET /api/orders` reports
+     * `clothes`/`size` for display but not `clothes_slug`, which is what the
+     * cart is keyed by. Doing it here also keeps the Pending-only rule and
+     * the rank entitlement scale in one place.
+     */
+    public function loadFromOrder(Request $request)
+    {
+        $genUser = $request->attributes->get('gen_user');
+
+        $order = DB::table('orders')
+            ->where('id', '=', $request->input('orderId'))
+            ->where('user_id', '=', $genUser->id)
+            ->where('deleted', '=', 0)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found.'], 404);
+        }
+
+        $statusSvc = app(OrderStatusService::class);
+        if (!$statusSvc->isOrderEditable($order->status ?? null)) {
+            $label = $statusSvc->orderStatusMeta($order->status ?? null)['label'];
+
+            return response()->json([
+                'message' => 'This order is ' . $label . ' and can no longer be changed. Only orders that are still Pending can be edited.',
+            ], 403);
+        }
+
+        $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
+        $scaleService = app(UniformScaleService::class);
+        $rankId = $scaleService->rankForUser($genUser->id);
+
+        DB::transaction(function () use ($genUser, $order, $items, $scaleService, $rankId) {
+            // Replace this uniform's cart lines rather than merging: the cart
+            // should show the order as it currently stands, not the order plus
+            // whatever the member happened to leave behind earlier. Lines for
+            // other uniforms are untouched.
+            DB::table('cart_items')
+                ->where('gen_user_id', '=', $genUser->id)
+                ->where('uniforms_id', '=', $order->uniforms_id)
+                ->delete();
+
+            foreach ($items as $item) {
+                $cloth = DB::table('uniform_clothes')
+                    ->where('uniforms_id', '=', $order->uniforms_id)
+                    ->where('clothes_slug', '=', $item->clothes_slug)
+                    ->first();
+
+                // The item is no longer offered for this uniform, or the
+                // member's rank is no longer entitled to it.
+                if (!$cloth || $scaleService->isBlocked($rankId, (int) $cloth->id)) {
+                    continue;
+                }
+
+                $size = UniformCartRules::normalizeSize($this->decodeOrderedSize($cloth, $item->size));
+                if (UniformCartRules::isEmptySize($size)) {
+                    continue;
+                }
+
+                DB::table('cart_items')->insert([
+                    'gen_user_id' => $genUser->id,
+                    'uniforms_id' => $order->uniforms_id,
+                    'clothes_slug' => $item->clothes_slug,
+                    'clothes_type' => $cloth->clothes_type,
+                    'size' => json_encode($size),
+                    // Re-clamped rather than trusted: the member's rank may
+                    // have changed since the order was placed.
+                    'quantity' => $scaleService->clampQuantity($rankId, (int) $cloth->id, $item->quantity ?? 1),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        return response()->json($this->snapshot($genUser->id));
+    }
+
+    /**
+     * Inverse of OrderCheckoutService's size flattening: a multi-select
+     * accessory is stored on the order as a comma-joined string, and has to
+     * become an array again for the cart. Everything else round-trips as a
+     * plain string.
+     */
+    private function decodeOrderedSize($cloth, $stored)
+    {
+        $stored = trim((string) $stored);
+
+        if ($stored !== '' && $this->isMultiSelectCloth($cloth)) {
+            return array_map('trim', explode(',', $stored));
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Mirrors the `multiselect` test in UniformController::clothes: only an
+     * accessory whose clothes_size resolves to a *select* is offered as a
+     * multi-select. An accessory with no size list is a plain toggle, and one
+     * with a numeric size is free text -- neither is ever stored comma-joined,
+     * so neither may be split back into an array.
+     */
+    private function isMultiSelectCloth($cloth): bool
+    {
+        if (strtolower((string) $cloth->clothes_type) !== 'accessories') {
+            return false;
+        }
+
+        $clothesSize = (string) ($cloth->clothes_size ?? '');
+
+        return $clothesSize !== ''
+            && $clothesSize !== 'FIX'
+            && !is_numeric(str_replace(['-', ' '], '', $clothesSize));
+    }
+
     public function checkout(Request $request)
     {
         $genUser = $request->attributes->get('gen_user');
@@ -107,7 +227,13 @@ class CartController extends Controller
             ];
         }
 
-        app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform);
+        try {
+            app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform);
+        } catch (OrderNotEditableException $e) {
+            // The cart is deliberately left intact so the member can drop the
+            // offending uniform and still check the rest out.
+            return response()->json(['message' => $e->getMessage()], 403);
+        }
 
         $orderIds = DB::table('orders')
             ->where('user_id', '=', $genUser->id)
