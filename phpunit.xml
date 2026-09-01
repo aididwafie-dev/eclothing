@@ -13,6 +13,22 @@
     <env name="CACHE_DRIVER" value="array"/>
     <env name="SESSION_DRIVER" value="array"/>
     <env name="QUEUE_DRIVER" value="sync"/>
+    <!--
+      Without this the suite inherits DB_DATABASE from .env and runs against
+      the live database this host serves through the cloudflared tunnel. Most
+      tests wrap themselves in DatabaseTransactions, but the two ExampleTest
+      classes use DatabaseMigrations, which migrates and rolls back. That is
+      not something to point at production.
+
+      plasdb_test needs the same schema as plasdb. This app's tables predate
+      its migrations, so clone the structure with a schema only mysqldump
+      (flags: no data, routines) and load it into a freshly created
+      plasdb_test, rather than running migrate on an empty database.
+
+      If that database is missing the suite fails to connect, which is the
+      right failure: loud, rather than quietly writing to live data.
+    -->
+    <env name="DB_DATABASE" value="plasdb_test"/>
   </php>
   <source>
     <include>
