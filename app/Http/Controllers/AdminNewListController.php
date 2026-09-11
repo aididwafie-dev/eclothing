@@ -8,6 +8,7 @@
 	use App\Http\Requests;
 	use DB;
 	use Illuminate\Support\Facades\Schema;
+	use App\Services\AdminRoleService;
 	use App\Models\Admin;
 	use App\Models\Gen_user;
 	use App\Models\Personal_detail;
@@ -52,6 +53,9 @@
 				}
 				if (Schema::hasColumn('admins', 'pangkat_id')) {
 					$cols[] = 'pangkat_id';
+				}
+				if (Schema::hasColumn('admins', 'role')) {
+					$cols[] = 'role';
 				}
 			}
 			return $cols;
@@ -129,6 +133,7 @@
 				$hasSId = Schema::hasColumn('admins', 's_id');
 				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
 				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
+				$hasRole = Schema::hasColumn('admins', 'role');
 				if ($hasSId) {
 					$sId = trim((string) $request->input('s_id'));
 					$update['s_id'] = $sId !== '' ? $sId : null;
@@ -140,6 +145,10 @@
 				if ($hasJawatan) {
 					$jawatan = trim((string) $request->input('jawatan'));
 					$update['jawatan'] = $jawatan !== '' ? $jawatan : null;
+				}
+				if ($hasRole) {
+					// Normalized, so an unexpected value can never widen access.
+					$update['role'] = app(AdminRoleService::class)->normalize($request->input('role'));
 				}
 				if (!empty($update)) {
 					DB::table('admins')->where('id', '=', $newAdminId)->update($update);
@@ -291,6 +300,7 @@
 				$hasSId = Schema::hasColumn('admins', 's_id');
 				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
 				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
+				$hasRole = Schema::hasColumn('admins', 'role');
 				if ($hasSId) {
 					$sId = trim((string) $request->input('s_id'));
 					$update['s_id'] = $sId !== '' ? $sId : null;
@@ -302,6 +312,10 @@
 				if ($hasJawatan) {
 					$jawatan = trim((string) $request->input('jawatan'));
 					$update['jawatan'] = $jawatan !== '' ? $jawatan : null;
+				}
+				if ($hasRole) {
+					// Normalized, so an unexpected value can never widen access.
+					$update['role'] = app(AdminRoleService::class)->normalize($request->input('role'));
 				}
 				if (!empty($update)) {
 					$update['updated_at'] = date('Y-m-d H:i:s');

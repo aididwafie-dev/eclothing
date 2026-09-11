@@ -71,6 +71,16 @@
 										   value="" />
 								</div>
 
+								<div class="form-group">
+									<label class="label_" for="role">Akses (Access):</label>
+									<select class="form-control" id="role" name="role">
+										@foreach(app(\App\Services\AdminRoleService::class)->assignableRoles() as $roleKey => $roleLabel)
+										<option value="{{ $roleKey }}">{{ $roleLabel }}</option>
+										@endforeach
+									</select>
+									<p class="help-block">"Uniform Orders only" limits the account to the order queue, where it can set Processing and Completed.</p>
+								</div>
+
 								<div class="subBtn">
 									<input class="btn btn-default" type="submit" value="ADD" id="submit" name="submit" />
 									<a href="{{ url('/new-admin') }}" class="btn btn-default"> CANCEL</a>

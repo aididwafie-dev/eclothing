@@ -89,7 +89,7 @@ Route::middleware('user.auth')->group(function (): void {
 
 /************	Routes requiring a logged-in admin	************/
 
-Route::middleware('admin.auth')->group(function (): void {
+Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 
 	/************	AdminController	************/
 	Route::get('/admin-logout', [AdminController::class, 'adminLogout'])->name('admin.logout');
@@ -108,6 +108,7 @@ Route::middleware('admin.auth')->group(function (): void {
 	Route::get('/show/uniform_details/{id}', [AdminController::class, 'listUserUniformDetails'])->name('show.uniform_details');
 	Route::get('/admin/uniform-orders', [AdminController::class, 'uniformOrdersList'])->name('admin.uniform-orders');
 	Route::get('/admin/uniform-orders/{id}', [AdminController::class, 'uniformOrderDetail'])->name('admin.uniform-orders.show');
+	Route::get('/admin/uniform-orders/{id}/kew-ps8', [AdminController::class, 'downloadUniformOrderKewPs8'])->name('admin.uniform-orders.kew-ps8');
 	Route::post('/admin/uniform-orders/update', [AdminController::class, 'updateUniformOrderStatus'])->name('admin.uniform-orders.update');
 	Route::get('/edit/uniform_details/{id}', [AdminController::class, 'fromEditUserUniformDetails'])->name('edit.uniform_details');
 	Route::post('/uniform-details-saveEdit', [AdminController::class, 'saveUniformEditedDetails'])->name('saveEdit.uniformDetails');

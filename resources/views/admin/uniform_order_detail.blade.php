@@ -105,15 +105,52 @@
 
 						<div class="order-actions-heading">Set status</div>
 
+						@php
+							// Driven by the admin's role, so an account limited to
+							// servicing the queue is not shown decisions it cannot make.
+							$allowedStatuses = $allowedStatuses ?? ['1', '2', '3', '4', '5', '6'];
+							$statusButtons = [
+								['code' => '5', 'class' => 'btn-info',    'icon' => 'fa-cogs',           'label' => 'Mark Processing'],
+								['code' => '3', 'class' => 'btn-success', 'icon' => 'fa-check',          'label' => 'Approve Order'],
+								['code' => '6', 'class' => 'btn-primary', 'icon' => 'fa-flag-checkered', 'label' => 'Mark Completed'],
+								['code' => '2', 'class' => 'btn-danger',  'icon' => 'fa-times',          'label' => 'Reject Order'],
+								['code' => '1', 'class' => 'btn-warning', 'icon' => 'fa-clock-o',        'label' => 'Mark Pending'],
+								['code' => '4', 'class' => 'btn-default', 'icon' => 'fa-ban',            'label' => 'Mark Expired'],
+							];
+						@endphp
 						<div class="order-admin-actions">
-							<button type="submit" name="status" value="5" class="btn btn-info btn-block"><i class="fa fa-cogs" aria-hidden="true"></i> Mark Processing</button>
-							<button type="submit" name="status" value="3" class="btn btn-success btn-block"><i class="fa fa-check" aria-hidden="true"></i> Approve Order</button>
-							<button type="submit" name="status" value="2" class="btn btn-danger btn-block"><i class="fa fa-times" aria-hidden="true"></i> Reject Order</button>
-							<button type="submit" name="status" value="1" class="btn btn-warning btn-block"><i class="fa fa-clock-o" aria-hidden="true"></i> Mark Pending</button>
-							<button type="submit" name="status" value="4" class="btn btn-default btn-block"><i class="fa fa-ban" aria-hidden="true"></i> Mark Expired</button>
+							@foreach($statusButtons as $statusButton)
+							@if(in_array($statusButton['code'], $allowedStatuses, true))
+							<button type="submit" name="status" value="{{ $statusButton['code'] }}" class="btn {{ $statusButton['class'] }} btn-block"><i class="fa {{ $statusButton['icon'] }}" aria-hidden="true"></i> {{ $statusButton['label'] }}</button>
+							@endif
+							@endforeach
 						</div>
 					</form>
 				</div>
+			</div>
+		</div>
+
+		@php $kewPs8PreviewUrl = route('admin.uniform-orders.kew-ps8', ['id' => $orderKey, 'preview' => 1]); @endphp
+		<div class="order-card">
+			<div class="order-card-header">
+				<div>
+					<div class="report-card-title">KEW.PS-8</div>
+					<div class="order-card-meta">Borang Permohonan Stok &mdash; {{ $orderReference }}</div>
+				</div>
+			</div>
+
+			{{-- The preview is the same PDF the button below downloads, served
+			     inline, so there is no second rendering path to keep in step.
+			     Loaded lazily: an admin who only came to set a status should not
+			     pay for a PDF render they never scroll to. --}}
+			<iframe class="kewps8-preview-frame" src="{{ $kewPs8PreviewUrl }}"
+				title="Pratonton borang KEW.PS-8" loading="lazy"></iframe>
+			<p class="help-block">Preview not showing? <a href="{{ $kewPs8PreviewUrl }}" target="_blank" rel="noopener">Open the form in a new tab</a>.</p>
+
+			<div class="kewps8-preview-actions">
+				<a href="{{ route('admin.uniform-orders.kew-ps8', ['id' => $orderKey]) }}" class="btn btn-brand">
+					<i class="fa fa-download" aria-hidden="true"></i> Download KEW.PS-8
+				</a>
 			</div>
 		</div>
 	</div>

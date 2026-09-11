@@ -181,9 +181,10 @@
 					<div class="sign-title">Pemohon/ Wakil:</div>
 					<div class="sign-stroke">.............................................</div>
 					<div class="sign-note">(Tandatangan)</div>
-					<div class="sign-row"><span>Nama</span>: </div>
-					<div class="sign-row"><span>Jawatan</span>: </div>
-					<div class="sign-row"><span>Tarikh</span>: </div>
+					{{-- Blank until the order is Completed; see kewPs8Receipt(). --}}
+					<div class="sign-row"><span>Nama</span>: {{ $receipt['name'] ?? '' }}</div>
+					<div class="sign-row"><span>Jawatan</span>: {{ $receipt['position'] ?? '' }}</div>
+					<div class="sign-row"><span>Tarikh</span>: {{ $receipt['received_at'] ?? '' }}</div>
 				</td>
 			</tr>
 			</tfoot>

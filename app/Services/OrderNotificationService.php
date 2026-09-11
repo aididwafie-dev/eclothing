@@ -25,6 +25,7 @@ class OrderNotificationService
     public const TYPE_REMARKS = 'order_remarks_updated';
     public const TYPE_COLLECTION_DATE = 'order_collection_date_updated';
     public const TYPE_PROCESSING = 'order_processing';
+    public const TYPE_COMPLETED = 'order_completed';
 
     public function __construct(
         private FcmSender $fcm,
@@ -119,6 +120,12 @@ class OrderNotificationService
                 $body .= ' Tarikh kutipan: ' . $this->displayDate($newDate) . '.';
             }
             $messages[] = ['type' => self::TYPE_PROCESSING, 'title' => 'Pesanan Diproses', 'body' => $body];
+        } elseif ($statusChanged && $newStatus === 'completed') {
+            // No collection date in the body: by the time an order is marked
+            // Completed the uniform has been handed over, so a future date
+            // would only confuse.
+            $body = 'Pesanan uniform ' . $orderRef . ' anda telah selesai.';
+            $messages[] = ['type' => self::TYPE_COMPLETED, 'title' => 'Pesanan Selesai', 'body' => $body];
         }
 
         // Only report the date on its own when no status change already

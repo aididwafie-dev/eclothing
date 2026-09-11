@@ -140,6 +140,7 @@ class OrderController extends Controller
             'orderReference' => $this->kewPs8OrderReference($order),
             'uniformName' => $this->kewPs8UniformName($uniform),
             'approver' => $this->kewPs8Approver($order),
+            'receipt' => $this->kewPs8Receipt($order, $personalDetail),
             'reportForms' => $this->chunkKewPs8Rows($items),
             'forPdf' => true,
         ])->setPaper('a4', 'landscape');

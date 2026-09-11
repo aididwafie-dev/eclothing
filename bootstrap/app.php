@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\EnsureAdminIsAuthenticated;
+use App\Http\Middleware\EnsureAdminRoleAllowsRoute;
 use App\Http\Middleware\EnsureMobileTokenIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAuthenticated;
 use App\Http\Middleware\RedirectIfAuthenticated;
@@ -54,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest' => RedirectIfAuthenticated::class,
             'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
             'admin.auth' => EnsureAdminIsAuthenticated::class,
+            'admin.scope' => EnsureAdminRoleAllowsRoute::class,
             'user.auth' => EnsureUserIsAuthenticated::class,
             'api.auth' => EnsureMobileTokenIsAuthenticated::class,
         ]);

@@ -60,6 +60,17 @@
 										   value="<?php echo isset($data['admin']) && isset($data['admin']->jawatan) ? htmlspecialchars($data['admin']->jawatan, ENT_QUOTES) : ''; ?>" />
 								</div>
 
+								<div class="form-group">
+									<label class="label_" for="role">Akses (Access):</label>
+									@php $currentRole = app(\App\Services\AdminRoleService::class)->normalize($data['admin']->role ?? null); @endphp
+									<select class="form-control" id="role" name="role">
+										@foreach(app(\App\Services\AdminRoleService::class)->assignableRoles() as $roleKey => $roleLabel)
+										<option value="{{ $roleKey }}" {{ $currentRole === $roleKey ? 'selected' : '' }}>{{ $roleLabel }}</option>
+										@endforeach
+									</select>
+									<p class="help-block">"Uniform Orders only" limits the account to the order queue, where it can set Processing and Completed.</p>
+								</div>
+
 								<div class="subBtn">
 									<input class="btn btn-default" type="submit" value="SIMPAN (Save)" id="submit" name="submit" />
 									<a href="{{ url('/all-admins') }}" class="btn btn-default"> KEMBALI (Back)</a>

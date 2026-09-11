@@ -1,6 +1,10 @@
 <?php
 	$currentRouteAction = Route::currentRouteAction();
 	$current_class_method = explode('@', $currentRouteAction);
+	// An admin limited to the uniform order queue is shown only the parts of
+	// this menu their role can actually open (the middleware is what enforces
+	// it -- this just keeps the menu honest).
+	$ordersOnlyAdmin = app(\App\Services\AdminRoleService::class)->isOrdersOnly(session('admin_id'));
 ?>
 
 		<div class="bd-sidebar pull-left">
@@ -13,6 +17,7 @@
 
 				<a href="#" class="btn btn-link btn-pnl btn-block sidebar-close"><i class="fa fa-times" aria-hidden="true"></i> Close</a>
 
+				@if(!$ordersOnlyAdmin)
 				<a href="{{ url('/new-admin') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminNewListController' && ($current_class_method[1] == 'index' || $current_class_method[1] == 'getNewAdminDetails') ){ echo 'active'; } ?>"><i class="fa fa-user-plus" aria-hidden="true"></i> Add New Admin</button>
 				</a>
@@ -25,10 +30,12 @@
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminController' && in_array($current_class_method[1], ['allUsersTable', 'ajaxDatatableUsersDetails', 'fromEditUserBasicDetails', 'changeBasicDetails', 'fromEditUserPersonalDetails', 'ajaxLoadRankValuesForAdmin', 'changePersonalDetails', 'changeUserAccessStatus', 'changeUserAccessBlockAll', 'changeUserAccessUnblockAll', 'listUserUniformDetails', 'fromEditUserUniformDetails', 'saveUniformEditedDetails', 'deleteGeneralUser', 'deleteOrder'])){ echo 'active'; } ?>"><i class="fa fa-users" aria-hidden="true"></i> All Users</button>
 				</a>
 
+				@endif
 				<a href="{{ route('admin.uniform-orders') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminController' && in_array($current_class_method[1], ['uniformOrdersList', 'uniformOrderDetail', 'updateUniformOrderStatus'])){ echo 'active'; } ?>"><i class="fa fa-clipboard" aria-hidden="true"></i> Uniform Orders</button>
 				</a>
 
+				@if(!$ordersOnlyAdmin)
 				<a href="{{ url('/admin/uniform') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminUniformController'){ echo 'active'; } ?>"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> Uniforms</button>
 				</a>
@@ -57,14 +64,17 @@
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AnnouncementsController'){ echo 'active'; } ?>"><i class="fa fa-envelope-o" aria-hidden="true"></i> Announcements</button>
 				</a>
 
+				@endif
 				<a href="{{ url('/admin/change-password') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminPasswordController'){ echo 'active'; } ?>"><i class="fa fa-lock" aria-hidden="true"></i> Change Password</button>
 				</a>
 
+				@if(!$ordersOnlyAdmin)
 				<a href="{{ url('/admin/system-settings') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminController' && in_array($current_class_method[1], ['systemSettings', 'saveSystemSettings'])){ echo 'active'; } ?>"><i class="fa fa-cog" aria-hidden="true"></i> Tetapan Sistem</button>
 				</a>
 
+				@endif
 				<a href="{{ url('/admin-logout') }}">
 					<button type="button" class="btn btn-pnl btn-block"><i class="fa fa-sign-out" aria-hidden="true"></i> Logout</button>
 				</a>

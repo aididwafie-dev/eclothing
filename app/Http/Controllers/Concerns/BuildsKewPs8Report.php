@@ -154,6 +154,39 @@ trait BuildsKewPs8Report
         ];
     }
 
+    /**
+     * The Perakuan Penerimaan block -- who took delivery of the uniform.
+     *
+     * Only filled once the order is Completed: until the store hands the
+     * uniform over there is nothing to acknowledge, and a name printed there
+     * early would read as a receipt for goods the member has not had. The
+     * recipient is the applicant themselves, so the block repeats the Pemohon
+     * details, dated from completed_at.
+     *
+     * @return array{name: string, position: string, received_at: string}
+     */
+    private function kewPs8Receipt($order, $personalDetail): array
+    {
+        $empty = ['name' => '', 'position' => '', 'received_at' => ''];
+
+        if ($order === null) {
+            return $empty;
+        }
+
+        $status = app(\App\Services\OrderStatusService::class)->orderStatusMeta($order->status ?? null);
+        if ($status['key'] !== 'completed') {
+            return $empty;
+        }
+
+        $receivedAt = $order->completed_at ?? null;
+
+        return [
+            'name' => $this->kewPs8SignatoryName($personalDetail),
+            'position' => $this->kewPs8ApplicantPosition($order->user_id ?? null),
+            'received_at' => !empty($receivedAt) ? date('d/m/Y', strtotime($receivedAt)) : '',
+        ];
+    }
+
     private function buildKewPs8Rows($items, int $minimumRows = 8, int $startIndex = 1): array
     {
         $rows = [];

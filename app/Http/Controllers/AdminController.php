@@ -19,17 +19,20 @@
 	use Illuminate\Support\Facades\Validator;
 	use Illuminate\Support\Facades\Schema;
 	use App\Support\PasswordHasher;
+	use Barryvdh\DomPDF\Facade\Pdf;
 
 	class AdminController extends Controller
 	{
 		use \App\Http\Controllers\Concerns\ResolvesOrderStatus;
+		use \App\Http\Controllers\Concerns\ResolvesAdminRole;
+		use \App\Http\Controllers\Concerns\BuildsKewPs8Report;
 		use \App\Http\Controllers\Concerns\LoadsPersonalDetailDropdowns;
 
 	    public function index(Request $request) {
 				
 			if($request->session()->get('admin_id') != '')
 			{
-				return redirect()->route('admin.new-admin');
+				return redirect()->route($this->adminHomeRoute($request));
 			}
 			return view('admin/admin_login');
 		}
@@ -45,7 +48,7 @@
 				}
 				$admin_id = $log->id;
 				$request->session()->put('admin_id', $admin_id);
-				return redirect()->route('admin.new-admin');
+				return redirect()->route($this->adminHomeRoute($request));
 			}
 			else{
 				\Session::flash('message', 'You can not login.');
@@ -552,9 +555,24 @@ $nestedData[] = $row->updated_at;
 			$search = trim((string) $request->query('search', ''));
 			$hasSearch = $search !== '';
 
+			// The list is a work queue, so it opens on the orders still waiting
+			// on the store. 'all' is the explicit opt-out; anything unrecognized
+			// falls back to the default rather than showing an empty list.
+			$statusOptions = $this->orderStatus()->filterableStatuses();
+			$status = strtolower(trim((string) $request->query('status', 'pending')));
+			if ($status !== 'all' && !isset($statusOptions[$status])) {
+				$status = 'pending';
+			}
+
 			$query = $this->uniformOrdersListQuery();
 			if ($hasSearch) {
+				// An Order ID names one specific order, so the search looks past
+				// the status filter -- otherwise searching an order that has moved
+				// on would report it as missing. The chosen status is still carried
+				// through the request so clearing the search returns to it.
 				$query->where('orders.id', '=', (int) preg_replace('/\D+/', '', $search));
+			} elseif ($status !== 'all') {
+				$this->orderStatus()->applyStatusFilter($query, $status);
 			}
 
 			$orders = $query
@@ -562,15 +580,22 @@ $nestedData[] = $row->updated_at;
 				->orderBy('orders.id', 'desc')
 				->simplePaginate(25);
 
+			$appends = ['status' => $status];
 			if ($hasSearch) {
-				$orders->appends(['search' => $search]);
+				$appends['search'] = $search;
 			}
+			$orders->appends($appends);
 
 			$orders->getCollection()->transform(function ($order) {
 				return $this->orderStatus()->normalizeOrderLifecycle($order);
 			});
 
-			return view('admin/uniform_orders_list', array('orders' => $orders, 'search' => $search));
+			return view('admin/uniform_orders_list', array(
+				'orders' => $orders,
+				'search' => $search,
+				'status' => $status,
+				'statusOptions' => $statusOptions,
+			));
 		}
 
 		public function uniformOrderDetail(Request $request, $id) {
@@ -612,7 +637,69 @@ $nestedData[] = $row->updated_at;
 			return view('admin/uniform_order_detail', array(
 				'order' => $order,
 				'ordered_clothes' => $ordered_clothes,
+				'orderKey' => $this->encodeProtectedId($order->id),
+				'orderReference' => $this->kewPs8OrderReference($order),
+				'allowedStatuses' => $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request)),
 			));
+		}
+
+		/**
+		 * The same KEW.PS-8 (Borang Permohonan Stok) the member can print for
+		 * their own order, as a PDF for the order detail page so the store can
+		 * file the paperwork without asking the member for a copy. Serves both
+		 * the page's inline preview (?preview=1) and the download button.
+		 *
+		 * The form is the *member's* application, so every field is resolved
+		 * from the order's owner and its approving admin -- never from whoever
+		 * happens to be downloading it. Rendering goes through the same
+		 * reports.kew_ps8 blade as the web and mobile versions so the three
+		 * stay identical.
+		 */
+		public function downloadUniformOrderKewPs8(Request $request, $id) {
+
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+
+			$order_id = $this->decodeProtectedId($id);
+
+			$order = DB::table('orders')
+				->where('id', '=', $order_id)
+				->where('deleted', '=', 0)
+				->first();
+
+			if (empty($order)) {
+				abort(404);
+			}
+
+			$personalDetail = DB::table('personal_details')->where('user_id', '=', $order->user_id)->first();
+			$uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
+			$items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
+
+			$pdf = Pdf::loadView('reports.kew_ps8', [
+				'order' => $order,
+				'uniform' => $uniform,
+				'applicantName' => $this->kewPs8SignatoryName($personalDetail),
+				'applicantPosition' => $this->kewPs8ApplicantPosition($order->user_id),
+				'printedAt' => $this->kewPs8PrintedAt(),
+				'orderReference' => $this->kewPs8OrderReference($order),
+				'uniformName' => $this->kewPs8UniformName($uniform),
+				'approver' => $this->kewPs8Approver($order),
+				'receipt' => $this->kewPs8Receipt($order, $personalDetail),
+				'reportForms' => $this->chunkKewPs8Rows($items),
+				'forPdf' => true,
+			])->setPaper('a4', 'landscape');
+
+			$filename = 'KEW-PS8-' . $this->kewPs8OrderReference($order) . '.pdf';
+
+			// ?preview=1 serves the identical file inline instead of as an
+			// attachment, which is what the <iframe> on the detail page asks
+			// for -- so what the admin previews is exactly what they download.
+			if ($request->boolean('preview')) {
+				return $pdf->stream($filename);
+			}
+
+			return $pdf->download($filename);
 		}
 
 		public function updateUniformOrderStatus(Request $request) {
@@ -627,9 +714,13 @@ $nestedData[] = $row->updated_at;
 				return redirect()->back();
 			}
 
+			$allowedStatuses = $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request));
+
 			$validator = Validator::make($request->all(), [
 				'order_id' => 'required|integer',
-				'status' => 'required|in:1,2,3,4,5',
+				// The role decides which statuses are on offer. Checked here as
+				// well as in the view: hiding a button is not a restriction.
+				'status' => 'required|in:' . implode(',', $allowedStatuses),
 				'remarks' => 'nullable|string|max:1000',
 				'collection_date' => 'nullable|date',
 			]);
@@ -664,11 +755,26 @@ $nestedData[] = $row->updated_at;
 				$updateData['collection_date'] = null;
 			}
 
+			$prevStatus = trim((string) ($order->status ?? ''));
+
+			// Dates the Perakuan Penerimaan block on the KEW.PS-8, the way
+			// approved_at dates the Pegawai Pelulus block. Cleared if the order
+			// is moved back out of Completed, so a stale receipt date cannot
+			// survive on the form.
+			if (Schema::hasTable('orders') && Schema::hasColumn('orders', 'completed_at')) {
+				if ($status === '6') {
+					if ($prevStatus !== '6') {
+						$updateData['completed_at'] = date("Y-m-d H:i:s");
+					}
+				} else {
+					$updateData['completed_at'] = null;
+				}
+			}
+
 			$hasApproverColumns = Schema::hasTable('orders')
 				&& Schema::hasColumn('orders', 'approved_by_admin_id')
 				&& Schema::hasColumn('orders', 'approved_at');
 			if ($hasApproverColumns) {
-				$prevStatus = trim((string) ($order->status ?? ''));
 				$transitioningToApproved = $status === '3' && $prevStatus !== '3';
 				if ($transitioningToApproved) {
 					$adminId = (int) $request->session()->get('admin_id', 0);
@@ -676,7 +782,11 @@ $nestedData[] = $row->updated_at;
 						$updateData['approved_by_admin_id'] = $adminId;
 						$updateData['approved_at'] = date("Y-m-d H:i:s");
 					}
-				} elseif ($status !== '3') {
+				} elseif (!in_array($status, ['3', '6'], true)) {
+					// Completed follows approval, so it keeps the approver --
+					// clearing it would blank the Pegawai Pelulus block on the
+					// order's KEW.PS-8. Every other status means the order is
+					// not approved any more, so the record is dropped.
 					$updateData['approved_by_admin_id'] = null;
 					$updateData['approved_at'] = null;
 				}
@@ -917,12 +1027,16 @@ $nestedData[] = $row->updated_at;
 		 * Resolved by name rather than hardcoded, because the stored label
 		 * carries a double space ("AIR  FORCE") and the ids are data, not
 		 * constants. Falls back to 1, which is the current value.
+		 *
+		 * Cached on the instance, not in a static: the controller is built per
+		 * request, so this still saves the repeat lookups within one request
+		 * without the id outliving the row it was read from.
 		 */
-		private function airForceAngkatanId(): int {
-			static $airForceId = null;
+		private ?int $airForceAngkatanId = null;
 
-			if ($airForceId !== null) {
-				return $airForceId;
+		private function airForceAngkatanId(): int {
+			if ($this->airForceAngkatanId !== null) {
+				return $this->airForceAngkatanId;
 			}
 
 			try {
@@ -930,12 +1044,12 @@ $nestedData[] = $row->updated_at;
 					->whereRaw("REPLACE(UPPER(value), ' ', '') = ?", ['AIRFORCE'])
 					->value('id');
 
-				$airForceId = $match ? (int) $match : 1;
+				$this->airForceAngkatanId = $match ? (int) $match : 1;
 			} catch (\Throwable $e) {
-				$airForceId = 1;
+				$this->airForceAngkatanId = 1;
 			}
 
-			return $airForceId;
+			return $this->airForceAngkatanId;
 		}
 
 		/**

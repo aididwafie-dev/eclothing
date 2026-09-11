@@ -10,7 +10,14 @@
 		<div class="shop-subtitle">Review all submitted uniform orders and open a detail page to approve or reject them.</div>
 		<br>
 
-		@php $search = isset($search) ? $search : ''; @endphp
+		@php
+			$search = isset($search) ? $search : '';
+			$statusOptions = isset($statusOptions) ? $statusOptions : [];
+			$statusFilter = isset($status) ? $status : 'pending';
+			$statusFilterLabel = $statusFilter === 'all'
+				? 'All statuses'
+				: (isset($statusOptions[$statusFilter]) ? $statusOptions[$statusFilter] : 'Pending');
+		@endphp
 		<form method="get" action="{{ route('admin.uniform-orders') }}" class="orders-search" role="search">
 			<div class="orders-search-field">
 				<i class="fa fa-search" aria-hidden="true"></i>
@@ -18,14 +25,34 @@
 					placeholder="Search by Order ID (e.g. 1042)" inputmode="numeric"
 					aria-label="Search by Order ID" autocomplete="off" />
 			</div>
+			<div class="orders-filter-field">
+				<label class="orders-filter-label" for="orderStatusFilter">Status</label>
+				{{-- Disabled during a search because an Order ID search deliberately
+				     spans every status; the hidden field keeps the chosen status so
+				     Clear returns to it. --}}
+				<select name="status" id="orderStatusFilter" class="form-control"
+					{{ $search !== '' ? 'disabled' : '' }} onchange="this.form.submit();">
+					@foreach($statusOptions as $statusKey => $statusOptionLabel)
+					<option value="{{ $statusKey }}" {{ $statusFilter === $statusKey ? 'selected' : '' }}>{{ $statusOptionLabel }}</option>
+					@endforeach
+					<option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>All statuses</option>
+				</select>
+			</div>
+			@if($search !== '')
+			<input type="hidden" name="status" value="{{ $statusFilter }}" />
+			@endif
 			<button type="submit" class="btn btn-primary"><i class="fa fa-search" aria-hidden="true"></i> Search</button>
 			@if($search !== '')
-			<a href="{{ route('admin.uniform-orders') }}" class="btn btn-default"><i class="fa fa-times" aria-hidden="true"></i> Clear</a>
+			<a href="{{ route('admin.uniform-orders', ['status' => $statusFilter]) }}" class="btn btn-default"><i class="fa fa-times" aria-hidden="true"></i> Clear</a>
 			@endif
 		</form>
 
-		@if($search !== '' && $orders && $orders->count())
-		<div class="orders-search-result">Showing results for Order ID <strong>#{{ $search }}</strong>.</div>
+		@if($search !== '')
+			@if($orders && $orders->count())
+			<div class="orders-search-result">Showing results for Order ID <strong>#{{ $search }}</strong>, across every status.</div>
+			@endif
+		@else
+		<div class="orders-search-result">Showing <strong>{{ $statusFilterLabel }}</strong> orders.</div>
 		@endif
 
 		@if($orders && $orders->count())
@@ -79,8 +106,11 @@
 		<div class="alert alert-info">
 			@if($search !== '')
 			No order found for Order ID <strong>#{{ $search }}</strong>.
-			@else
+			@elseif($statusFilter === 'all')
 			No uniform orders found.
+			@else
+			No <strong>{{ $statusFilterLabel }}</strong> orders found.
+			<a href="{{ route('admin.uniform-orders', ['status' => 'all']) }}">View all statuses</a>.
 			@endif
 		</div>
 		@endif
