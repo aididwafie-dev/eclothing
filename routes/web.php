@@ -85,6 +85,7 @@ Route::middleware('user.auth')->group(function (): void {
 	Route::post('/ajax-mail-user-order-details', [DashboardController::class, 'mailUserOrderDetails'])->name('mail-user.order-details');
 	Route::post('/ajax-delete-user-order', [DashboardController::class, 'deleteUserOrder'])->name('delete-user.order');
 	Route::get('/user/orders/{id}/kew-ps8', [DashboardController::class, 'generateKewPs8Report'])->name('user.order.kew-ps8');
+	Route::post('/user/orders/{id}/edit', [DashboardController::class, 'editPendingOrder'])->whereNumber('id')->name('user.order.edit');
 });
 
 /************	Routes requiring a logged-in admin	************/

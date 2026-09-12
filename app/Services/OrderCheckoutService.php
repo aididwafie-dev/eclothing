@@ -25,15 +25,24 @@ class OrderCheckoutService
     }
 
     /**
+     * By default a checkout merges into the member's existing order for a
+     * uniform: lines in the cart are added or updated, other lines stay. For
+     * uniforms listed in $replaceUniformIds -- an order the member loaded into
+     * the cart to edit -- the cart is the whole order, so a line they removed
+     * from the cart is removed from the order too.
+     *
+     * @param  array<int, int|string> $replaceUniformIds
      * @throws \App\Exceptions\OrderNotEditableException when the cart would
      *         overwrite an order that has already left Pending.
      */
-    public function checkoutForUser(int $userId, array $cartByUniform): void
+    public function checkoutForUser(int $userId, array $cartByUniform, array $replaceUniformIds = []): void
     {
         // Checked up front, before anything is written, so a cart spanning
         // several uniforms cannot be half-applied: either every affected
         // order is editable or the whole checkout is refused.
         $this->assertOrdersAreEditable($userId, $cartByUniform);
+
+        $replaceUniformIds = array_map('intval', $replaceUniformIds);
 
         foreach ($cartByUniform as $uniformsId => $items) {
             if (!is_array($items) || !count($items)) {
@@ -44,6 +53,13 @@ class OrderCheckoutService
 
             foreach ($items as $item) {
                 $this->upsertOrderedCloth($orderId, (int) $uniformsId, $item);
+            }
+
+            if (in_array((int) $uniformsId, $replaceUniformIds, true)) {
+                DB::table('ordered_clothes')
+                    ->where('order_id', '=', $orderId)
+                    ->whereNotIn('clothes_slug', array_map(fn ($item) => (string) $item['clothes_slug'], array_values($items)))
+                    ->delete();
             }
         }
     }

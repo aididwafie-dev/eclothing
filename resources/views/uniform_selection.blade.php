@@ -7,7 +7,26 @@
 
 <div class="containerMain">
 	<div class="content">
-		<div class="title"><i class="fa fa-shopping-cart" aria-hidden="true"></i> Uniform Shopping Cart</div>
+		@php
+			// Uniform id => the order it was loaded from, for orders opened with
+			// Edit on the order status page. The badge names the order the
+			// member is changing; without it this is an ordinary new order.
+			$editOrders = (isset($editOrders) && is_array($editOrders)) ? $editOrders : [];
+			$requestedUniform = (int) request()->query('uniform', 0);
+			$initialEditOrderId = ($requestedUniform && isset($editOrders[$requestedUniform])) ? $editOrders[$requestedUniform] : null;
+		@endphp
+		<div class="cart-board-header">
+			<div class="title"><i class="fa fa-shopping-cart" aria-hidden="true"></i> Uniform Shopping Cart</div>
+			{{-- Present only while an order is loaded for editing; the script
+			     below hides it again if the member switches to a uniform that
+			     is not part of that order. --}}
+			@if(!empty($editOrders))
+			<div id="editOrderBadge" class="cart-order-badge" @if(!$initialEditOrderId) style="display:none;" @endif>
+				<i class="fa fa-pencil" aria-hidden="true"></i>
+				<span>Order ID <strong id="editOrderBadgeId">{{ $initialEditOrderId ? '#' . $initialEditOrderId : '' }}</strong></span>
+			</div>
+			@endif
+		</div>
 		<hr>
 		<div class="uniform-picker">
 			@foreach($data['uniforms'] as $uniforms)
@@ -36,8 +55,23 @@
 </div>
 <!--#### 3 div open in sidebar ####-->
 <script type="text/javascript">
+	// Uniform id -> order id for uniforms loaded by Edit, so the badge keeps
+	// naming the right order as the member switches between uniforms.
+	var editOrders = @json($editOrders);
+
+	function updateEditOrderBadge(uniformId) {
+		var orderId = editOrders[uniformId];
+		if (orderId) {
+			$("#editOrderBadgeId").text('#' + orderId);
+			$("#editOrderBadge").show();
+		} else {
+			$("#editOrderBadge").hide();
+		}
+	}
+
 	function loadDynamicForm(formTypeId) {
 		$("#clothLoader").show();
+		updateEditOrderBadge(formTypeId);
 		uniform_id = formTypeId;
 
 		$.ajaxSetup({
@@ -65,6 +99,12 @@
 		if (enable) {
 			var next = $('.uniform-select[data-uniform-id="' + enable + '"]').next('.uniform-select').data('uniform-id');
 			defaultId = next ? next : defaultId;
+		}
+		// ?uniform=ID opens that uniform directly -- used by Edit on the order
+		// status page, which has just loaded that order into the cart.
+		var requested = '{{ (int) request()->query('uniform', 0) }}';
+		if (requested !== '0' && $('.uniform-select[data-uniform-id="' + requested + '"]').length) {
+			defaultId = requested;
 		}
 
 		$('.uniform-select').removeClass('active');

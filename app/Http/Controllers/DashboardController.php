@@ -18,6 +18,7 @@
 	use App\Services\UniformCartRules;
 	use App\Services\UniformScaleService;
 	use App\Services\OrderCheckoutService;
+	use App\Services\OrderCartSeeder;
 
 	class DashboardController extends Controller {
 
@@ -154,13 +155,17 @@
 			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 			if(!$userDetails || $userDetails->profile_status != 1)
 			{
-				\Session::flash('message', 'Please complete your personal details first, before ordering uniform.'); 
+				\Session::flash('message', 'Please complete your personal details first, before ordering uniform.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('user.personal'); //if user enable the uniform button by inspecting the plage and try to place a order, this will redirect him back.
 			}
 			$data = $this->getUniformInfo($request);
-			
-			return view('uniform_selection',array("data"=>$data,"userDetails"=>$userDetails));
+
+			return view('uniform_selection',array(
+				"data"=>$data,
+				"userDetails"=>$userDetails,
+				"editOrders"=>(array) $request->session()->get('uniform_cart_edit_orders', []),
+			));
 		}
 
 		public function userAccessoriesSelection(Request $request) {
@@ -171,13 +176,17 @@
 			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 			if(!$userDetails || $userDetails->profile_status != 1)
 			{
-				\Session::flash('message', 'Please complete your personal details first, before ordering accessories.'); 
+				\Session::flash('message', 'Please complete your personal details first, before ordering accessories.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('user.personal'); //if user enable the uniform button by inspecting the plage and try to place a order, this will redirect him back.
 			}
 			$data = $this->getUniformInfo($request);
-			
-			return view('uniform_selection',array("data"=>$data,"userDetails"=>$userDetails));
+
+			return view('uniform_selection',array(
+				"data"=>$data,
+				"userDetails"=>$userDetails,
+				"editOrders"=>(array) $request->session()->get('uniform_cart_edit_orders', []),
+			));
 		}
 
 		public function getClothesDataForForm($uniform_id) {
@@ -372,7 +381,10 @@
 			}
 
 			try {
-				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart);
+				// Uniforms loaded through Edit (editPendingOrder) replace their
+				// order's lines; everything else merges as before.
+				$editing = (array) $request->session()->get('uniform_cart_edit', []);
+				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart, $editing);
 			} catch (\App\Exceptions\OrderNotEditableException $e) {
 				// Same rule as the mobile API: an order that has left Pending
 				// must not be silently reset by a re-checkout. The session cart
@@ -380,7 +392,7 @@
 				return response()->json(['ok' => false, 'message' => $e->getMessage()], 403);
 			}
 
-			$request->session()->forget('uniform_cart');
+			$request->session()->forget(['uniform_cart', 'uniform_cart_edit', 'uniform_cart_edit_orders']);
 			\Session::flash('message', 'Your Order is successfully saved.');
 			\Session::flash('alert-class', 'alert-success');
 
@@ -506,6 +518,57 @@
 			return redirect()->route('user.uniform');
 		}
 
+		/**
+		 * Loads a Pending order into the session cart and opens Order Uniform on
+		 * that uniform, so the member can change sizes, quantities or items and
+		 * check out again. The uniform is remembered in uniform_cart_edit so the
+		 * checkout replaces the order's lines instead of merging into them.
+		 * Web counterpart to POST /api/cart/load-from-order.
+		 */
+		public function editPendingOrder(Request $request, $id) {
+			$user_id = (int) $request->session()->get('user_id');
+
+			$order = DB::table('orders')->where('id', '=', $id)->where('user_id', '=', $user_id)->where('deleted', '=', 0)->first();
+			if (!$order) {
+				abort(404);
+			}
+
+			if (!$this->orderStatus()->isOrderEditable($order->status ?? null)) {
+				$label = $this->orderStatus()->orderStatusMeta($order->status ?? null)['label'];
+				\Session::flash('message', 'Order #' . $order->id . ' is ' . $label . ' and can no longer be changed. Only orders that are still Pending can be edited.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('user.ordered-uniform');
+			}
+
+			$uniformsId = (int) $order->uniforms_id;
+			$uniform = DB::table('uniforms')->where('id', '=', $uniformsId)->first();
+			$displayName = $uniform ? ($uniform->uniform_name ? $uniform->uniform_name : $uniform->uniform_type) : '';
+
+			// Replace this uniform's cart lines rather than merging, so the cart
+			// shows the order as it stands. Lines for other uniforms are kept.
+			$cart = $this->getUniformCart($request);
+			$cart[$uniformsId] = [];
+			foreach (app(OrderCartSeeder::class)->linesForOrder($order, $user_id) as $slug => $line) {
+				$cart[$uniformsId][$slug] = $line + ['uniforms_id' => $uniformsId, 'uniform_name' => $displayName];
+			}
+			$this->setUniformCart($request, $cart);
+
+			$editing = (array) $request->session()->get('uniform_cart_edit', []);
+			$editing[] = $uniformsId;
+			$request->session()->put('uniform_cart_edit', array_values(array_unique($editing)));
+
+			// Which order each edited uniform belongs to, so the shopping cart
+			// page can name the Order ID the member is changing.
+			$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
+			$editOrders[$uniformsId] = (int) $order->id;
+			$request->session()->put('uniform_cart_edit_orders', $editOrders);
+
+			\Session::flash('message', 'Order #' . $order->id . ' is in your cart. Change the sizes, quantities or items, then check out to save your changes.');
+			\Session::flash('alert-class', 'alert-info');
+
+			return redirect()->route('user.uniform', ['uniform' => $uniformsId]);
+		}
+
 		public function getOrderedUniform(Request $request) {
 
 			if($request->session()->get('user_id') == '') {
@@ -528,6 +591,7 @@
 						'userOrders' => $userOrder,
 						'orderedUniform' => DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first(),
 						'orderCount' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->count(),
+						'editable' => $this->orderStatus()->isOrderEditable($userOrder->status ?? null),
 						'orderDetails' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->get(),
 					];
 					$i++;

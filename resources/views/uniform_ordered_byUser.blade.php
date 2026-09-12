@@ -14,77 +14,114 @@
 			</a>
 		</div>
 		<hr>
-		<div class="shop-subtitle">Track each uniform order by its current approval status.</div>
+		<div class="shop-subtitle">Track each uniform order by its current status. Click an order to see its items and remarks.</div>
 
-		@foreach($data as $array)
-		@php
-			$statusClass = !empty($array['userOrders']->status_class) ? $array['userOrders']->status_class : 'status-pending';
-			$statusLabel = !empty($array['userOrders']->status_label) ? $array['userOrders']->status_label : 'Pending';
-			$remarks = trim((string) $array['userOrders']->remarks);
-			$collectionDate = $array['userOrders']->collection_date ? date('d M Y', strtotime($array['userOrders']->collection_date)) : 'To be updated';
-			$detailsId = 'order-details-' . $array['userOrders']->id;
-		@endphp
-		<div class="order-card">
-			<div class="order-card-header">
-				<div>
-					<div class="report-card-title">{{ $array['orderedUniform']->uniform_type }}{{ $array['orderedUniform']->uniform_name ? ' (' . $array['orderedUniform']->uniform_name . ')' : '' }}</div>
-					<div class="order-card-meta">Items ordered: {{ $array['orderCount'] }}</div>
-				</div>
-				<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
-			</div>
+		<div class="table-responsive">
+			<table class="table table-orders table-orders-member">
+				<thead>
+					<tr>
+						<th>Order</th>
+						<th>Uniform</th>
+						<th>Items</th>
+						<th>Status</th>
+						<th>Collection Date</th>
+						<th>Last Updated</th>
+						<th><span class="sr-only">Actions</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach($data as $array)
+					@php
+						$order = $array['userOrders'];
+						$uniform = $array['orderedUniform'];
+						$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
+						$statusLabel = !empty($order->status_label) ? $order->status_label : 'Pending';
+						$remarks = trim((string) $order->remarks);
+						$collectionDate = $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : null;
+						$detailsId = 'order-detail-' . $order->id;
+						$uniformLabel = $uniform
+							? $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '')
+							: '-';
+					@endphp
+					<tr class="order-row" data-detail="{{ $detailsId }}">
+						<td data-label="Order">
+							<button type="button" class="order-row-toggle" aria-expanded="false" aria-controls="{{ $detailsId }}">
+								<i class="fa fa-chevron-right order-row-caret" aria-hidden="true"></i>
+								<span>#{{ $order->id }}</span>
+								<span class="sr-only">Show details</span>
+							</button>
+						</td>
+						<td data-label="Uniform">{{ $uniformLabel }}</td>
+						<td data-label="Items">{{ $array['orderCount'] }}</td>
+						<td data-label="Status">
+							<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
+							@if($remarks !== '')
+							<i class="fa fa-comment-o order-row-remarks" aria-hidden="true" title="This order has remarks"></i>
+							@endif
+						</td>
+						<td data-label="Collection Date">
+							@if($collectionDate){{ $collectionDate }}@else<span class="text-muted">To be updated</span>@endif
+						</td>
+						<td data-label="Last Updated">{{ $order->updated_at ? date('d M Y', strtotime($order->updated_at)) : '-' }}</td>
+						<td data-label="Actions" class="order-row-action">
+							<div class="order-row-buttons">
+								{{-- Only a Pending order can still be changed; once the store
+								     picks it up, checkout refuses to overwrite it. --}}
+								@if(!empty($array['editable']))
+								<form method="post" action="{{ route('user.order.edit', $order->id) }}" class="order-row-edit">
+									@csrf
+									<button type="submit" class="btn btn-brand btn-sm">
+										<i class="fa fa-pencil" aria-hidden="true"></i> Edit
+									</button>
+								</form>
+								@endif
+								<a href="{{ route('user.order.kew-ps8', $order->id) }}" target="_blank" class="btn btn-default btn-sm">
+									<i class="fa fa-file-text-o" aria-hidden="true"></i> KEW.PS-8
+								</a>
+							</div>
+						</td>
+					</tr>
+					<tr id="{{ $detailsId }}" class="order-detail-row">
+						<td colspan="7">
+							<div class="order-detail-inner">
+								<dl class="order-detail-meta">
+									<div>
+										<dt>Ordered</dt>
+										<dd>{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</dd>
+									</div>
+									<div>
+										<dt>Last Updated</dt>
+										<dd>{{ $order->updated_at ? date('d M Y h:i A', strtotime($order->updated_at)) : '-' }}</dd>
+									</div>
+									<div>
+										<dt>Collection Date</dt>
+										<dd>{{ $collectionDate ?: 'To be updated' }}</dd>
+									</div>
+									<div class="is-wide">
+										<dt>Remarks</dt>
+										<dd>{{ $remarks !== '' ? $remarks : 'No remarks yet.' }}</dd>
+									</div>
+								</dl>
 
-			<div class="order-card-actions">
-				<a href="{{ route('user.order.kew-ps8', $array['userOrders']->id) }}" target="_blank" class="btn btn-default btn-sm">
-					<i class="fa fa-file-text-o" aria-hidden="true"></i> Jana Borang KEW.PS-8
-				</a>
-				<a href="javascript:void(0)" class="btn btn-brand btn-sm order-details-toggle" data-target="#{{ $detailsId }}" aria-expanded="false">
-					<i class="fa fa-chevron-down" aria-hidden="true"></i> <span>Show Details</span>
-				</a>
-			</div>
-
-			<div class="order-summary-table">
-				<div class="order-summary-row">
-					<div class="order-summary-cell">
-						<span class="order-info-label">Collection Date</span>
-						<span class="order-info-value">{{ $collectionDate }}</span>
-					</div>
-					<div class="order-summary-cell">
-						<span class="order-info-label">Remarks</span>
-						<span class="order-info-value">{{ $remarks !== '' ? $remarks : 'No remarks yet.' }}</span>
-					</div>
-					<div class="order-summary-cell">
-						<span class="order-info-label">Last Updated</span>
-						<span class="order-info-value">{{ $array['userOrders']->updated_at ? date('d M Y h:i A', strtotime($array['userOrders']->updated_at)) : '-' }}</span>
-					</div>
-					<div class="order-summary-cell">
-						<span class="order-info-label">Items Ordered</span>
-						<span class="order-info-value">{{ $array['orderCount'] }}</span>
-					</div>
-				</div>
-			</div>
-
-			<div id="{{ $detailsId }}" class="order-details-panel" style="display: none;">
-				<div class="table-responsive">
-					<table class="table table-orders">
-						<thead>
-							<tr>
-								<th>Clothe Name</th>
-								<th>Size Ordered</th>
-							</tr>
-						</thead>
-						<tbody>
-							@foreach($array['orderDetails'] as $clothsDetails)
-							<tr>
-								<td data-label="Clothing Item">{{ $clothsDetails->clothes }}</td>
-								<td data-label="Size Ordered">{{ $clothsDetails->size }}</td>
-							</tr>
-							@endforeach
-						</tbody>
-					</table>
-				</div>
-			</div>
+								<div class="order-detail-items-title">Items ordered</div>
+								<ul class="order-detail-items">
+									@forelse($array['orderDetails'] as $clothsDetails)
+									<li>
+										<span class="order-detail-item-name">{{ $clothsDetails->clothes }}</span>
+										<span class="order-detail-item-size">Size {{ $clothsDetails->size }}</span>
+										<span class="order-detail-item-qty">&times; {{ $clothsDetails->quantity ?? 1 }}</span>
+									</li>
+									@empty
+									<li class="is-empty">No items on this order.</li>
+									@endforelse
+								</ul>
+							</div>
+						</td>
+					</tr>
+					@endforeach
+				</tbody>
+			</table>
 		</div>
-		@endforeach
 		@else
 		You have not ordered any uniform.
 		@endif
@@ -113,16 +150,21 @@
 			});
 		});
 
-		$(document).on('click', '.order-details-toggle', function() {
-			var $btn = $(this);
-			var target = $btn.data('target');
-			var $panel = $(target);
-			var isVisible = $panel.is(':visible');
+		// The whole row opens its detail row. The Order cell's button carries
+		// the keyboard focus and aria-expanded; its click bubbles up to here,
+		// so there is one handler. The Edit and KEW.PS-8 buttons do their own
+		// thing and leave the row as it is.
+		$(document).on('click', '.order-row', function(e) {
+			if ($(e.target).closest('a, form').length) {
+				return;
+			}
 
-			$panel.stop(true, true).slideToggle(180);
-			$btn.attr('aria-expanded', isVisible ? 'false' : 'true');
-			$btn.find('span').text(isVisible ? 'Show Details' : 'Hide Details');
-			$btn.find('i.fa').toggleClass('fa-chevron-down', isVisible).toggleClass('fa-chevron-up', !isVisible);
+			var $row = $(this);
+			var isOpen = !$row.hasClass('is-open');
+
+			$row.toggleClass('is-open', isOpen);
+			$('#' + $row.data('detail')).toggleClass('is-open', isOpen);
+			$row.find('.order-row-toggle').attr('aria-expanded', isOpen ? 'true' : 'false');
 		});
 	});
 

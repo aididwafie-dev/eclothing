@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\OrderNotEditableException;
 use App\Http\Controllers\Controller;
+use App\Services\OrderCartSeeder;
 use App\Services\OrderCheckoutService;
 use App\Services\OrderStatusService;
 use App\Services\UniformCartRules;
@@ -123,11 +124,9 @@ class CartController extends Controller
             ], 403);
         }
 
-        $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
-        $scaleService = app(UniformScaleService::class);
-        $rankId = $scaleService->rankForUser($genUser->id);
+        $lines = app(OrderCartSeeder::class)->linesForOrder($order, (int) $genUser->id);
 
-        DB::transaction(function () use ($genUser, $order, $items, $scaleService, $rankId) {
+        DB::transaction(function () use ($genUser, $order, $lines) {
             // Replace this uniform's cart lines rather than merging: the cart
             // should show the order as it currently stands, not the order plus
             // whatever the member happened to leave behind earlier. Lines for
@@ -137,32 +136,14 @@ class CartController extends Controller
                 ->where('uniforms_id', '=', $order->uniforms_id)
                 ->delete();
 
-            foreach ($items as $item) {
-                $cloth = DB::table('uniform_clothes')
-                    ->where('uniforms_id', '=', $order->uniforms_id)
-                    ->where('clothes_slug', '=', $item->clothes_slug)
-                    ->first();
-
-                // The item is no longer offered for this uniform, or the
-                // member's rank is no longer entitled to it.
-                if (!$cloth || $scaleService->isBlocked($rankId, (int) $cloth->id)) {
-                    continue;
-                }
-
-                $size = UniformCartRules::normalizeSize($this->decodeOrderedSize($cloth, $item->size));
-                if (UniformCartRules::isEmptySize($size)) {
-                    continue;
-                }
-
+            foreach ($lines as $line) {
                 DB::table('cart_items')->insert([
                     'gen_user_id' => $genUser->id,
                     'uniforms_id' => $order->uniforms_id,
-                    'clothes_slug' => $item->clothes_slug,
-                    'clothes_type' => $cloth->clothes_type,
-                    'size' => json_encode($size),
-                    // Re-clamped rather than trusted: the member's rank may
-                    // have changed since the order was placed.
-                    'quantity' => $scaleService->clampQuantity($rankId, (int) $cloth->id, $item->quantity ?? 1),
+                    'clothes_slug' => $line['clothes_slug'],
+                    'clothes_type' => $line['clothes_type'],
+                    'size' => json_encode($line['size']),
+                    'quantity' => $line['quantity'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -170,43 +151,6 @@ class CartController extends Controller
         });
 
         return response()->json($this->snapshot($genUser->id));
-    }
-
-    /**
-     * Inverse of OrderCheckoutService's size flattening: a multi-select
-     * accessory is stored on the order as a comma-joined string, and has to
-     * become an array again for the cart. Everything else round-trips as a
-     * plain string.
-     */
-    private function decodeOrderedSize($cloth, $stored)
-    {
-        $stored = trim((string) $stored);
-
-        if ($stored !== '' && $this->isMultiSelectCloth($cloth)) {
-            return array_map('trim', explode(',', $stored));
-        }
-
-        return $stored;
-    }
-
-    /**
-     * Mirrors the `multiselect` test in UniformController::clothes: only an
-     * accessory whose clothes_size resolves to a *select* is offered as a
-     * multi-select. An accessory with no size list is a plain toggle, and one
-     * with a numeric size is free text -- neither is ever stored comma-joined,
-     * so neither may be split back into an array.
-     */
-    private function isMultiSelectCloth($cloth): bool
-    {
-        if (strtolower((string) $cloth->clothes_type) !== 'accessories') {
-            return false;
-        }
-
-        $clothesSize = (string) ($cloth->clothes_size ?? '');
-
-        return $clothesSize !== ''
-            && $clothesSize !== 'FIX'
-            && !is_numeric(str_replace(['-', ' '], '', $clothesSize));
     }
 
     public function checkout(Request $request)
