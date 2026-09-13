@@ -257,12 +257,19 @@
 				$uniform_clothes[$id]->max_quantity = $scaleService->maxFor($rankId, (int) $uniform_cloth->id);
 			}
 
+			// Set when this uniform was loaded by Edit: the checkout button then
+			// reads "Update Order" rather than "Order Now", because checking out
+			// changes that order instead of placing a new one.
+			$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
+			$editOrderId = isset($editOrders[(int) $uniform_id]) ? $editOrders[(int) $uniform_id] : null;
+
 			return view('uniform_selection_form',array(
 				'uniform_clothes'=>$uniform_clothes,
 				'sizes'=>$sizes,
 				'uniform'=>$uniform,
 				'cartItems' => $cartItems,
 				'cartCount' => $cartCount,
+				'editOrderId' => $editOrderId,
 			));
 		}
 

@@ -252,6 +252,50 @@ class UserEditPendingOrderTest extends TestCase
         $this->get(route('user.uniform', ['uniform' => $seed['uniformId']]))->assertDontSee('Order ID');
     }
 
+    public function test_the_checkout_button_says_update_order_while_editing(): void
+    {
+        $memberId = $this->seedMember();
+        $seed = $this->seedOrder($memberId, self::PENDING);
+
+        $this->withSession(['user_id' => $memberId])->post(route('user.order.edit', $seed['orderId']));
+
+        $response = $this->post('/load-uniform-data', ['uniform_id' => $seed['uniformId']]);
+
+        $response->assertOk();
+        $response->assertSee('Update Order');
+        $response->assertDontSee('Order Now');
+    }
+
+    public function test_the_checkout_button_says_order_now_when_not_editing(): void
+    {
+        $memberId = $this->seedMember();
+        $seed = $this->seedOrder($memberId, self::PENDING);
+
+        $response = $this->withSession(['user_id' => $memberId])
+            ->post('/load-uniform-data', ['uniform_id' => $seed['uniformId']]);
+
+        $response->assertOk();
+        $response->assertSee('Order Now');
+        $response->assertDontSee('Update Order');
+    }
+
+    public function test_the_cart_summary_shows_how_many_of_each_item(): void
+    {
+        // The order carries kemeja x2 and seluar x1; the Current Cart list has
+        // to say so, not just name the items.
+        $memberId = $this->seedMember();
+        $seed = $this->seedOrder($memberId, self::PENDING);
+
+        $this->withSession(['user_id' => $memberId])->post(route('user.order.edit', $seed['orderId']));
+
+        $response = $this->post('/load-uniform-data', ['uniform_id' => $seed['uniformId']]);
+
+        $response->assertOk();
+        $response->assertSee('shop-cart-preview-qty', false);
+        $response->assertSee('&times; 2', false);
+        $response->assertSee('&times; 1', false);
+    }
+
     public function test_the_api_still_loads_a_pending_order_into_the_cart(): void
     {
         // loadFromOrder now goes through the shared OrderCartSeeder.

@@ -1420,6 +1420,20 @@ label {
 	color: var(--muted);
 	word-break: break-word;
 }
+/* How many of this item are in the cart. Pushed to the right so the count
+   sits beside the remove button rather than floating mid-row. */
+.shop-cart-preview-qty {
+	flex: 0 0 auto;
+	margin-left: auto;
+	padding: 4px 10px;
+	border: 1px solid var(--brand-ring);
+	border-radius: var(--radius-pill);
+	background: var(--brand-softer);
+	color: var(--text);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	white-space: nowrap;
+}
 .shop-cart-remove {
 	display: inline-flex;
 	align-items: center;

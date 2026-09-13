@@ -200,6 +200,7 @@
 							@endif
 						</div>
 					</div>
+					<span class="shop-cart-preview-qty">&times; {{ isset($item['quantity']) ? (int) $item['quantity'] : 1 }}</span>
 					<a href="#" class="shop-cart-remove cart-remove" data-uniform-id="{{ $item['uniforms_id'] }}" data-clothes-slug="{{ $item['clothes_slug'] }}" aria-label="Remove">
 						<i class="fa fa-times" aria-hidden="true"></i>
 					</a>
@@ -212,7 +213,7 @@
 		@endif
 
 		<div class="shop-summary-footer">
-			<a href="#" class="btn btn-brand shop-checkout-btn cart-checkout{{ $cartCount ? '' : ' disabled' }}">Order Now <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+			<a href="#" class="btn btn-brand shop-checkout-btn cart-checkout{{ $cartCount ? '' : ' disabled' }}">{{ !empty($editOrderId) ? 'Update Order' : 'Order Now' }} <i class="fa fa-arrow-right" aria-hidden="true"></i></a>
 		</div>
 	</div>
 </div>
