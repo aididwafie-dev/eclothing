@@ -1,0 +1,12 @@
+[
+	{
+		"relation": ["delegate_permission/common.handle_all_urls"],
+		"target": {
+			"namespace": "android_app",
+			"package_name": "com.eclothing.plas",
+			"sha256_cert_fingerprints": [
+				"8E:C9:A1:96:C9:C3:6B:85:5A:BF:8F:5D:51:48:6F:80:F0:6E:F3:7F:1B:29:3E:3C:20:02:0D:E4:B3:D7:2D:87"
+			]
+		}
+	}
+]

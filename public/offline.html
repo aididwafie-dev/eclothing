@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Offline &middot; PLAS</title>
+	<style>
+		:root {
+			--navy: #0b1f3a;
+			--surface: #f6f9fc;
+			--muted: #64748b;
+			--brand: #3391ff;
+		}
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+			background: var(--surface);
+			color: var(--navy);
+			font-family: Inter, "Segoe UI", Arial, sans-serif;
+			text-align: center;
+		}
+		.card {
+			max-width: 420px;
+			padding: 32px 28px;
+			background: #fff;
+			border: 1px solid #e2e8f0;
+			border-radius: 18px;
+		}
+		h1 {
+			margin: 0 0 10px;
+			font-size: 22px;
+		}
+		p {
+			margin: 0 0 20px;
+			color: var(--muted);
+			line-height: 1.5;
+		}
+		button {
+			padding: 12px 22px;
+			border: 0;
+			border-radius: 999px;
+			background: var(--brand);
+			color: #fff;
+			font-size: 15px;
+			font-weight: 700;
+			cursor: pointer;
+		}
+	</style>
+</head>
+<body>
+	<div class="card">
+		<h1>You are offline</h1>
+		<p>PLAS needs a connection to show your uniform orders. Reconnect and try again &mdash; nothing you submitted has been lost.</p>
+		<button type="button" onclick="location.reload()">Try again</button>
+	</div>
+</body>
+</html>

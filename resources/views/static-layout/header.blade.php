@@ -4,6 +4,17 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no">
 
+	{{-- Installable web app (and the Android TWA wrapper). Root-relative on
+	     purpose: a manifest pulled from another origin cannot be installed,
+	     and ASSET_URL may point elsewhere. --}}
+	<link rel="manifest" href="/manifest.webmanifest">
+	<meta name="theme-color" content="#0b1f3a">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="apple-mobile-web-app-title" content="PLAS">
+	<link rel="apple-touch-icon" href="/front_end/icons/apple-touch-icon.png">
+
 	<meta name="_token" content="{{ csrf_token() }}" />
 
 	<link rel="stylesheet" href="{{ asset('front_end/bootstrap-3.3.7-dist/css/bootstrap.min.css') }}">
@@ -14,6 +25,17 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 	<!-- Latest compiled JavaScript -->
 	<script src="{{ asset('front_end/bootstrap-3.3.7-dist/js/bootstrap.min.js') }}"></script>
+	<script type="text/javascript">
+		// Registered after load so it never competes with the page's own
+		// requests. The worker caches static assets only -- see public/sw.js.
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', function () {
+				navigator.serviceWorker.register('/sw.js').catch(function () {
+					// An unregistered worker only costs offline support.
+				});
+			});
+		}
+	</script>
 	<script type="text/javascript">
 		$(document).ready(function() {
 			var mobileBreakpoint = 820;
