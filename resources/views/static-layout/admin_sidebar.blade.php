@@ -35,6 +35,11 @@
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminController' && in_array($current_class_method[1], ['uniformOrdersList', 'uniformOrderDetail', 'updateUniformOrderStatus'])){ echo 'active'; } ?>"><i class="fa fa-clipboard" aria-hidden="true"></i> Uniform Orders</button>
 				</a>
 
+				{{-- Outside the superadmin block: every admin may read it. --}}
+				<a href="{{ route('admin.personal-inventory') }}">
+					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminPersonalInventoryController'){ echo 'active'; } ?>"><i class="fa fa-archive" aria-hidden="true"></i> Personal Inventory</button>
+				</a>
+
 				@if(!$ordersOnlyAdmin)
 				<a href="{{ url('/admin/uniform') }}">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminUniformController'){ echo 'active'; } ?>"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> Uniforms</button>

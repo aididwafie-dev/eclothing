@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminAccessoriesController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminNewListController;
 use App\Http\Controllers\AdminPasswordController;
+use App\Http\Controllers\AdminPersonalInventoryController;
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminSizeController;
 use App\Http\Controllers\AdminTredController;
@@ -175,6 +176,10 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	Route::post('/save-edited-clothes', [AdminUniformController::class, 'saveEditedClothes'])->name('save.edited-clothes');
 	Route::get('/uniform/clothes-delete/{id}/{uniform_id}', [AdminUniformController::class, 'deleteCloth'])->name('admin.clothes-delete');
 	Route::get('/accessories/delete/{id}', [AdminAccessoriesController::class, 'delete'])->name('admin.accessories-delete');
+
+	/************	AdminPersonalInventoryController	************/
+	Route::get('/admin/personal-inventory', [AdminPersonalInventoryController::class, 'index'])->name('admin.personal-inventory');
+	Route::get('/admin/personal-inventory/{sId}', [AdminPersonalInventoryController::class, 'show'])->where('sId', '[A-Za-z0-9_-]+')->name('admin.personal-inventory.show');
 
 	/************	AdminReportController / AdminUsersReportController	************/
 	Route::get('/admin/orders-report', [AdminReportController::class, 'index'])->name('admin.orders-report');
