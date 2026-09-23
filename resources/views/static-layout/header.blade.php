@@ -128,6 +128,7 @@
 					</div>
 
 					<div class="topbar-right">
+						@include('static-layout/language-toggle')
 						<button type="button" class="btn btn-default topbar-action" aria-label="Search">
 							<i class="fa fa-search" aria-hidden="true"></i>
 						</button>

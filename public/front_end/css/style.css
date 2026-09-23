@@ -2051,6 +2051,78 @@ label {
 .table.table-orders-member tbody tr td.order-row-action {
 	text-align: right;
 }
+/* --- language toggle (EN | BM) ----------------------------------------
+   Sits in the topbar once signed in, and floats top-right on the sign-in
+   screens, which have no topbar of their own. */
+.lang-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-pill);
+	background: var(--card);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	line-height: 1;
+	white-space: nowrap;
+}
+.lang-toggle-icon {
+	color: var(--muted);
+	font-size: 13px;
+}
+.lang-toggle .lang-option,
+.lang-toggle .lang-option:visited {
+	color: var(--muted);
+	text-decoration: none;
+	padding: 2px 2px;
+	border-radius: 4px;
+}
+.lang-toggle .lang-option:hover,
+.lang-toggle .lang-option:focus {
+	color: var(--brand);
+	text-decoration: none;
+}
+.lang-toggle .lang-option.is-active {
+	color: var(--brand);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.lang-toggle .lang-sep {
+	color: var(--border-strong);
+}
+/* On the navy sign-in background the pill is translucent rather than white. */
+.lang-toggle-floating {
+	position: absolute;
+	top: 18px;
+	right: 20px;
+	z-index: 20;
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.28);
+}
+.lang-toggle-floating .lang-toggle-icon,
+.lang-toggle-floating .lang-option,
+.lang-toggle-floating .lang-option:visited {
+	color: rgba(255, 255, 255, 0.78);
+}
+.lang-toggle-floating .lang-option.is-active,
+.lang-toggle-floating .lang-option:hover,
+.lang-toggle-floating .lang-option:focus {
+	color: #fff;
+}
+.lang-toggle-floating .lang-sep {
+	color: rgba(255, 255, 255, 0.4);
+}
+@media screen and (max-width: 640px) {
+	.lang-toggle {
+		padding: 5px 10px;
+	}
+	.lang-toggle-floating {
+		top: 10px;
+		right: 12px;
+	}
+}
+
 /* --- a field that still needs filling in -------------------------------
    The red edge names the field; the popup says why. Used by the order
    review form when a rejection is attempted with no reason. */

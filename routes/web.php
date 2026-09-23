@@ -38,6 +38,17 @@ Route::get('/health', function () {
     return 'OK';
 });
 
+// Language toggle (EN | BM). Public: the sign-in screens carry it too, and the
+// choice follows the visitor into the app. Anything unrecognised is ignored
+// rather than refused, so a stale link cannot break the page.
+Route::get('/language/{locale}', function (string $locale) {
+	if (in_array($locale, \App\Http\Middleware\SetLocale::SUPPORTED, true)) {
+		session(['locale' => $locale]);
+	}
+
+	return redirect()->back();
+})->name('language.switch');
+
 Route::get('/register', [UserController::class, 'register'])->name('user.register');
 Route::post('/value-exist', [UserController::class, 'ajaxValueExist'])->name('user.ajax');
 Route::post('/signed-up', [UserController::class, 'SignedUp'])->name('user.signedup');

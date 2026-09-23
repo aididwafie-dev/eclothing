@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureAdminRoleAllowsRoute;
 use App\Http\Middleware\EnsureMobileTokenIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAuthenticated;
 use App\Http\Middleware\RedirectIfAuthenticated;
+use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\TrimStrings;
 use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -40,6 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             VerifyCsrfToken::class,
             SubstituteBindings::class,
+            // After StartSession: the chosen language is read from the session.
+            SetLocale::class,
         ]);
 
         $middleware->api(prepend: [

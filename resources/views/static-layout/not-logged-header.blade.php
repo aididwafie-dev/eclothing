@@ -35,3 +35,6 @@
 	</head>
 	<body class="auth">
 		@include('static-layout/popup-alert')
+		{{-- The sign-in screens have no topbar, so the toggle floats in the
+		     same top-right corner it occupies once signed in. --}}
+		@include('static-layout/language-toggle', ['langToggleClass' => 'lang-toggle-floating'])

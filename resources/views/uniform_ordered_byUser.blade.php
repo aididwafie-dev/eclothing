@@ -2,7 +2,7 @@
 @include('static-layout/sidebar')
 
 <br>
-<div class="title"><i class="fa fa-shopping-bag" aria-hidden="true"></i> Uniform Order Status</div>
+<div class="title"><i class="fa fa-shopping-bag" aria-hidden="true"></i> {{ __('app.orders.title') }}</div>
 <hr>
 
 <div class="containerMain">
@@ -10,23 +10,23 @@
 		@if($data != 0)
 		<div class="orders-toolbar">
 			<a class="mail_user_order_details">
-				<button type="button" class="btn btn-brand"><i class="fa fa-envelope" aria-hidden="true"></i> Send Mail</button>
+				<button type="button" class="btn btn-brand"><i class="fa fa-envelope" aria-hidden="true"></i> {{ __('app.orders.send_mail') }}</button>
 			</a>
 		</div>
 		<hr>
-		<div class="shop-subtitle">Track each uniform order by its current status. Click an order to see its items and remarks.</div>
+		<div class="shop-subtitle">{{ __('app.orders.intro') }}</div>
 
 		<div class="table-responsive">
 			<table class="table table-orders table-orders-member">
 				<thead>
 					<tr>
-						<th>Order</th>
-						<th>Uniform</th>
-						<th>Items</th>
-						<th>Status</th>
-						<th>Collection Date</th>
-						<th>Last Updated</th>
-						<th><span class="sr-only">Actions</span></th>
+						<th>{{ __('app.orders.order') }}</th>
+						<th>{{ __('app.orders.uniform') }}</th>
+						<th>{{ __('app.orders.items') }}</th>
+						<th>{{ __('app.orders.status') }}</th>
+						<th>{{ __('app.orders.collection_date') }}</th>
+						<th>{{ __('app.orders.last_updated') }}</th>
+						<th><span class="sr-only">{{ __('app.orders.actions') }}</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -35,7 +35,10 @@
 						$order = $array['userOrders'];
 						$uniform = $array['orderedUniform'];
 						$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
-						$statusLabel = !empty($order->status_label) ? $order->status_label : 'Pending';
+						// Translated from the status key, so the badge follows the
+						// chosen language rather than the stored English label.
+						$statusKey = !empty($order->status_key) ? $order->status_key : 'pending';
+						$statusLabel = __('app.status.' . $statusKey);
 						$remarks = trim((string) $order->remarks);
 						$collectionDate = $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : null;
 						$detailsId = 'order-detail-' . $order->id;
@@ -48,7 +51,7 @@
 							<button type="button" class="order-row-toggle" aria-expanded="false" aria-controls="{{ $detailsId }}">
 								<i class="fa fa-chevron-right order-row-caret" aria-hidden="true"></i>
 								<span>#{{ $order->id }}</span>
-								<span class="sr-only">Show details</span>
+								<span class="sr-only">{{ __('app.orders.show_details') }}</span>
 							</button>
 						</td>
 						<td data-label="Uniform">{{ $uniformLabel }}</td>
@@ -56,11 +59,11 @@
 						<td data-label="Status">
 							<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
 							@if($remarks !== '')
-							<i class="fa fa-comment-o order-row-remarks" aria-hidden="true" title="This order has remarks"></i>
+							<i class="fa fa-comment-o order-row-remarks" aria-hidden="true" title="{{ __('app.orders.has_remarks') }}"></i>
 							@endif
 						</td>
 						<td data-label="Collection Date">
-							@if($collectionDate){{ $collectionDate }}@else<span class="text-muted">To be updated</span>@endif
+							@if($collectionDate){{ $collectionDate }}@else<span class="text-muted">{{ __('app.orders.to_be_updated') }}</span>@endif
 						</td>
 						<td data-label="Last Updated">{{ $order->updated_at ? date('d M Y', strtotime($order->updated_at)) : '-' }}</td>
 						<td data-label="Actions" class="order-row-action">
@@ -71,7 +74,7 @@
 								<form method="post" action="{{ route('user.order.edit', $order->id) }}" class="order-row-edit">
 									@csrf
 									<button type="submit" class="btn btn-brand btn-sm">
-										<i class="fa fa-pencil" aria-hidden="true"></i> Edit
+										<i class="fa fa-pencil" aria-hidden="true"></i> {{ __('app.orders.edit') }}
 									</button>
 								</form>
 								@endif
@@ -86,33 +89,33 @@
 							<div class="order-detail-inner">
 								<dl class="order-detail-meta">
 									<div>
-										<dt>Ordered</dt>
+										<dt>{{ __('app.orders.ordered') }}</dt>
 										<dd>{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</dd>
 									</div>
 									<div>
-										<dt>Last Updated</dt>
+										<dt>{{ __('app.orders.last_updated') }}</dt>
 										<dd>{{ $order->updated_at ? date('d M Y h:i A', strtotime($order->updated_at)) : '-' }}</dd>
 									</div>
 									<div>
-										<dt>Collection Date</dt>
-										<dd>{{ $collectionDate ?: 'To be updated' }}</dd>
+										<dt>{{ __('app.orders.collection_date') }}</dt>
+										<dd>{{ $collectionDate ?: __('app.orders.to_be_updated') }}</dd>
 									</div>
 									<div class="is-wide">
-										<dt>Remarks</dt>
-										<dd>{{ $remarks !== '' ? $remarks : 'No remarks yet.' }}</dd>
+										<dt>{{ __('app.orders.remarks') }}</dt>
+										<dd>{{ $remarks !== '' ? $remarks : __('app.orders.no_remarks') }}</dd>
 									</div>
 								</dl>
 
-								<div class="order-detail-items-title">Items ordered</div>
+								<div class="order-detail-items-title">{{ __('app.orders.items_ordered') }}</div>
 								<ul class="order-detail-items">
 									@forelse($array['orderDetails'] as $clothsDetails)
 									<li>
 										<span class="order-detail-item-name">{{ $clothsDetails->clothes }}</span>
-										<span class="order-detail-item-size">Size {{ $clothsDetails->size }}</span>
+										<span class="order-detail-item-size">{{ __('app.orders.size') }} {{ $clothsDetails->size }}</span>
 										<span class="order-detail-item-qty">&times; {{ $clothsDetails->quantity ?? 1 }}</span>
 									</li>
 									@empty
-									<li class="is-empty">No items on this order.</li>
+									<li class="is-empty">{{ __('app.orders.no_items') }}</li>
 									@endforelse
 								</ul>
 							</div>
@@ -123,7 +126,7 @@
 			</table>
 		</div>
 		@else
-		You have not ordered any uniform.
+		{{ __('app.orders.none_yet') }}
 		@endif
 	</div>
 </div>

@@ -10,22 +10,22 @@
 					<div class="sidebar-brand-title">{{ $siteTitle ?? 'PLAS' }}</div>
 				</div>
 
-				<a href="#" class="btn btn-link btn-pnl btn-block sidebar-close"><i class="fa fa-times" aria-hidden="true"></i> Close</a>
+				<a href="#" class="btn btn-link btn-pnl btn-block sidebar-close"><i class="fa fa-times" aria-hidden="true"></i> {{ __('app.nav.close') }}</a>
 
-				<a href="{{ url('/user/personal-details') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/personal-details')){ echo 'active'; } ?>"><i class="fa fa-address-card-o" aria-hidden="true"></i> Personal Details
+				<a href="{{ url('/user/personal-details') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/personal-details')){ echo 'active'; } ?>"><i class="fa fa-address-card-o" aria-hidden="true"></i> {{ __('app.nav.personal_details') }}
 				</a>
 
-				<a href="{{ url('/user/uniform-selection') }}" id="uniform-selection" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/uniform-selection')){ echo 'active'; } ?>"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> Order Uniform</a>
+				<a href="{{ url('/user/uniform-selection') }}" id="uniform-selection" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/uniform-selection')){ echo 'active'; } ?>"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> {{ __('app.nav.order_uniform') }}</a>
 
-				<a href="{{ url('/user/ordered-uniform') }}" id="uniform-ordered" class="btn btn-pnl btn-block btn-link <?php if (Request::is('user/ordered-uniform')){ echo 'active'; } ?>"><i class="fa fa-shopping-bag" aria-hidden="true"></i> Uniform Ordered</a>
+				<a href="{{ url('/user/ordered-uniform') }}" id="uniform-ordered" class="btn btn-pnl btn-block btn-link <?php if (Request::is('user/ordered-uniform')){ echo 'active'; } ?>"><i class="fa fa-shopping-bag" aria-hidden="true"></i> {{ __('app.nav.uniform_ordered') }}</a>
 
-				<a href="{{ url('/user/change-email') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/change-email')){ echo 'active'; } ?>"><i class="fa fa-envelope-square" aria-hidden="true"></i> Change Email Id</a>
+				<a href="{{ url('/user/change-email') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/change-email')){ echo 'active'; } ?>"><i class="fa fa-envelope-square" aria-hidden="true"></i> {{ __('app.nav.change_email') }}</a>
 
-				<a href="{{ url('/user/change-password') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/change-password')){ echo 'active'; } ?>"><i class="fa fa-lock" aria-hidden="true"></i> Change Password</a>
+				<a href="{{ url('/user/change-password') }}" class="btn btn-link btn-pnl btn-block <?php if (Request::is('user/change-password')){ echo 'active'; } ?>"><i class="fa fa-lock" aria-hidden="true"></i> {{ __('app.nav.change_password') }}</a>
 
-				<a id="logout" type="button" class="btn btn-link btn-pnl btn-block"><i class="fa fa-sign-out" aria-hidden="true"></i> Logout
+				<a id="logout" type="button" class="btn btn-link btn-pnl btn-block"><i class="fa fa-sign-out" aria-hidden="true"></i> {{ __('app.nav.logout') }}
 				</a>
-			</nav>				
+			</nav>
 		</div>
 
 <script type="text/javascript">
@@ -36,7 +36,7 @@
 		}
 	$(document).ready(function() {
 		$("#logout").click(function() {
-			var r = confirm("Are you sure you would like to logout? All unsaved changes will be lost.");
+			var r = confirm({!! json_encode(__('app.nav.logout_confirm')) !!});
 			if (r== true) {
 				window.location = '{{ url('/user/logout') }}';
 			}
