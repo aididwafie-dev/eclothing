@@ -716,13 +716,24 @@ $nestedData[] = $row->updated_at;
 
 			$allowedStatuses = $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request));
 
-			$validator = Validator::make($request->all(), [
+			$rules = [
 				'order_id' => 'required|integer',
 				// The role decides which statuses are on offer. Checked here as
 				// well as in the view: hiding a button is not a restriction.
 				'status' => 'required|in:' . implode(',', $allowedStatuses),
 				'remarks' => 'nullable|string|max:1000',
 				'collection_date' => 'nullable|date',
+			];
+
+			// A rejection reaches the member with the remarks as the reason, so
+			// it cannot be blank. The browser asks for it first; this is the
+			// rule, for the same reason the status list is checked here too.
+			if ((string) $request->input('status') === '2') {
+				$rules['remarks'] = 'required|string|max:1000';
+			}
+
+			$validator = Validator::make($request->all(), $rules, [
+				'remarks.required' => 'Please key in the remarks. A rejected order must tell the member why.',
 			]);
 
 			if ($validator->fails()) {

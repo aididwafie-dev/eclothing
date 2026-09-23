@@ -2051,6 +2051,22 @@ label {
 .table.table-orders-member tbody tr td.order-row-action {
 	text-align: right;
 }
+/* --- a field that still needs filling in -------------------------------
+   The red edge names the field; the popup says why. Used by the order
+   review form when a rejection is attempted with no reason. */
+.form-control.field-invalid,
+.form-control.field-invalid:focus {
+	border-color: var(--danger);
+	background: var(--danger-soft);
+	box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.18);
+}
+.field-error-text {
+	margin: 6px 0 0;
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	color: var(--danger-ink);
+}
+
 /* --- Personal Inventory: member x uniform-type counts ------------------
    Numbers are centred so a column of them scans vertically; a zero is
    muted rather than hidden, because "none of this uniform" is an answer. */

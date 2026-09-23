@@ -92,9 +92,16 @@
 
 						<div class="order-actions-heading" style="padding-top:0;border-top:0;">Review this order</div>
 
-						<div class="form-group">
+						@php $remarksInvalid = $errors->has('remarks'); @endphp
+						<div class="form-group{{ $remarksInvalid ? ' has-error' : '' }}">
 							<label class="label_" for="orderRemarks">Remarks</label>
-							<textarea id="orderRemarks" name="remarks" class="form-control" rows="4" placeholder="Add approval or rejection remarks here">{{ old('remarks', $order->remarks) }}</textarea>
+							<textarea id="orderRemarks" name="remarks" class="form-control{{ $remarksInvalid ? ' field-invalid' : '' }}" rows="4"
+								placeholder="Add approval or rejection remarks here"
+								aria-describedby="orderRemarksError">{{ old('remarks', $order->remarks) }}</textarea>
+							{{-- Shown when a rejection is attempted with no reason: the
+							     member is told why their order was rejected, so the
+							     field cannot be left blank. --}}
+							<p id="orderRemarksError" class="field-error-text" @if(!$remarksInvalid) style="display:none;" @endif>{{ $errors->first('remarks') ?: 'A rejected order must tell the member why. Please key in the remarks.' }}</p>
 						</div>
 
 						<div class="form-group">
@@ -160,5 +167,51 @@
 </div>
 </div>
 <!--#### 3 div open in sidebar ####-->
+<script type="text/javascript">
+	$(document).ready(function() {
+		var REJECT_STATUS = '2';
+		var REASON_REQUIRED = 'Please key in the remarks before rejecting this order. The member is told why their order was rejected.';
+
+		var $form = $('.order-detail-sidebar form');
+		var $remarks = $('#orderRemarks');
+		var $remarksError = $('#orderRemarksError');
+		var clickedStatus = null;
+
+		// Which button was pressed decides whether a reason is required, so it
+		// is recorded before the form's own submit handler runs.
+		$form.on('click', 'button[type="submit"]', function() {
+			clickedStatus = $(this).val();
+		});
+
+		$remarks.on('input', function() {
+			if ($.trim($remarks.val()) !== '') {
+				$remarks.removeClass('field-invalid').closest('.form-group').removeClass('has-error');
+				$remarksError.hide();
+			}
+		});
+
+		$form.on('submit', function(e) {
+			if (clickedStatus !== REJECT_STATUS || $.trim($remarks.val()) !== '') {
+				return;
+			}
+
+			e.preventDefault();
+
+			$remarks.addClass('field-invalid').closest('.form-group').addClass('has-error');
+			$remarksError.show();
+
+			if (window.showAppPopup) {
+				// The popup takes focus while it is open, so the field is
+				// focused once the admin dismisses it.
+				$('#appPopupModal').one('hidden.bs.modal', function() {
+					$remarks.focus();
+				});
+				window.showAppPopup(REASON_REQUIRED, 'danger', { autoClose: false });
+			} else {
+				$remarks.focus();
+			}
+		});
+	});
+</script>
 </body>
 </html>
