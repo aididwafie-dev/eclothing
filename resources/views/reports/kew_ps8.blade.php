@@ -65,6 +65,23 @@
 			overflow: hidden;
 		}
 		table.kewps8-table thead th { text-align: center; background: #eee; line-height: 1.3; height: auto; }
+		/* The text columns are narrower now that the three blocks share the
+		   width evenly, and the longest stock descriptions and remarks ("NOT
+		   APPLICABLE") no longer fit on one line. Cells clip rather than wrap
+		   by default, and the PDF renderer instead steals width from a
+		   neighbouring column to fit them, which tips the blocks out of
+		   balance. Two 13px lines come to the same 26px as every other row, so
+		   wrapping here keeps both the grid and the thirds even. */
+		table.kewps8-table td.col-wrap {
+			white-space: normal;
+			line-height: 13px;
+			/* "(Airmen)/Kain(Airwomen)" carries no space to break at, and a
+			   column is never made narrower than its longest unbreakable word,
+			   so without this one such entry widens its column and pulls the
+			   blocks off a third each. */
+			word-wrap: break-word;
+			word-break: break-word;
+		}
 		.text-center { text-align: center; }
 		.sign-cell { vertical-align: top; height: auto; line-height: normal; overflow: visible; }
 		.sign-title { font-weight: bold; margin-bottom: 24px; }
@@ -85,6 +102,10 @@
 			body { background: #fff; padding: 0; }
 			.no-print { display: none; }
 			.kewps8-sheet { border: none; margin: 0 0 12px 0; page-break-after: always; }
+			/* Under table-layout:fixed dompdf drops the column widths and
+			   spaces all nine evenly, which is what pushed the three blocks to
+			   44/33/22. Its automatic layout does read them. */
+			table.kewps8-table { table-layout: auto; }
 		</style>
 	@endif
 </head>
@@ -115,16 +136,22 @@
 		</div>
 
 		<table class="kewps8-table">
+			{{-- The three blocks carry equal weight on the form, so each gets a
+			     third of the width and the signature boxes below them come out
+			     the same size. Pegawai Pelulus and Perakuan Penerimaan split
+			     their third evenly; Permohonan does not, because Bil. holds a
+			     row number and Perihal Stok holds the longest text on the
+			     form. Each block still totals a third. --}}
 			<colgroup>
-				<col style="width: 5%">
-				<col style="width: 24%">
+				<col style="width: 4%">
+				<col style="width: 14.34%">
+				<col style="width: 6%">
 				<col style="width: 9%">
-				<col style="width: 11%">
-				<col style="width: 9%">
-				<col style="width: 9%">
-				<col style="width: 11%">
-				<col style="width: 11%">
-				<col style="width: 11%">
+				<col style="width: 11.11%">
+				<col style="width: 11.11%">
+				<col style="width: 11.11%">
+				<col style="width: 16.67%">
+				<col style="width: 16.66%">
 			</colgroup>
 			<thead>
 			<tr>
@@ -132,30 +159,35 @@
 				<th colspan="3">Pegawai Pelulus</th>
 				<th colspan="2">Perakuan Penerimaan</th>
 			</tr>
+			{{-- The widths are repeated here because the PDF renderer reads
+			     them from the cells, not from the <colgroup>: without them it
+			     sizes the columns by their contents, so the three blocks come
+			     out differently on every order. Browsers use the colgroup, so
+			     the two must be kept in step. --}}
 			<tr>
-				<th>Bil.</th>
-				<th>Perihal Stok</th>
-				<th>Kuantiti<br>Dimohon</th>
-				<th>Catatan</th>
-				<th>Baki Sedia<br>Ada</th>
-				<th>Kuantiti<br>Diluluskan</th>
-				<th>Catatan</th>
-				<th>Kuantiti<br>Diterima</th>
-				<th>Catatan</th>
+				<th style="width: 4%">Bil.</th>
+				<th style="width: 14.34%">Perihal Stok</th>
+				<th style="width: 6%">Kuantiti<br>Dimohon</th>
+				<th style="width: 9%">Catatan</th>
+				<th style="width: 11.11%">Baki Sedia<br>Ada</th>
+				<th style="width: 11.11%">Kuantiti<br>Diluluskan</th>
+				<th style="width: 11.11%">Catatan</th>
+				<th style="width: 16.67%">Kuantiti<br>Diterima</th>
+				<th style="width: 16.66%">Catatan</th>
 			</tr>
 			</thead>
 			<tbody>
 			@foreach($reportRows as $row)
 				<tr>
 					<td class="text-center">{{ $row['bil'] }}</td>
-					<td>{{ $row['perihal'] }}</td>
+					<td class="col-wrap">{{ $row['perihal'] }}</td>
 					<td class="text-center">{{ $row['dimohon'] }}</td>
-					<td>{{ $row['catatan'] }}</td>
+					<td class="col-wrap">{{ $row['catatan'] }}</td>
 					<td class="text-center">{{ $row['baki'] ?? '' }}</td>
 					<td class="text-center">{{ $row['diluluskan'] ?? '' }}</td>
-					<td>{{ $row['catatan_pelulus'] ?? '' }}</td>
+					<td class="col-wrap">{{ $row['catatan_pelulus'] ?? '' }}</td>
 					<td class="text-center">{{ $row['diterima'] ?? '' }}</td>
-					<td>{{ $row['catatan_terima'] ?? '' }}</td>
+					<td class="col-wrap">{{ $row['catatan_terima'] ?? '' }}</td>
 				</tr>
 			@endforeach
 			</tbody>
