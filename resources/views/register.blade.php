@@ -1,49 +1,49 @@
 @include('static-layout/not-logged-header')
-		
+
 		<div class="banner">
 			<div class="content content-log">
 				<img src="{{ $siteLogoUrl ?? asset('front_end/images/logo.png') }}" class="img-responsive center-block" alt="logo" />
 				<!-- <h2 class="text-center">Personnel Logistic Accounting System</h2> -->
-				<div class="title">Registration for new user</div>
+				<div class="title">{{ __('app.register.title') }}</div>
 				<hr>
-				
+
 				<form autocomplete="off" method="post" action="{{ url('/signed-up') }}" name="register-form" id="register-form">
-				
+
 					<input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>">
 
 						<div class="form-group">
-							<label class="label_">E-mail</label>
-							<input class="form-control" type="email" id="email" name="email" placeholder="Enter your e-mail address"/>
+							<label class="label_">{{ __('app.register.email') }}</label>
+							<input class="form-control" type="email" id="email" name="email" placeholder="{{ __('app.register.email_placeholder') }}"/>
 							<div id="result_e"></div>
 						</div>
-								
+
 						<div class="form-group">
-							<label class="label_">Service ID</label>
-							<input class="form-control" type="text" id="s_id" name="s_id" placeholder="Enter your Service ID" />
+							<label class="label_">{{ __('app.login.service_id') }}</label>
+							<input class="form-control" type="text" id="s_id" name="s_id" placeholder="{{ __('app.login.service_id_placeholder') }}" />
 							<div id="result_s"></div>
 						</div>
 
 						<div class="form-group">
-							<label class="label_">Password</label>
-							<input class="form-control" type="password" id="password" name="password" placeholder="Create a password"/>
+							<label class="label_">{{ __('app.login.password') }}</label>
+							<input class="form-control" type="password" id="password" name="password" placeholder="{{ __('app.register.password_placeholder') }}"/>
 						</div>
-						
+
 						<div class="form-group">
-							<label class="label_">Confirm Password:</label>							
-							<input class="form-control" type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" />
+							<label class="label_">{{ __('app.register.confirm_password') }}</label>
+							<input class="form-control" type="password" id="confirm_password" name="confirm_password" placeholder="{{ __('app.register.confirm_password_placeholder') }}" />
 						</div>
 
 						<div class="subBtn">
-							<input class="btn btn-default" type="submit" id="submit" name="submit" value="Confirm" /> 
-							<input class="btn btn-default" id="reset" type="reset" value="Reset" />
+							<input class="btn btn-default" type="submit" id="submit" name="submit" value="{{ __('app.register.confirm') }}" />
+							<input class="btn btn-default" id="reset" type="reset" value="{{ __('app.register.reset') }}" />
 						</div>
 				</form>
-				<span>Already registered? <a href="{{ url('/user/login') }}" class="redirect-link">Click to Login.</a></span>
+				<span>{{ __('app.register.already_registered') }} <a href="{{ url('/user/login') }}" class="redirect-link">{{ __('app.register.click_to_login') }}</a></span>
 				<br/>
-				<a class="back-btn" href="{{ url('/home') }}"><i class="fa fa-long-arrow-left" aria-hidden="true"></i> Home</a>
+				<a class="back-btn" href="{{ url('/home') }}"><i class="fa fa-long-arrow-left" aria-hidden="true"></i> {{ __('app.register.home') }}</a>
 			</div>
 		</div>
-		
+
 		<script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
 		<script src="https://ajax.aspnetcdn.com/ajax/jquery.validate/1.9/jquery.validate.min.js"></script>
 		<style type="text/css">
@@ -60,14 +60,14 @@
 					var valueType = "email";
 					checkExistFunction(valueType, value);
     			});
-				
+
 				$("#s_id").keyup(function(){
 					$('#submit').prop('disabled', true);
         			var value = $("#s_id").val();
 					var valueType = "s_id";
 					checkExistFunction(valueType, value);
     			});
-				
+
 				function checkExistFunction(valueType, value)
 				{
 					$.ajaxSetup({
@@ -123,7 +123,7 @@
 					makeEnableFunction();
     			});
 			});
-			
+
 			$("#register-form").validate({
 				rules: {
 							email: {
@@ -144,10 +144,10 @@
 							},
 						},
 						messages: {
-							email: "Put your valid email address",
-							s_id: "Put your valid service ID",
-							password: "Put a password which is a minimum length of 8",
-							confirm_password: "Please enter the same password in both boxes",
+							email: {!! json_encode(__('app.register.invalid_email')) !!},
+							s_id: {!! json_encode(__('app.register.invalid_service_id')) !!},
+							password: {!! json_encode(__('app.register.invalid_password')) !!},
+							confirm_password: {!! json_encode(__('app.register.password_mismatch')) !!},
 						},
 				submitHandler: function(form) {
 					// do other things for a valid form

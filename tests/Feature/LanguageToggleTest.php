@@ -106,6 +106,157 @@ class LanguageToggleTest extends TestCase
         $response->assertSee('lang-toggle', false);
     }
 
+    public function test_the_other_sign_in_pages_translate(): void
+    {
+        $this->get('/language/ms');
+
+        $this->get('/register')
+            ->assertOk()
+            ->assertSee('Pendaftaran pengguna baharu')
+            ->assertSee('Sahkan Kata Laluan:')
+            ->assertDontSee('Registration for new user');
+
+        $this->get('/forgot-password')
+            ->assertOk()
+            ->assertSee('Set Semula Kata Laluan')
+            ->assertSee('HANTAR');
+    }
+
+    public function test_the_account_pages_translate(): void
+    {
+        $memberId = $this->seedMember();
+
+        $this->get('/language/ms');
+
+        $this->withSession(['user_id' => $memberId])
+            ->get('/user/change-email')
+            ->assertOk()
+            ->assertSee('Tukar Alamat E-mel')
+            ->assertSee('Alamat e-mel baharu');
+
+        $this->withSession(['user_id' => $memberId])
+            ->get('/user/change-password')
+            ->assertOk()
+            ->assertSee('Kata Laluan Lama:')
+            ->assertSee('Sahkan Kata Laluan:');
+    }
+
+    public function test_the_admin_order_queue_translates(): void
+    {
+        $time = date('Y-m-d H:i:s');
+
+        $adminId = DB::table('admins')->insertGetId([
+            'name' => 'Language Test Admin',
+            'email' => 'lang-admin-' . Str::random(8) . '@example.com',
+            'username' => '__lang_admin_' . Str::random(6) . '__',
+            'role' => 'superadmin',
+            'password' => PasswordHasher::make('secret-password'),
+            'status' => 1,
+            'created_at' => $time,
+            'updated_at' => $time,
+        ]);
+
+        $memberId = $this->seedMember();
+        $uniformId = DB::table('uniforms')->insertGetId([
+            'uniform_type' => 'A' . random_int(100, 999),
+            'uniform_name' => 'BAJU PENTADBIR',
+            'active' => 1,
+            'created_at' => $time,
+            'updated_at' => $time,
+        ]);
+        $orderId = DB::table('orders')->insertGetId([
+            'user_id' => (string) $memberId,
+            'uniforms_id' => (string) $uniformId,
+            'status' => '1',
+            'deleted' => 0,
+            'created_at' => $time,
+            'updated_at' => $time,
+        ]);
+
+        $this->get('/language/ms');
+
+        // The queue, its filter and the sidebar.
+        $this->withSession(['admin_id' => $adminId])
+            ->get('/admin/uniform-orders')
+            ->assertOk()
+            ->assertSee('Pesanan Pakaian Seragam')
+            ->assertSee('Tarikh Pengambilan')
+            ->assertSee('Lihat Butiran')
+            ->assertSee('Semua Pengguna')
+            ->assertSee('Menunggu')
+            ->assertDontSee('View Detail');
+
+        // The review screen.
+        $this->withSession(['admin_id' => $adminId])
+            ->get('/admin/uniform-orders/' . base64_encode('DCS' . $orderId . 'DCS'))
+            ->assertOk()
+            ->assertSee('Butiran Pesanan Pakaian Seragam')
+            ->assertSee('Semak pesanan ini')
+            ->assertSee('Tolak Pesanan')
+            ->assertSee('Muat Turun KEW.PS-8')
+            ->assertDontSee('Reject Order');
+    }
+
+    public function test_the_personal_details_page_translates(): void
+    {
+        $memberId = $this->seedMember();
+
+        $this->get('/language/ms');
+
+        $response = $this->withSession(['user_id' => $memberId])->get('/user/personal-details');
+
+        $response->assertOk();
+        $response->assertSee('Butiran Peribadi');
+        $response->assertSee('ID PERKHIDMATAN');
+        $response->assertSee('NAMA WARIS');
+        $response->assertSee('KUASA KHAS (JIKA ADA)');
+        $response->assertSee('SIMPAN');
+        $response->assertDontSee('NEXT OF KIN NAME');
+    }
+
+    public function test_the_cart_pages_translate(): void
+    {
+        $memberId = $this->seedMember();
+        $time = date('Y-m-d H:i:s');
+
+        $uniformId = DB::table('uniforms')->insertGetId([
+            'uniform_type' => 'C' . random_int(100, 999),
+            'uniform_name' => 'BAJU TROLI',
+            'active' => 1,
+            'created_at' => $time,
+            'updated_at' => $time,
+        ]);
+
+        DB::table('uniform_clothes')->insert([
+            'uniforms_id' => $uniformId,
+            'clothes_type' => 'Kemeja Troli',
+            'clothes_slug' => 'kemeja-troli-' . Str::random(4),
+            'clothes_size' => '',
+            'created_at' => $time,
+            'updated_at' => $time,
+        ]);
+
+        $this->get('/language/ms');
+
+        // The page shell.
+        $this->withSession(['user_id' => $memberId])
+            ->get('/user/uniform-selection')
+            ->assertOk()
+            ->assertSee('Pesan Pakaian Seragam')
+            ->assertSee('Troli Pakaian Seragam')
+            ->assertDontSee('Order Uniform');
+
+        // The item list, which the page loads separately.
+        $this->withSession(['user_id' => $memberId])
+            ->post('/load-uniform-data', ['uniform_id' => $uniformId])
+            ->assertOk()
+            ->assertSee('Ringkasan Troli')
+            ->assertSee('Belum Ditambah')
+            ->assertSee('Bilangan')
+            ->assertSee('Hantar Pesanan')
+            ->assertDontSee('Cart Summary');
+    }
+
     public function test_order_statuses_are_translated(): void
     {
         $memberId = $this->seedMember();

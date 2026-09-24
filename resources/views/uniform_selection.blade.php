@@ -2,7 +2,7 @@
 @include('static-layout/sidebar')
 
 </br>
-<div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> Order Uniform</div>
+<div class="title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> {{ __('app.cart.order_uniform') }}</div>
 <hr>
 
 <div class="containerMain">
@@ -16,14 +16,14 @@
 			$initialEditOrderId = ($requestedUniform && isset($editOrders[$requestedUniform])) ? $editOrders[$requestedUniform] : null;
 		@endphp
 		<div class="cart-board-header">
-			<div class="title"><i class="fa fa-shopping-cart" aria-hidden="true"></i> Uniform Shopping Cart</div>
+			<div class="title"><i class="fa fa-shopping-cart" aria-hidden="true"></i> {{ __('app.cart.title') }}</div>
 			{{-- Present only while an order is loaded for editing; the script
 			     below hides it again if the member switches to a uniform that
 			     is not part of that order. --}}
 			@if(!empty($editOrders))
 			<div id="editOrderBadge" class="cart-order-badge" @if(!$initialEditOrderId) style="display:none;" @endif>
 				<i class="fa fa-pencil" aria-hidden="true"></i>
-				<span>Order ID <strong id="editOrderBadgeId">{{ $initialEditOrderId ? '#' . $initialEditOrderId : '' }}</strong></span>
+				<span>{{ __('app.cart.order_id') }} <strong id="editOrderBadgeId">{{ $initialEditOrderId ? '#' . $initialEditOrderId : '' }}</strong></span>
 			</div>
 			@endif
 		</div>
@@ -44,7 +44,7 @@
 
 		<div id="clothLoader" class="text-center" style="color: var(--text);margin-top: 2em; display:none;">
 			<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><br />
-			<span style="font-size: 125%;">Loading items....</span>
+			<span style="font-size: 125%;">{{ __('app.cart.loading_items') }}</span>
 		</div>
 		<div id="loadDataForm" class="loadDataForm"></div>
 	</div>
@@ -167,7 +167,7 @@
 					loadDynamicForm(uniformsId);
 				},
 				error: function(xhr) {
-					var message = 'Tidak dapat menambah item ini.';
+					var message = {!! json_encode(__('app.cart.add_error')) !!};
 					if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
 						message = xhr.responseJSON.message;
 					}
@@ -223,7 +223,7 @@
 				error: function(xhr) {
 					var message = (xhr.responseJSON && xhr.responseJSON.message)
 						? xhr.responseJSON.message
-						: 'Sorry, your order could not be saved. Please try again.';
+						: {!! json_encode(__('app.cart.checkout_error')) !!};
 					if (window.showAppPopup) {
 						window.showAppPopup(message, 'danger', { autoClose: false });
 					} else {

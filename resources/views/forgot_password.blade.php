@@ -1,27 +1,27 @@
 @include('static-layout/not-logged-header')
-		
+
 		<div class="banner">
 			<div class="content content-log">
 				<img src="{{ $siteLogoUrl ?? asset('front_end/images/logo.png') }}" class="img-responsive center-block" alt="logo" />
 				<!-- <h2 class="text-center">Personnel Logistic Accounting System</h2> -->
-				<div class="title">Reset Password</div>
-				<hr>		
-								
+				<div class="title">{{ __('app.forgot.title') }}</div>
+				<hr>
+
 				<div class="form-group">
-					<label class="label_">E-mail</label>
-					<input class="form-control" autocomplete="off" type="email" id="email" name="email" placeholder="Enter your E-mail address"/>
+					<label class="label_">{{ __('app.forgot.email') }}</label>
+					<input class="form-control" autocomplete="off" type="email" id="email" name="email" placeholder="{{ __('app.forgot.email_placeholder') }}"/>
 					<div id="result_e"></div>
 				</div>
 
 				<div class="subBtn">
-					<button class="btn btn-default" value="SEND" id="send" name="send">SEND</button>
+					<button class="btn btn-default" value="{{ __('app.forgot.send') }}" id="send" name="send">{{ __('app.forgot.send') }}</button>
 					<div id="passwordLoader" style="display:none;">
 						<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>
-						<span>Loading...</span>
+						<span>{{ __('app.forgot.loading') }}</span>
 					</div>
 				</div>
 				<br/>
-				<a class="back-btn" href="{{ url('/user/login') }}"><i class="fa fa-long-arrow-left" aria-hidden="true"></i> User Login</a>
+				<a class="back-btn" href="{{ url('/user/login') }}"><i class="fa fa-long-arrow-left" aria-hidden="true"></i> {{ __('app.forgot.user_login') }}</a>
 				<div id="code_send"></div>
 			</div>
 		</div>
@@ -60,13 +60,13 @@
 						}
 					});
 				});
-				
+
 				$("#send").click(function(){
-					
+
         			var value = $("#email").val();
 					$('#send').prop('disabled', true);
 					$("#passwordLoader").fadeIn('show');
-					
+
 					$.ajaxSetup({
 						headers: {
 							'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content')
@@ -95,7 +95,7 @@
 							},
 						},
 						messages: {
-							email: "Put your valid email address",
+							email: {!! json_encode(__('app.forgot.invalid_email')) !!},
 						},
 				submitHandler: function(form) {
 					// do other things for a valid form

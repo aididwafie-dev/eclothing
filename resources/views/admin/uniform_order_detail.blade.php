@@ -3,7 +3,7 @@
 
 @php
 	$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
-	$statusLabel = !empty($order->status_label) ? $order->status_label : 'Pending';
+	$statusLabel = __('app.status.' . (!empty($order->status_key) ? $order->status_key : 'pending'));
 	if ($order->uniform_photo) {
 		$image = glob(strpos($order->uniform_photo, '/') !== false ? $order->uniform_photo : "uploads/" . $order->uniform_photo);
 	} else {
@@ -12,19 +12,19 @@
 @endphp
 
 <br>
-<div class="title"><i class="fa fa-folder-open" aria-hidden="true"></i> Uniform Order Detail</div>
+<div class="title"><i class="fa fa-folder-open" aria-hidden="true"></i> {{ __('app.admin_detail.title') }}</div>
 <hr>
 
 <div class="containerMain">
 	<div class="content">
-		<a href="{{ route('admin.uniform-orders') }}" class="btn btn-default"><i class="fa fa-arrow-left" aria-hidden="true"></i> Back to Orders</a>
+		<a href="{{ route('admin.uniform-orders') }}" class="btn btn-default"><i class="fa fa-arrow-left" aria-hidden="true"></i> {{ __('app.admin_detail.back') }}</a>
 		<hr>
 
 		<div class="order-card">
 			<div class="order-card-header">
 				<div>
 					<div class="report-card-title">{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</div>
-					<div class="order-card-meta">Order #{{ $order->id }}</div>
+					<div class="order-card-meta">{{ __('app.admin_detail.order_no', ['id' => $order->id]) }}</div>
 				</div>
 				<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
 			</div>
@@ -39,28 +39,28 @@
 						</div>
 						<div class="order-meta-block">
 							<div class="order-info-row">
-								<span class="order-info-label">Service ID</span>
+								<span class="order-info-label">{{ __('app.admin_detail.service_id') }}</span>
 								<span class="order-info-value">{{ $order->s_id ? $order->s_id : '-' }}</span>
 							</div>
 							<div class="order-info-row">
-								<span class="order-info-label">User</span>
+								<span class="order-info-label">{{ __('app.admin_detail.user') }}</span>
 								<span class="order-info-value">{{ $order->name ? $order->name : 'N/A' }}</span>
 							</div>
 							<div class="order-info-row">
-								<span class="order-info-label">Email</span>
+								<span class="order-info-label">{{ __('app.admin_detail.email') }}</span>
 								<span class="order-info-value">{{ $order->email ? $order->email : 'N/A' }}</span>
 							</div>
 							<div class="order-info-row">
-								<span class="order-info-label">Unit</span>
+								<span class="order-info-label">{{ __('app.admin_detail.unit') }}</span>
 								<span class="order-info-value">{{ $order->unit_name ? $order->unit_name : 'N/A' }}</span>
 							</div>
 							<div class="order-info-row">
-								<span class="order-info-label">Ordered At</span>
+								<span class="order-info-label">{{ __('app.admin_detail.ordered_at') }}</span>
 								<span class="order-info-value">{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</span>
 							</div>
 							<div class="order-info-row">
-								<span class="order-info-label">Collection Date</span>
-								<span class="order-info-value">{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : 'To be updated' }}</span>
+								<span class="order-info-label">{{ __('app.admin_detail.collection_date') }}</span>
+								<span class="order-info-value">{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : __('app.admin_detail.to_be_updated') }}</span>
 							</div>
 						</div>
 					</div>
@@ -69,15 +69,15 @@
 						<table class="table table-orders">
 							<thead>
 								<tr>
-									<th>Clothing Item</th>
-									<th>Size Ordered</th>
+									<th>{{ __('app.admin_detail.clothing_item') }}</th>
+									<th>{{ __('app.admin_detail.size_ordered') }}</th>
 								</tr>
 							</thead>
 							<tbody>
 								@foreach($ordered_clothes as $cloth)
 								<tr>
-									<td data-label="Clothing Item">{{ $cloth->clothes }}</td>
-									<td data-label="Size Ordered">{{ $cloth->size }}</td>
+									<td data-label="{{ __('app.admin_detail.clothing_item') }}">{{ $cloth->clothes }}</td>
+									<td data-label="{{ __('app.admin_detail.size_ordered') }}">{{ $cloth->size }}</td>
 								</tr>
 								@endforeach
 							</tbody>
@@ -90,39 +90,39 @@
 						{{ csrf_field() }}
 						<input type="hidden" name="order_id" value="{{ $order->id }}">
 
-						<div class="order-actions-heading" style="padding-top:0;border-top:0;">Review this order</div>
+						<div class="order-actions-heading" style="padding-top:0;border-top:0;">{{ __('app.admin_detail.review') }}</div>
 
 						@php $remarksInvalid = $errors->has('remarks'); @endphp
 						<div class="form-group{{ $remarksInvalid ? ' has-error' : '' }}">
-							<label class="label_" for="orderRemarks">Remarks</label>
+							<label class="label_" for="orderRemarks">{{ __('app.admin_detail.remarks') }}</label>
 							<textarea id="orderRemarks" name="remarks" class="form-control{{ $remarksInvalid ? ' field-invalid' : '' }}" rows="4"
-								placeholder="Add approval or rejection remarks here"
+								placeholder="{{ __('app.admin_detail.remarks_placeholder') }}"
 								aria-describedby="orderRemarksError">{{ old('remarks', $order->remarks) }}</textarea>
 							{{-- Shown when a rejection is attempted with no reason: the
 							     member is told why their order was rejected, so the
 							     field cannot be left blank. --}}
-							<p id="orderRemarksError" class="field-error-text" @if(!$remarksInvalid) style="display:none;" @endif>{{ $errors->first('remarks') ?: 'A rejected order must tell the member why. Please key in the remarks.' }}</p>
+							<p id="orderRemarksError" class="field-error-text" @if(!$remarksInvalid) style="display:none;" @endif>{{ $errors->first('remarks') ?: __('app.admin_detail.remarks_required') }}</p>
 						</div>
 
 						<div class="form-group">
-							<label class="label_" for="orderCollectionDate">Collection Date</label>
+							<label class="label_" for="orderCollectionDate">{{ __('app.admin_detail.collection_date') }}</label>
 							<input id="orderCollectionDate" type="date" name="collection_date" class="form-control" value="{{ old('collection_date', $order->collection_date ? date('Y-m-d', strtotime($order->collection_date)) : '') }}">
-							<p class="help-block">Leave empty if the collection date will be updated later.</p>
+							<p class="help-block">{{ __('app.admin_detail.collection_date_help') }}</p>
 						</div>
 
-						<div class="order-actions-heading">Set status</div>
+						<div class="order-actions-heading">{{ __('app.admin_detail.set_status') }}</div>
 
 						@php
 							// Driven by the admin's role, so an account limited to
 							// servicing the queue is not shown decisions it cannot make.
 							$allowedStatuses = $allowedStatuses ?? ['1', '2', '3', '4', '5', '6'];
 							$statusButtons = [
-								['code' => '5', 'class' => 'btn-info',    'icon' => 'fa-cogs',           'label' => 'Mark Processing'],
-								['code' => '3', 'class' => 'btn-success', 'icon' => 'fa-check',          'label' => 'Approve Order'],
-								['code' => '6', 'class' => 'btn-primary', 'icon' => 'fa-flag-checkered', 'label' => 'Mark Completed'],
-								['code' => '2', 'class' => 'btn-danger',  'icon' => 'fa-times',          'label' => 'Reject Order'],
-								['code' => '1', 'class' => 'btn-warning', 'icon' => 'fa-clock-o',        'label' => 'Mark Pending'],
-								['code' => '4', 'class' => 'btn-default', 'icon' => 'fa-ban',            'label' => 'Mark Expired'],
+								['code' => '5', 'class' => 'btn-info',    'icon' => 'fa-cogs',           'label' => __('app.admin_detail.mark_processing')],
+								['code' => '3', 'class' => 'btn-success', 'icon' => 'fa-check',          'label' => __('app.admin_detail.approve')],
+								['code' => '6', 'class' => 'btn-primary', 'icon' => 'fa-flag-checkered', 'label' => __('app.admin_detail.mark_completed')],
+								['code' => '2', 'class' => 'btn-danger',  'icon' => 'fa-times',          'label' => __('app.admin_detail.reject')],
+								['code' => '1', 'class' => 'btn-warning', 'icon' => 'fa-clock-o',        'label' => __('app.admin_detail.mark_pending')],
+								['code' => '4', 'class' => 'btn-default', 'icon' => 'fa-ban',            'label' => __('app.admin_detail.mark_expired')],
 							];
 						@endphp
 						<div class="order-admin-actions">
@@ -142,7 +142,7 @@
 			<div class="order-card-header">
 				<div>
 					<div class="report-card-title">KEW.PS-8</div>
-					<div class="order-card-meta">Borang Permohonan Stok &mdash; {{ $orderReference }}</div>
+					<div class="order-card-meta">{{ __('app.admin_detail.kew_subtitle', ['ref' => $orderReference]) }}</div>
 				</div>
 			</div>
 
@@ -151,12 +151,12 @@
 			     Loaded lazily: an admin who only came to set a status should not
 			     pay for a PDF render they never scroll to. --}}
 			<iframe class="kewps8-preview-frame" src="{{ $kewPs8PreviewUrl }}"
-				title="Pratonton borang KEW.PS-8" loading="lazy"></iframe>
-			<p class="help-block">Preview not showing? <a href="{{ $kewPs8PreviewUrl }}" target="_blank" rel="noopener">Open the form in a new tab</a>.</p>
+				title="{{ __('app.admin_detail.preview_title') }}" loading="lazy"></iframe>
+			<p class="help-block">{{ __('app.admin_detail.preview_missing') }} <a href="{{ $kewPs8PreviewUrl }}" target="_blank" rel="noopener">{{ __('app.admin_detail.open_new_tab') }}</a>.</p>
 
 			<div class="kewps8-preview-actions">
 				<a href="{{ route('admin.uniform-orders.kew-ps8', ['id' => $orderKey]) }}" class="btn btn-brand">
-					<i class="fa fa-download" aria-hidden="true"></i> Download KEW.PS-8
+					<i class="fa fa-download" aria-hidden="true"></i> {{ __('app.admin_detail.download_kew') }}
 				</a>
 			</div>
 		</div>
@@ -170,7 +170,7 @@
 <script type="text/javascript">
 	$(document).ready(function() {
 		var REJECT_STATUS = '2';
-		var REASON_REQUIRED = 'Please key in the remarks before rejecting this order. The member is told why their order was rejected.';
+		var REASON_REQUIRED = {!! json_encode(__('app.admin_detail.reason_required_popup')) !!};
 
 		var $form = $('.order-detail-sidebar form');
 		var $remarks = $('#orderRemarks');

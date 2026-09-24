@@ -1,44 +1,44 @@
 @include('static-layout/header')
 @include('static-layout/sidebar')
 
-					
+
 					</br>
-					<div class="title"><i class="fa fa-lock" aria-hidden="true"></i> Change password</div>
+					<div class="title"><i class="fa fa-lock" aria-hidden="true"></i> {{ __('app.account.change_password_title') }}</div>
 					<hr>
 					<div class="containerMain">
 						<div class="content">
-							<div class="title"><i class="fa fa-key" aria-hidden="true"></i> Set new password:</div>
+							<div class="title"><i class="fa fa-key" aria-hidden="true"></i> {{ __('app.account.set_new_password') }}</div>
 							<hr>
-							
+
 							<form autocomplete="off" method="post" action="{{ url('/user/edit-password') }}" name="edit-password" id="edit-password">
-							
+
 								<input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>"/>
-								
+
 								<div class="form-group">
-									<label class="label_">Old Password:</label>
-									<input class="form-control" type="password" id="old_password" name="old_password" placeholder="Enter your old password...." />
-								</div>
-								
-								<div class="form-group">
-									<label class="label_">New Password:</label>
-									<input class="form-control" type="password" id="new_password" name="new_password" placeholder="Enter your new password...." />
+									<label class="label_">{{ __('app.account.old_password') }}</label>
+									<input class="form-control" type="password" id="old_password" name="old_password" placeholder="{{ __('app.account.old_password_placeholder') }}" />
 								</div>
 
 								<div class="form-group">
-									<label class="label_">Confirm Password:</label>							
-									<input class="form-control" type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password...." />
+									<label class="label_">{{ __('app.account.new_password') }}</label>
+									<input class="form-control" type="password" id="new_password" name="new_password" placeholder="{{ __('app.account.new_password_placeholder') }}" />
+								</div>
+
+								<div class="form-group">
+									<label class="label_">{{ __('app.account.confirm_password') }}</label>
+									<input class="form-control" type="password" id="confirm_password" name="confirm_password" placeholder="{{ __('app.account.confirm_password_placeholder') }}" />
 								</div>
 
 								<div class="subBtn">
-									<input class="btn btn-default" type="submit" value="Confirm" id="confirm" name="confirm"/>
-									<input class="btn btn-default" type="reset" value="Reset" />
+									<input class="btn btn-default" type="submit" value="{{ __('app.account.confirm') }}" id="confirm" name="confirm"/>
+									<input class="btn btn-default" type="reset" value="{{ __('app.account.reset') }}" />
 								</div>
 
 							</form>
 						</div>
 					</div>
 <!--#### 3 div open in sidebar ####-->
-				</div>	
+				</div>
 			</div>
 		</div>
 <!--#### 3 div open in sidebar ####-->
@@ -51,7 +51,7 @@
 		</style>
 		<script type="text/javascript">
 			$(document).ready(function(){
-				
+
 				$("#edit-password").validate({
 					rules: {
 								old_password: {
@@ -67,16 +67,16 @@
 								},
 							},
 							messages: {
-								old_password: "You haven't provided any password",
-								new_password: "Provided a valid password with min length of 8",
-								confirm_password: "Please put the same password as you provided in the upper box",
+								old_password: {!! json_encode(__('app.account.old_password_required')) !!},
+								new_password: {!! json_encode(__('app.account.new_password_invalid')) !!},
+								confirm_password: {!! json_encode(__('app.account.password_mismatch')) !!},
 							},
 					submitHandler: function(form) {
 						// do other things for a valid form
 						form.submit();
 					}
 				});
-				
+
 			});
 		</script>
 	</body>

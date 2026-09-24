@@ -1,34 +1,34 @@
 @include('static-layout/header')
 @include('static-layout/sidebar')
-				
+
 					</br>
-					<div class="title"><i class="fa fa-envelope-square" aria-hidden="true"></i> Change Email address</div>
+					<div class="title"><i class="fa fa-envelope-square" aria-hidden="true"></i> {{ __('app.account.change_email_title') }}</div>
 					<hr>
 					<div class="containerMain">
 						<div class="content">
-							<div class="title"><i class="fa fa-envelope" aria-hidden="true"></i> Set new email address</div>
+							<div class="title"><i class="fa fa-envelope" aria-hidden="true"></i> {{ __('app.account.set_new_email') }}</div>
 							<hr>
-							
+
 							<form autocomplete="off" method="post" action="{{ url('/user/edit-email') }}" name="edit-email" id="edit-email">
-							
+
 								<input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>"/>
-								
+
 								<div class="form-group">
-									<label class="label_">New email address</label>
-									<input class="form-control" type="email" id="email" name="email" placeholder="Enter your new email address" />
+									<label class="label_">{{ __('app.account.new_email') }}</label>
+									<input class="form-control" type="email" id="email" name="email" placeholder="{{ __('app.account.new_email_placeholder') }}" />
 									<div id="result_e"></div>
 								</div>
 
 								<div class="subBtn">
-									<input class="btn btn-default" type="submit" value="Confirm" id="confirm"/>
-									<input class="btn btn-default" type="reset" value="Reset" />
+									<input class="btn btn-default" type="submit" value="{{ __('app.account.confirm') }}" id="confirm"/>
+									<input class="btn btn-default" type="reset" value="{{ __('app.account.reset') }}" />
 								</div>
 
 							</form>
 						</div>
 					</div>
 <!--#### 3 div open in sidebar ####-->
-				</div>	
+				</div>
 			</div>
 		</div>
 <!--#### 3 div open in sidebar ####-->
@@ -65,7 +65,7 @@
 						}
 					});
 				});
-				
+
 				$("#edit-email").validate({
 					rules: {
 								email: {
@@ -73,7 +73,7 @@
 								},
 							},
 							messages: {
-								email: "Please provided valid email id.",
+								email: {!! json_encode(__('app.account.email_invalid')) !!},
 							},
 					submitHandler: function(form) {
 						// do other things for a valid form
