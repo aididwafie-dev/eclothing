@@ -119,6 +119,23 @@ trait BuildsKewPs8Report
         if ($order === null) {
             return $empty;
         }
+
+        $approvedAtRaw = $order->approved_at ?? null;
+        $approvedAt = !empty($approvedAtRaw) ? date('d/m/Y', strtotime($approvedAtRaw)) : '';
+
+        // What was recorded when the order was approved wins: the account may
+        // since have been edited, re-posted or deleted, and the form must keep
+        // saying who certified it at the time.
+        $snapshotName = trim((string) ($order->approved_by_name ?? ''));
+        if ($snapshotName !== '') {
+            return [
+                'name' => $snapshotName,
+                'position' => trim((string) ($order->approved_by_position ?? '')),
+                'approved_at' => $approvedAt,
+            ];
+        }
+
+        // Orders approved before the snapshot existed still resolve live.
         $adminId = $order->approved_by_admin_id ?? null;
         if ($adminId === null || $adminId === '') {
             return $empty;
@@ -146,11 +163,10 @@ trait BuildsKewPs8Report
         if ($admin === null) {
             return $empty;
         }
-        $approvedAt = $order->approved_at ?? null;
         return [
             'name' => $this->kewPs8SignatoryNameForAdmin($admin),
             'position' => $hasJawatanCol ? trim((string) ($admin->jawatan ?? '')) : '',
-            'approved_at' => !empty($approvedAt) ? date('d/m/Y', strtotime($approvedAt)) : '',
+            'approved_at' => $approvedAt,
         ];
     }
 

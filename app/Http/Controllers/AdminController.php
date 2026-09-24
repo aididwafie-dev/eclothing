@@ -817,6 +817,14 @@ $nestedData[] = $row->updated_at;
 			$hasApproverColumns = Schema::hasTable('orders')
 				&& Schema::hasColumn('orders', 'approved_by_admin_id')
 				&& Schema::hasColumn('orders', 'approved_at');
+			// The approving officer's name and jawatan are kept with the order,
+			// not looked up later: the KEW.PS-8 records what was certified, so
+			// editing or deleting the account afterwards must not rewrite a form
+			// that has already been issued.
+			$hasApproverSnapshot = Schema::hasTable('orders')
+				&& Schema::hasColumn('orders', 'approved_by_name')
+				&& Schema::hasColumn('orders', 'approved_by_position');
+
 			if ($hasApproverColumns) {
 				$transitioningToApproved = $status === '3' && $prevStatus !== '3';
 				if ($transitioningToApproved) {
@@ -824,14 +832,27 @@ $nestedData[] = $row->updated_at;
 					if ($adminId > 0) {
 						$updateData['approved_by_admin_id'] = $adminId;
 						$updateData['approved_at'] = date("Y-m-d H:i:s");
+
+						if ($hasApproverSnapshot) {
+							$approver = DB::table('admins')->where('id', '=', $adminId)->first();
+							// Same naming convention as the applicant's block.
+							$updateData['approved_by_name'] = $approver ? $this->kewPs8SignatoryNameForAdmin($approver) : null;
+							$updateData['approved_by_position'] = $approver ? (trim((string) ($approver->jawatan ?? '')) ?: null) : null;
+						}
 					}
-				} elseif (!in_array($status, ['3', '6'], true)) {
-					// Completed follows approval, so it keeps the approver --
-					// clearing it would blank the Pegawai Pelulus block on the
-					// order's KEW.PS-8. Every other status means the order is
-					// not approved any more, so the record is dropped.
+				} elseif (!in_array($status, ['3', '5', '6'], true)) {
+					// Processing and Completed both follow approval, so they
+					// keep the approver -- clearing it would blank the Pegawai
+					// Pelulus block on the order's KEW.PS-8 part-way through
+					// the very sequence the store works to. Pending, Rejected
+					// and Expired mean the order is not approved any more, so
+					// the record is dropped.
 					$updateData['approved_by_admin_id'] = null;
 					$updateData['approved_at'] = null;
+					if ($hasApproverSnapshot) {
+						$updateData['approved_by_name'] = null;
+						$updateData['approved_by_position'] = null;
+					}
 				}
 			}
 
