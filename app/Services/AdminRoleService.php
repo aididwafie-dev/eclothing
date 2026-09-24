@@ -123,6 +123,46 @@ class AdminRoleService
     }
 
     /**
+     * The part of the queue an "orders" admin works: an order is theirs once a
+     * superadmin has approved it, and stays theirs while they prepare and hand
+     * it over. Pending, Rejected and Expired orders are not their business and
+     * are hidden from the list, the detail page and the status form alike.
+     */
+    private const ORDERS_VISIBLE_STATUSES = ['approved', 'processing', 'completed'];
+
+    /**
+     * Status keys the role may see, in the order the store works through them.
+     *
+     * @param  array<int, string> $allKeys every filterable status key
+     * @return array<int, string>
+     */
+    public function visibleOrderStatusKeys(string $role, array $allKeys): array
+    {
+        if ($this->normalize($role) !== self::ORDERS) {
+            return $allKeys;
+        }
+
+        return array_values(array_intersect($allKeys, self::ORDERS_VISIBLE_STATUSES));
+    }
+
+    /**
+     * Which status the queue opens on: the work waiting for this role.
+     */
+    public function defaultOrderStatusKey(string $role): string
+    {
+        return $this->normalize($role) === self::ORDERS ? 'approved' : 'pending';
+    }
+
+    public function canSeeOrderStatus(string $role, ?string $statusKey): bool
+    {
+        if ($this->normalize($role) !== self::ORDERS) {
+            return true;
+        }
+
+        return in_array((string) $statusKey, self::ORDERS_VISIBLE_STATUSES, true);
+    }
+
+    /**
      * Order status codes the role may set, as OrderStatusService codes.
      * An orders admin moves work through the queue; the approve/reject
      * decision and the expiry sweep stay with a superadmin.

@@ -558,13 +558,27 @@ $nestedData[] = $row->updated_at;
 			// The list is a work queue, so it opens on the orders still waiting
 			// on the store. 'all' is the explicit opt-out; anything unrecognized
 			// falls back to the default rather than showing an empty list.
+			$role = $this->currentAdminRole($request);
 			$statusOptions = $this->orderStatus()->filterableStatuses();
-			$status = strtolower(trim((string) $request->query('status', 'pending')));
+
+			// An orders admin works the approved end of the queue, so the filter
+			// only offers those statuses and opens on the first of them.
+			$visibleStatusKeys = $this->adminRoles()->visibleOrderStatusKeys($role, array_keys($statusOptions));
+			$statusOptions = array_intersect_key($statusOptions, array_flip($visibleStatusKeys));
+			$defaultStatus = $this->adminRoles()->defaultOrderStatusKey($role);
+
+			$status = strtolower(trim((string) $request->query('status', $defaultStatus)));
 			if ($status !== 'all' && !isset($statusOptions[$status])) {
-				$status = 'pending';
+				$status = $defaultStatus;
 			}
 
 			$query = $this->uniformOrdersListQuery();
+
+			// The role's own limit, applied whatever the request asks for --
+			// including an Order ID search, which otherwise looks past the
+			// filter. Narrowing a dropdown is not a restriction.
+			$this->orderStatus()->applyStatusKeysFilter($query, $visibleStatusKeys);
+
 			if ($hasSearch) {
 				// An Order ID names one specific order, so the search looks past
 				// the status filter -- otherwise searching an order that has moved
@@ -632,6 +646,15 @@ $nestedData[] = $row->updated_at;
 			}
 
 			$order = $this->orderStatus()->normalizeOrderLifecycle($order);
+
+			// Same limit as the list: a restricted role cannot reach an order
+			// outside its statuses by typing the URL.
+			if (!$this->adminRoles()->canSeeOrderStatus($this->currentAdminRole($request), $order->status_key ?? null)) {
+				\Session::flash('message', 'This order is not in your queue yet.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('admin.uniform-orders');
+			}
+
 			$ordered_clothes = DB::table('ordered_clothes')->where('order_id', '=', $order_id)->get();
 
 			return view('admin/uniform_order_detail', array(
@@ -747,6 +770,15 @@ $nestedData[] = $row->updated_at;
 
 			if (empty($order)) {
 				\Session::flash('message', 'Order not found.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('admin.uniform-orders');
+			}
+
+			// The role decides which orders it may act on, not just which
+			// statuses it may set: an order it cannot see, it cannot change.
+			$currentStatusKey = $this->orderStatus()->orderStatusMeta($order->status ?? null)['key'];
+			if (!$this->adminRoles()->canSeeOrderStatus($this->currentAdminRole($request), $currentStatusKey)) {
+				\Session::flash('message', 'This order is not in your queue yet.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('admin.uniform-orders');
 			}

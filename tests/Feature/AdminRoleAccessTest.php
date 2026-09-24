@@ -86,7 +86,8 @@ class AdminRoleAccessTest extends TestCase
     public function test_an_orders_admin_reaches_the_order_queue(): void
     {
         $admin = $this->makeAdmin(AdminRoleService::ORDERS);
-        $orderId = $this->makeOrder();
+        // An order reaches this role once a superadmin has approved it.
+        $orderId = $this->makeOrder(self::APPROVED);
 
         $this->withSession(['admin_id' => $admin['id']])
             ->get('/admin/uniform-orders')
@@ -128,7 +129,7 @@ class AdminRoleAccessTest extends TestCase
     public function test_the_detail_page_offers_an_orders_admin_only_processing_and_completed(): void
     {
         $admin = $this->makeAdmin(AdminRoleService::ORDERS);
-        $orderId = $this->makeOrder();
+        $orderId = $this->makeOrder(self::APPROVED);
 
         $response = $this->withSession(['admin_id' => $admin['id']])
             ->get('/admin/uniform-orders/' . $this->orderKey($orderId));
@@ -145,7 +146,7 @@ class AdminRoleAccessTest extends TestCase
     public function test_an_orders_admin_can_service_an_order(): void
     {
         $admin = $this->makeAdmin(AdminRoleService::ORDERS);
-        $orderId = $this->makeOrder();
+        $orderId = $this->makeOrder(self::APPROVED);
 
         $this->withSession(['admin_id' => $admin['id']])
             ->post('/admin/uniform-orders/update', [
@@ -164,18 +165,126 @@ class AdminRoleAccessTest extends TestCase
 
     public function test_an_orders_admin_cannot_approve_by_posting_the_status_directly(): void
     {
+        // An order they may act on, but a status they may not set.
         $admin = $this->makeAdmin(AdminRoleService::ORDERS);
-        $orderId = $this->makeOrder();
+        $orderId = $this->makeOrder(self::APPROVED);
 
         $this->withSession(['admin_id' => $admin['id']])
             ->post('/admin/uniform-orders/update', [
                 'order_id' => $orderId,
-                'status' => self::APPROVED,
+                'status' => self::PENDING,
                 'remarks' => '',
                 'collection_date' => '',
             ]);
 
+        $this->assertSame(self::APPROVED, DB::table('orders')->where('id', $orderId)->value('status'));
+    }
+
+    public function test_the_queue_shows_an_orders_admin_only_its_own_statuses(): void
+    {
+        $admin = $this->makeAdmin(AdminRoleService::ORDERS);
+
+        $approved = $this->makeOrder(self::APPROVED);
+        $processing = $this->makeOrder(self::PROCESSING);
+        $completed = $this->makeOrder(self::COMPLETED);
+        $pending = $this->makeOrder(self::PENDING);
+        $rejected = $this->makeOrder('2');
+        $expired = $this->makeOrder('4');
+
+        // Absence is checked by the row's own detail link: the "not found"
+        // message quotes the number searched for, so the number alone is not
+        // evidence the order was listed.
+        $row = fn (int $orderId) => $this->orderKey($orderId);
+
+        // The queue opens on the work waiting for them.
+        $opening = $this->withSession(['admin_id' => $admin['id']])->get('/admin/uniform-orders');
+        $opening->assertOk();
+        $opening->assertSee($row($approved), false);
+        $opening->assertDontSee($row($pending), false);
+
+        // "All statuses" still means only the three that are theirs.
+        $all = $this->withSession(['admin_id' => $admin['id']])->get('/admin/uniform-orders?status=all');
+        $all->assertOk();
+        $all->assertSee($row($approved), false);
+        $all->assertSee($row($processing), false);
+        $all->assertSee($row($completed), false);
+        $all->assertDontSee($row($pending), false);
+        $all->assertDontSee($row($rejected), false);
+        $all->assertDontSee($row($expired), false);
+
+        // Nor can the filter be pointed at a status outside the role: it falls
+        // back to their default rather than showing Pending orders.
+        $forced = $this->withSession(['admin_id' => $admin['id']])->get('/admin/uniform-orders?status=pending');
+        $forced->assertOk();
+        $forced->assertDontSee($row($pending), false);
+
+        // An Order ID search looks past the filter, but not past the role.
+        $searched = $this->withSession(['admin_id' => $admin['id']])->get('/admin/uniform-orders?search=' . $pending);
+        $searched->assertOk();
+        $searched->assertSee('No order found for Order ID');
+        $searched->assertDontSee($row($pending), false);
+    }
+
+    public function test_a_superadmin_still_sees_the_whole_queue(): void
+    {
+        $admin = $this->makeAdmin(AdminRoleService::SUPERADMIN);
+        $pending = $this->makeOrder(self::PENDING);
+
+        $this->withSession(['admin_id' => $admin['id']])
+            ->get('/admin/uniform-orders')
+            ->assertOk()
+            ->assertSee('#' . $pending);
+    }
+
+    public function test_an_orders_admin_cannot_open_an_order_outside_their_queue(): void
+    {
+        $admin = $this->makeAdmin(AdminRoleService::ORDERS);
+        $orderId = $this->makeOrder(self::PENDING);
+
+        $this->withSession(['admin_id' => $admin['id']])
+            ->get('/admin/uniform-orders/' . $this->orderKey($orderId))
+            ->assertRedirect(route('admin.uniform-orders'));
+    }
+
+    public function test_an_orders_admin_cannot_change_an_order_outside_their_queue(): void
+    {
+        $admin = $this->makeAdmin(AdminRoleService::ORDERS);
+        $orderId = $this->makeOrder(self::PENDING);
+
+        $this->withSession(['admin_id' => $admin['id']])
+            ->post('/admin/uniform-orders/update', [
+                'order_id' => $orderId,
+                'status' => self::PROCESSING,
+                'remarks' => '',
+                'collection_date' => '',
+            ])->assertRedirect(route('admin.uniform-orders'));
+
         $this->assertSame(self::PENDING, DB::table('orders')->where('id', $orderId)->value('status'));
+    }
+
+    public function test_an_orders_admin_takes_an_approved_order_through_to_completed(): void
+    {
+        $admin = $this->makeAdmin(AdminRoleService::ORDERS);
+        $orderId = $this->makeOrder(self::APPROVED);
+
+        $this->withSession(['admin_id' => $admin['id']])
+            ->post('/admin/uniform-orders/update', [
+                'order_id' => $orderId,
+                'status' => self::PROCESSING,
+                'remarks' => '',
+                'collection_date' => '',
+            ]);
+        $this->assertSame(self::PROCESSING, DB::table('orders')->where('id', $orderId)->value('status'));
+
+        // Still theirs once it is Processing, so they can finish it.
+        $this->withSession(['admin_id' => $admin['id']])
+            ->post('/admin/uniform-orders/update', [
+                'order_id' => $orderId,
+                'status' => self::COMPLETED,
+                'remarks' => '',
+                'collection_date' => '',
+            ]);
+        $this->assertSame(self::COMPLETED, DB::table('orders')->where('id', $orderId)->value('status'));
     }
 
     public function test_a_superadmin_can_still_approve(): void

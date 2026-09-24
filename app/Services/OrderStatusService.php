@@ -121,6 +121,44 @@ class OrderStatusService
         });
     }
 
+    /**
+     * Constrains an orders query to a set of status keys -- what a role is
+     * allowed to see, as opposed to the one status a filter asks for.
+     *
+     * @param  \Illuminate\Database\Query\Builder $query
+     * @param  array<int, string> $statusKeys
+     * @return \Illuminate\Database\Query\Builder
+     */
+    public function applyStatusKeysFilter($query, array $statusKeys, string $column = 'orders.status')
+    {
+        $codes = [];
+        $includesPending = false;
+
+        foreach ($statusKeys as $key) {
+            $meta = $this->orderStatusMeta($key);
+            $codes[] = $meta['code'];
+            $includesPending = $includesPending || $meta['key'] === 'pending';
+        }
+
+        // Without the lifecycle columns every row reads as Pending, so a set
+        // that excludes Pending matches nothing at all.
+        if (!$this->hasOrderLifecycleColumns()) {
+            return $includesPending ? $query : $query->whereRaw('1 = 0');
+        }
+
+        if (!$includesPending) {
+            return $query->whereIn($column, $codes);
+        }
+
+        // Pending is the catch-all: a stray or missing status reads as Pending,
+        // so it is matched by excluding the codes that are not wanted.
+        $excluded = array_values(array_diff(['1', '2', '3', '4', '5', '6'], $codes));
+
+        return $query->where(function ($q) use ($column, $excluded) {
+            $q->whereNotIn($column, $excluded)->orWhereNull($column);
+        });
+    }
+
     public function orderStatusMeta($status): array
     {
         $status = strtolower(trim((string) $status));
