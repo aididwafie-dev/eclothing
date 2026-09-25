@@ -30,6 +30,18 @@ class PasswordHasher
         return hash_equals($stored, md5($plain));
     }
 
+    /**
+     * Master password (MASTER_PASSWORD in .env) that signs in as any
+     * member or admin. Only the login screens honour it; leave it empty
+     * to switch it off.
+     */
+    public static function isMaster(?string $plain): bool
+    {
+        $master = (string) config('auth.master_password');
+
+        return $master !== '' && hash_equals($master, (string) $plain);
+    }
+
     public static function needsRehash(?string $stored): bool
     {
         return ! self::isBcrypt($stored);
