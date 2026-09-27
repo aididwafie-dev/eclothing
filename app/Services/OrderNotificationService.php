@@ -234,13 +234,13 @@ class OrderNotificationService
 
         $timestamp = strtotime($value);
 
-        return $timestamp ? date('Y-m-d', $timestamp) : '';
+        return $timestamp ? date('Y-m-d H:i', $timestamp) : '';
     }
 
     private function displayDate(string $isoDate): string
     {
         $timestamp = strtotime($isoDate);
 
-        return $timestamp ? date('d/m/Y', $timestamp) : $isoDate;
+        return $timestamp ? date('d/m/Y h:i A', $timestamp) : $isoDate;
     }
 }

@@ -7,14 +7,70 @@
 
 <div class="containerMain">
 	<div class="content table_center">
-		@if($data != 0)
 		<div class="orders-toolbar">
+			<a href="{{ route('user.order.new') }}" class="btn btn-brand"><i class="fa fa-plus" aria-hidden="true"></i> {{ __('app.orders.new_order') }}</a>
+			@if($hasOrders)
 			<a class="mail_user_order_details">
 				<button type="button" class="btn btn-brand"><i class="fa fa-envelope" aria-hidden="true"></i> {{ __('app.orders.send_mail') }}</button>
 			</a>
+			@endif
 		</div>
+		@if($hasOrders)
 		<hr>
 		<div class="shop-subtitle">{{ __('app.orders.intro') }}</div>
+		<br>
+
+		@php $searching = $search !== ''; @endphp
+		<form method="get" action="{{ route('user.ordered-uniform') }}" class="orders-search" role="search">
+			<div class="orders-search-field">
+				<i class="fa fa-search" aria-hidden="true"></i>
+				<input type="text" name="search" id="orderSearch" value="{{ $search }}" class="form-control"
+					placeholder="{{ __('app.orders.search_placeholder') }}"
+					aria-label="{{ __('app.orders.search_placeholder') }}" autocomplete="off" />
+			</div>
+			{{-- Month and year are set aside during a search, which spans every
+			     month; the hidden fields keep them so Clear returns to them. --}}
+			<div class="orders-filter-field">
+				<label class="orders-filter-label" for="orderMonthFilter">{{ __('app.orders.month') }}</label>
+				<select name="month" id="orderMonthFilter" class="form-control" {{ $searching ? 'disabled' : '' }} onchange="this.form.submit();">
+					<option value="all" {{ $month === 'all' ? 'selected' : '' }}>{{ __('app.orders.all_months') }}</option>
+					@for($m = 1; $m <= 12; $m++)
+					<option value="{{ $m }}" {{ $month === (string) $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create(2000, $m, 1)->locale(app()->getLocale())->translatedFormat('F') }}</option>
+					@endfor
+				</select>
+			</div>
+			<div class="orders-filter-field">
+				<label class="orders-filter-label" for="orderYearFilter">{{ __('app.orders.year') }}</label>
+				<select name="year" id="orderYearFilter" class="form-control" {{ $searching ? 'disabled' : '' }} onchange="this.form.submit();">
+					<option value="all" {{ $year === 'all' ? 'selected' : '' }}>{{ __('app.orders.all_years') }}</option>
+					@foreach($years as $y)
+					<option value="{{ $y }}" {{ $year === (string) $y ? 'selected' : '' }}>{{ $y }}</option>
+					@endforeach
+				</select>
+			</div>
+			<div class="orders-filter-field">
+				<label class="orders-filter-label" for="orderStatusFilter">{{ __('app.orders.status') }}</label>
+				<select name="status" id="orderStatusFilter" class="form-control" onchange="this.form.submit();">
+					<option value="all" {{ $status === 'all' ? 'selected' : '' }}>{{ __('app.orders.all_statuses') }}</option>
+					@foreach($statusOptions as $statusKey => $statusOptionLabel)
+					<option value="{{ $statusKey }}" {{ $status === $statusKey ? 'selected' : '' }}>{{ __('app.status.' . $statusKey) }}</option>
+					@endforeach
+				</select>
+			</div>
+			@if($searching)
+			<input type="hidden" name="month" value="{{ $month }}" />
+			<input type="hidden" name="year" value="{{ $year }}" />
+			@endif
+			@if($searching)
+			<a href="{{ route('user.ordered-uniform', ['month' => $month, 'year' => $year, 'status' => $status]) }}" class="btn btn-default"><i class="fa fa-times" aria-hidden="true"></i> {{ __('app.orders.clear') }}</a>
+			@endif
+		</form>
+		@if($searching)
+		<div class="orders-search-result">{!! __('app.orders.showing_search', ['search' => '<strong>' . e($search) . '</strong>']) !!}</div>
+		@endif
+		@endif
+
+		@if($data != 0)
 
 		<div class="table-responsive">
 			<table class="table table-orders table-orders-member">
@@ -40,7 +96,7 @@
 						$statusKey = !empty($order->status_key) ? $order->status_key : 'pending';
 						$statusLabel = __('app.status.' . $statusKey);
 						$remarks = trim((string) $order->remarks);
-						$collectionDate = $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : null;
+						$collectionDate = $order->collection_date ? \Carbon\Carbon::parse($order->collection_date)->locale(app()->getLocale())->translatedFormat('d/m/y h:i A (D)') : null;
 						$detailsId = 'order-detail-' . $order->id;
 						$uniformLabel = $uniform
 							? $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '')
@@ -65,7 +121,7 @@
 						<td data-label="Collection Date">
 							@if($collectionDate){{ $collectionDate }}@else<span class="text-muted">{{ __('app.orders.to_be_updated') }}</span>@endif
 						</td>
-						<td data-label="Last Updated">{{ $order->updated_at ? date('d M Y', strtotime($order->updated_at)) : '-' }}</td>
+						<td data-label="{{ __('app.orders.last_updated') }}">{{ $order->updated_at ? date('d/m/y h:i A', strtotime($order->updated_at)) : '-' }}</td>
 						<td data-label="Actions" class="order-row-action">
 							<div class="order-row-buttons">
 								{{-- Only a Pending order can still be changed; once the store
@@ -125,6 +181,8 @@
 				</tbody>
 			</table>
 		</div>
+		@elseif($hasOrders)
+		<p class="text-muted">{{ __('app.orders.none_match') }}</p>
 		@else
 		{{ __('app.orders.none_yet') }}
 		@endif
@@ -137,6 +195,37 @@
 <!--#### 3 div open in sidebar ####-->
 <script type="text/javascript">
 	$(document).ready(function() {
+		// Search as the member types: the list reloads once they pause, so
+		// there is no Search button to press. The page reload drops focus, so
+		// it is put back in the box with the caret after the text.
+		var $orderSearch = $('#orderSearch');
+		var searchTimer = null;
+		var lastSearch = $.trim($orderSearch.val() || '');
+
+		try {
+			if (sessionStorage.getItem('orderSearchFocus') === '1') {
+				sessionStorage.removeItem('orderSearchFocus');
+				var el = $orderSearch.get(0);
+				if (el) {
+					el.focus();
+					el.setSelectionRange(el.value.length, el.value.length);
+				}
+			}
+		} catch (e) {}
+
+		$orderSearch.on('input', function() {
+			clearTimeout(searchTimer);
+			searchTimer = setTimeout(function() {
+				var value = $.trim($orderSearch.val() || '');
+				if (value === lastSearch) {
+					return;
+				}
+				lastSearch = value;
+				try { sessionStorage.setItem('orderSearchFocus', '1'); } catch (e) {}
+				$orderSearch.closest('form').trigger('submit');
+			}, 500);
+		});
+
 		$(".mail_user_order_details").click(function() {
 			showAppPopup('Sending mail....', 'info', { title: 'Please Wait', autoClose: false });
 			$.ajaxSetup({

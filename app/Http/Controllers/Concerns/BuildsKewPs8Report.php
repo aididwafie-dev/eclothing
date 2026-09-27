@@ -214,6 +214,9 @@ trait BuildsKewPs8Report
                 $quantity = 1;
             }
             $quantityStr = (string) $quantity;
+            // What the approving officer granted; until the order is approved
+            // it reads as the full quantity requested.
+            $approvedStr = isset($item->approved_quantity) ? (string) (int) $item->approved_quantity : $quantityStr;
             $size = trim((string) ($item->size ?? ''));
             $rows[] = [
                 'bil' => (string) $index,
@@ -221,7 +224,7 @@ trait BuildsKewPs8Report
                 'dimohon' => $quantityStr,
                 'catatan' => $size,
                 'baki' => '',
-                'diluluskan' => $quantityStr,
+                'diluluskan' => $approvedStr,
                 'catatan_pelulus' => $size,
                 'diterima' => '',
                 'catatan_terima' => '',

@@ -60,7 +60,7 @@
 							</div>
 							<div class="order-info-row">
 								<span class="order-info-label">{{ __('app.admin_detail.collection_date') }}</span>
-								<span class="order-info-value">{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : __('app.admin_detail.to_be_updated') }}</span>
+								<span class="order-info-value">{{ $order->collection_date ? \Carbon\Carbon::parse($order->collection_date)->locale(app()->getLocale())->translatedFormat('d/m/y h:i A (D)') : __('app.admin_detail.to_be_updated') }}</span>
 							</div>
 						</div>
 					</div>
@@ -71,13 +71,32 @@
 								<tr>
 									<th>{{ __('app.admin_detail.clothing_item') }}</th>
 									<th>{{ __('app.admin_detail.size_ordered') }}</th>
+									<th>{{ __('app.admin_detail.quantity_request') }}</th>
+									@if($canApproveQuantities ?? false)
+									<th>{{ __('app.admin_detail.quantity_approved') }}</th>
+									@endif
 								</tr>
 							</thead>
 							<tbody>
 								@foreach($ordered_clothes as $cloth)
+								@php
+									$requestedQuantity = max(1, (int) ($cloth->quantity ?? 1));
+									$approvedQuantity = isset($cloth->approved_quantity) ? (int) $cloth->approved_quantity : $requestedQuantity;
+								@endphp
 								<tr>
 									<td data-label="{{ __('app.admin_detail.clothing_item') }}">{{ $cloth->clothes }}</td>
 									<td data-label="{{ __('app.admin_detail.size_ordered') }}">{{ $cloth->size }}</td>
+									<td data-label="{{ __('app.admin_detail.quantity_request') }}">{{ $requestedQuantity }}</td>
+									@if($canApproveQuantities ?? false)
+									{{-- Sits outside the sidebar form, so it is tied to it by
+									     form=; saved when the order is approved. --}}
+									<td data-label="{{ __('app.admin_detail.quantity_approved') }}">
+										<input type="number" name="approved_quantity[{{ $cloth->id }}]" form="orderReviewForm"
+											class="form-control input-sm" style="max-width:90px;" min="0" max="{{ $requestedQuantity }}" step="1"
+											value="{{ old('approved_quantity.' . $cloth->id, $approvedQuantity) }}"
+											aria-label="{{ __('app.admin_detail.quantity_approved') }}: {{ $cloth->clothes }}">
+									</td>
+									@endif
 								</tr>
 								@endforeach
 							</tbody>
@@ -86,7 +105,7 @@
 				</div>
 
 				<div class="order-detail-sidebar">
-					<form method="post" action="{{ route('admin.uniform-orders.update') }}">
+					<form method="post" action="{{ route('admin.uniform-orders.update') }}" id="orderReviewForm">
 						{{ csrf_field() }}
 						<input type="hidden" name="order_id" value="{{ $order->id }}">
 
@@ -106,7 +125,14 @@
 
 						<div class="form-group">
 							<label class="label_" for="orderCollectionDate">{{ __('app.admin_detail.collection_date') }}</label>
-							<input id="orderCollectionDate" type="date" name="collection_date" class="form-control" value="{{ old('collection_date', $order->collection_date ? date('Y-m-d', strtotime($order->collection_date)) : '') }}">
+							<div class="row">
+								<div class="col-xs-7">
+									<input id="orderCollectionDate" type="date" name="collection_date" class="form-control" value="{{ old('collection_date', $order->collection_date ? date('Y-m-d', strtotime($order->collection_date)) : '') }}">
+								</div>
+								<div class="col-xs-5">
+									<input id="orderCollectionTime" type="time" name="collection_time" class="form-control" aria-label="{{ __('app.admin_detail.collection_time') }}" value="{{ old('collection_time', $order->collection_date ? date('H:i', strtotime($order->collection_date)) : '09:00') }}">
+								</div>
+							</div>
 							<p class="help-block">{{ __('app.admin_detail.collection_date_help') }}</p>
 						</div>
 

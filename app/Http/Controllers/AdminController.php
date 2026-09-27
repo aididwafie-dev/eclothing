@@ -591,7 +591,7 @@ $nestedData[] = $row->updated_at;
 			}
 
 			$orders = $query
-				->orderBy('orders.created_at', 'desc')
+				->orderByRaw('COALESCE(orders.updated_at, orders.created_at) DESC')
 				->orderBy('orders.id', 'desc')
 				->simplePaginate(25);
 
@@ -664,7 +664,17 @@ $nestedData[] = $row->updated_at;
 				'orderKey' => $this->encodeProtectedId($order->id),
 				'orderReference' => $this->kewPs8OrderReference($order),
 				'allowedStatuses' => $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request)),
+				'canApproveQuantities' => $this->canApproveQuantities($request),
 			));
+		}
+
+		/**
+		 * Only a superadmin approves orders, so only they set how many of each
+		 * item is granted.
+		 */
+		private function canApproveQuantities(Request $request): bool {
+			return $this->currentAdminRole($request) === \App\Services\AdminRoleService::SUPERADMIN
+				&& Schema::hasColumn('ordered_clothes', 'approved_quantity');
 		}
 
 		/**
@@ -747,6 +757,9 @@ $nestedData[] = $row->updated_at;
 				'status' => 'required|in:' . implode(',', $allowedStatuses),
 				'remarks' => 'nullable|string|max:1000',
 				'collection_date' => 'nullable|date',
+				'collection_time' => 'nullable|date_format:H:i',
+				'approved_quantity' => 'nullable|array',
+				'approved_quantity.*' => 'nullable|integer|min:0|max:999',
 			];
 
 			// A rejection reaches the member with the remarks as the reason, so
@@ -787,11 +800,13 @@ $nestedData[] = $row->updated_at;
 			$status = trim((string) $request->input('status'));
 			$remarks = trim((string) $request->input('remarks'));
 			$collectionDate = $request->input('collection_date');
+			// A date with no time is booked for 09:00, the start of the day's collection.
+			$collectionTime = trim((string) $request->input('collection_time')) ?: '09:00';
 
 			$updateData = [
 				'status' => $status,
 				'remarks' => $remarks !== '' ? $remarks : null,
-				'collection_date' => $collectionDate ? date('Y-m-d', strtotime($collectionDate)) : null,
+				'collection_date' => $collectionDate ? date('Y-m-d', strtotime($collectionDate)) . ' ' . $collectionTime . ':00' : null,
 				'updated_at' => date("Y-m-d H:i:s"),
 			];
 
@@ -858,6 +873,20 @@ $nestedData[] = $row->updated_at;
 			}
 
 			DB::table('orders')->where('id', '=', $order->id)->update($updateData);
+
+			// Approving records how many of each item is granted -- the
+			// Kuantiti Diluluskan on the KEW.PS-8. Keyed by ordered_clothes id and
+			// limited to this order's own lines. An item left blank is granted
+			// in full, and no more than was asked for can be granted.
+			if ($status === '3' && $this->canApproveQuantities($request)) {
+				$approvedQuantities = (array) $request->input('approved_quantity', []);
+				foreach (DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get() as $line) {
+					$requested = max(1, (int) ($line->quantity ?? 1));
+					$value = $approvedQuantities[$line->id] ?? null;
+					$approved = ($value === null || $value === '') ? $requested : min((int) $value, $requested);
+					DB::table('ordered_clothes')->where('id', '=', $line->id)->update(['approved_quantity' => $approved]);
+				}
+			}
 
 			// Tell the member what changed. Best-effort: a notification or push
 			// failure must not cost the admin the save they just made.

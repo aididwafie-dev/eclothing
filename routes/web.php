@@ -85,6 +85,7 @@ Route::middleware('user.auth')->group(function (): void {
 	Route::post('/personal-details-save', [DashboardController::class, 'savePersonalDetails'])->name('personal.details.save');
 	Route::get('/personal-details/restore', [DashboardController::class, 'restorePersonalDetails'])->name('personal-details.restore');
 	Route::get('/user/uniform-selection/', [DashboardController::class, 'userUniformSelection'])->name('user.uniform');
+	Route::get('/user/orders/new', [DashboardController::class, 'startNewOrder'])->name('user.order.new');
 	Route::get('/user/accessories-selection/', [DashboardController::class, 'userAccessoriesSelection'])->name('user.accessories');
 	Route::get('/cancel', [DashboardController::class, 'cancelSave'])->name('save.cancle');
 	Route::post('/load-uniform-data', [DashboardController::class, 'loadUniformData'])->name('loadUniform.data');

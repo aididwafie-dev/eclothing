@@ -219,7 +219,7 @@
 			$sizes = DB::table('sizes')->get();
 			$user_id = session()->get('user_id');
 
-			$orders_r = DB::table('ordered_clothes')->leftJoin("orders", "orders.id", "=", "ordered_clothes.order_id")->where('orders.uniforms_id', '=', $uniform_id)->where('deleted', '=', 0)->where('orders.user_id', '=', $user_id)->orderBy("orders.created_at", "desc")->get();
+			$orders_r = DB::table('ordered_clothes')->leftJoin("orders", "orders.id", "=", "ordered_clothes.order_id")->where('orders.uniforms_id', '=', $uniform_id)->where('deleted', '=', 0)->where('orders.user_id', '=', $user_id)->orderBy("orders.id", "asc")->get(); // oldest first, so the latest order's sizes are the ones left standing
 			
 			if ($orders_r) {
 			foreach ($uniform_clothes as $id => $uniform_cloth) {
@@ -388,10 +388,10 @@
 			}
 
 			try {
-				// Uniforms loaded through Edit (editPendingOrder) replace their
-				// order's lines; everything else merges as before.
-				$editing = (array) $request->session()->get('uniform_cart_edit', []);
-				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart, $editing);
+				// Uniforms loaded through Edit (editPendingOrder) save onto that
+				// order; everything else in the cart is placed as a new order.
+				$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
+				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart, $editOrders);
 			} catch (\App\Exceptions\OrderNotEditableException $e) {
 				// Same rule as the mobile API: an order that has left Pending
 				// must not be silently reset by a re-checkout. The session cart
@@ -433,89 +433,38 @@
 			$user_id = session()->get('user_id');
 			$uniforms_id = $request->input('uniforms_id');
 			
-			$user_order = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->where('uniforms_id', '=', $uniforms_id)->first();
-			if(!empty($user_order))
-			{
-				$orderStatusKey = $this->orderStatus()->hasOrderLifecycleColumns()
-					? $this->orderStatus()->orderStatusMeta($user_order->status ?? null)['key']
-					: 'pending';
-				if ($orderStatusKey === 'processing') {
-					\Session::flash('message', 'Order is currently being processed and cannot be updated. Please contact the administrator if you need assistance.');
-					\Session::flash('alert-class', 'alert-danger');
-					if ($request->input('last_uniform') == "true") {
-						return redirect()->route('user.ordered-uniform');
-					}
-					return redirect()->route('user.uniform');
-				}
-				if ($this->orderStatus()->hasOrderLifecycleColumns()) {
-					DB::table('orders')->where('id', '=', $user_order->id)->update([
-						'status' => '1',
-						'remarks' => null,
-						'collection_date' => null,
-						'updated_at' => date("Y-m-d H:i:s"),
-					]);
-				}
-				foreach ($_POST as $key => $value) {
-					if($key != 'submit' && $key != 'last_uniform' && $key != '_token' && $key != 'uniforms_id')
-					{
-					
-						$user_ordered_cloth = DB::table('ordered_clothes')->where('order_id', '=', $user_order->id)->where('clothes_slug', '=', $key)->first();
-						
-						if ($user_ordered_cloth) {
-						$ordered_clothes = Ordered_clothe::find($user_ordered_cloth->id);
-						$ordered_clothes->size = $request->$key;
-						if (is_array($ordered_clothes->size)) {
-							$ordered_clothes->size = implode(",",$ordered_clothes->size);
-						}
-						$ordered_clothes->save();
-						} else {
-						$clothes_type = DB::table('uniform_clothes')->select('clothes_type')->where('clothes_slug', '=', $key)->first();
-						$ordered_clothes = new Ordered_clothe;
-						$ordered_clothes->order_id = $user_order->id;
-						$ordered_clothes->clothes = $clothes_type->clothes_type;
-						$ordered_clothes->clothes_slug = $key;
-						$ordered_clothes->size = $request->$key;
-						if (is_array($ordered_clothes->size)) {
-							$ordered_clothes->size = implode(",",$ordered_clothes->size);
-						}
-							
-							$ordered_clothes->save();
-						}
-					}
-				}
-				\Session::flash('message', 'Your Order is successfully updated.'); 
-				\Session::flash('alert-class', 'alert-success');
+			// Every save places a separate order, even for a uniform the member
+			// has ordered before. An existing order is changed only through Edit.
+			$order = new Order;
+			$order->user_id = $user_id;
+			$order->uniforms_id = $uniforms_id;
+			if ($this->orderStatus()->hasOrderLifecycleColumns()) {
+				$order->status = '1';
+				$order->remarks = null;
+				$order->collection_date = null;
 			}
-			else
-			{
-				$order = new Order;
-				$order->user_id = $user_id;
-				$order->uniforms_id = $uniforms_id;
-				if ($this->orderStatus()->hasOrderLifecycleColumns()) {
-					$order->status = '1';
-					$order->remarks = null;
-					$order->collection_date = null;
-				}
-				$order->save();
+			$order->save();
 
-				$order_id = $order->id;
+			$order_id = $order->id;
 
-				foreach ($_POST as $key => $value) {
-					if($key != 'submit' && $key != 'last_uniform' && $key != '_token' && $key != 'uniforms_id')
-					{
-						$clothes_type = DB::table('uniform_clothes')->select('clothes_type')->where('clothes_slug', '=', $key)->first();
+			foreach ($_POST as $key => $value) {
+				if($key != 'submit' && $key != 'last_uniform' && $key != '_token' && $key != 'uniforms_id')
+				{
+					$clothes_type = DB::table('uniform_clothes')->select('clothes_type')->where('clothes_slug', '=', $key)->first();
 
-						$ordered_clothes = new Ordered_clothe;
-						$ordered_clothes->order_id = $order_id;
-						$ordered_clothes->clothes = $clothes_type->clothes_type;
-						$ordered_clothes->clothes_slug = $key;
-						$ordered_clothes->size = $request->$key;
-						$ordered_clothes->save();
+					$ordered_clothes = new Ordered_clothe;
+					$ordered_clothes->order_id = $order_id;
+					$ordered_clothes->clothes = $clothes_type->clothes_type;
+					$ordered_clothes->clothes_slug = $key;
+					$ordered_clothes->size = $request->$key;
+					if (is_array($ordered_clothes->size)) {
+						$ordered_clothes->size = implode(",",$ordered_clothes->size);
 					}
+					$ordered_clothes->save();
 				}
-				\Session::flash('message', 'Your Order is successfully saved.'); 
-				\Session::flash('alert-class', 'alert-success');
 			}
+			\Session::flash('message', 'Your Order is successfully saved.'); 
+			\Session::flash('alert-class', 'alert-success');
 			$request->session()->put('uniform_ordered', $uniforms_id);
 			
 			if ($request->input('last_uniform') == "true") {
@@ -576,6 +525,30 @@
 			return redirect()->route('user.uniform', ['uniform' => $uniformsId]);
 		}
 
+		/**
+		 * New Order: drops any edit left unfinished, so what the member adds
+		 * next is placed as a separate order rather than saved onto the order
+		 * they were editing. The edited order's lines come out of the cart with
+		 * it; anything else already in the cart is kept.
+		 */
+		public function startNewOrder(Request $request) {
+			if($request->session()->get('user_id') == '') {
+				return redirect()->route('user.login');
+			}
+
+			$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
+			if ($editOrders) {
+				$cart = $this->getUniformCart($request);
+				foreach (array_keys($editOrders) as $uniformsId) {
+					unset($cart[$uniformsId]);
+				}
+				$this->setUniformCart($request, $cart);
+			}
+			$request->session()->forget(['uniform_cart_edit', 'uniform_cart_edit_orders']);
+
+			return redirect()->route('user.uniform');
+		}
+
 		public function getOrderedUniform(Request $request) {
 
 			if($request->session()->get('user_id') == '') {
@@ -588,9 +561,76 @@
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('user.personal'); //if user enable the uniform button by inspecting the plage and try to place a order, this will redirect him back.
 			}
-			$checkIfOrdered = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $request->session()->get('user_id'))->first();
-			if(!empty($checkIfOrdered)) {
-				$userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $request->session()->get('user_id'))->get();
+			$user_id = (int) $request->session()->get('user_id');
+			$ordersQuery = function () use ($user_id) {
+				return DB::table('orders')
+					->leftJoin('uniforms', 'orders.uniforms_id', '=', 'uniforms.id')
+					->where('orders.deleted', '=', 0)
+					->where('orders.user_id', '=', $user_id);
+			};
+			// An order is dated by its last update, the same date the list
+			// is sorted by and shows in its Last Updated column.
+			$orderDate = 'COALESCE(orders.updated_at, orders.created_at)';
+
+			// Months that have orders, newest first. The list opens on the
+			// latest of them.
+			$periods = $ordersQuery()
+				->selectRaw("DISTINCT YEAR($orderDate) as y, MONTH($orderDate) as m")
+				->orderBy('y', 'desc')->orderBy('m', 'desc')
+				->get();
+			$hasOrders = $periods->isNotEmpty();
+			$years = $periods->pluck('y')->map(fn ($y) => (int) $y)->unique()->values()->all();
+			$latest = $periods->first();
+
+			$year = (string) $request->query('year', $latest ? (string) $latest->y : 'all');
+			if ($year !== 'all' && !in_array((int) $year, $years, true)) {
+				$year = $latest ? (string) $latest->y : 'all';
+			}
+			$month = (string) $request->query('month', $latest ? (string) $latest->m : 'all');
+			if ($month !== 'all' && ((int) $month < 1 || (int) $month > 12)) {
+				$month = $latest ? (string) $latest->m : 'all';
+			}
+
+			$statusOptions = $this->orderStatus()->filterableStatuses();
+			$status = strtolower(trim((string) $request->query('status', 'all')));
+			if ($status !== 'all' && !isset($statusOptions[$status])) {
+				$status = 'all';
+			}
+
+			$search = trim((string) $request->query('search', ''));
+
+			$query = $ordersQuery()->select('orders.*');
+
+			if ($search !== '') {
+				// Searches every month, since a member looking up an order by
+				// its ID or uniform may not know when it was placed. A leading
+				// '#' is allowed on an Order ID.
+				$orderId = ltrim($search, '#');
+				$query->where(function ($q) use ($orderId, $search) {
+					if (ctype_digit($orderId)) {
+						$q->orWhere('orders.id', '=', (int) $orderId);
+					}
+					$q->orWhere('uniforms.uniform_name', 'like', '%' . $search . '%')
+						->orWhere('uniforms.uniform_type', 'like', '%' . $search . '%');
+				});
+			} else {
+				if ($year !== 'all') {
+					$query->whereRaw("YEAR($orderDate) = ?", [(int) $year]);
+				}
+				if ($month !== 'all') {
+					$query->whereRaw("MONTH($orderDate) = ?", [(int) $month]);
+				}
+			}
+
+			if ($status !== 'all') {
+				$this->orderStatus()->applyStatusFilter($query, $status, 'orders.status');
+			}
+
+			$userOrders = $query->orderByRaw("$orderDate DESC")->orderBy('orders.id', 'desc')->get();
+
+			$data = 0;
+			if ($userOrders->isNotEmpty()) {
+				$data = [];
 				$i = 0;
 				foreach ($userOrders as $userOrder) {
 					$userOrder = $this->orderStatus()->normalizeOrderLifecycle($userOrder);
@@ -604,11 +644,18 @@
 					$i++;
 				}
 			}
-			else {
-				$data = 0;
-			}
-			
-			return view('uniform_ordered_byUser',array("data"=>$data,"userDetails"=>$userDetails));
+
+			return view('uniform_ordered_byUser', array(
+				"data" => $data,
+				"userDetails" => $userDetails,
+				"hasOrders" => $hasOrders,
+				"years" => $years,
+				"year" => $year,
+				"month" => $month,
+				"statusOptions" => $statusOptions,
+				"status" => $status,
+				"search" => $search,
+			));
 		}
 		
 		public function mailUserOrderDetails(Request $request) {

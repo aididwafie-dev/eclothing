@@ -73,7 +73,9 @@ class UniformController extends Controller
             ->where('orders.uniforms_id', '=', $uniformId)
             ->where('orders.deleted', '=', 0)
             ->where('orders.user_id', '=', $genUser->id)
-            ->orderBy('orders.created_at', 'desc')
+            // Oldest first: keyBy keeps the last row, so the latest order's
+            // size wins when a member has ordered this uniform more than once.
+            ->orderBy('orders.id', 'asc')
             ->get()
             ->keyBy('clothes_slug');
 

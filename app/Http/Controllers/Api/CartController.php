@@ -11,6 +11,7 @@ use App\Services\UniformCartRules;
 use App\Services\UniformScaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * JSON counterpart to DashboardController's
@@ -136,10 +137,13 @@ class CartController extends Controller
                 ->where('uniforms_id', '=', $order->uniforms_id)
                 ->delete();
 
+            $hasEditColumn = Schema::hasColumn('cart_items', 'edit_order_id');
+
             foreach ($lines as $line) {
                 DB::table('cart_items')->insert([
                     'gen_user_id' => $genUser->id,
                     'uniforms_id' => $order->uniforms_id,
+                ] + ($hasEditColumn ? ['edit_order_id' => $order->id] : []) + [
                     'clothes_slug' => $line['clothes_slug'],
                     'clothes_type' => $line['clothes_type'],
                     'size' => json_encode($line['size']),
@@ -163,27 +167,29 @@ class CartController extends Controller
         }
 
         $cartByUniform = [];
+        $editOrders = [];
         foreach ($rows as $row) {
             $cartByUniform[$row->uniforms_id][$row->clothes_slug] = [
                 'clothes_slug' => $row->clothes_slug,
                 'size' => json_decode($row->size, true),
                 'quantity' => isset($row->quantity) ? (int) $row->quantity : 1,
             ];
+            // Set by load-from-order: this uniform saves onto the order being
+            // edited. Lines added afterwards carry no id but still belong to it.
+            if (!empty($row->edit_order_id)) {
+                $editOrders[$row->uniforms_id] = (int) $row->edit_order_id;
+            }
         }
 
         try {
-            app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform);
+            $orderIds = app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform, $editOrders);
         } catch (OrderNotEditableException $e) {
             // The cart is deliberately left intact so the member can drop the
             // offending uniform and still check the rest out.
             return response()->json(['message' => $e->getMessage()], 403);
         }
 
-        $orderIds = DB::table('orders')
-            ->where('user_id', '=', $genUser->id)
-            ->whereIn('uniforms_id', array_keys($cartByUniform))
-            ->where('deleted', '=', 0)
-            ->pluck('id');
+        $orderIds = array_values($orderIds);
 
         DB::table('cart_items')->where('gen_user_id', '=', $genUser->id)->delete();
 

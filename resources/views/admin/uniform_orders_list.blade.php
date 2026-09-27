@@ -71,6 +71,7 @@
 						<th>{{ __('app.admin_orders.status') }}</th>
 						<th>{{ __('app.admin_orders.collection_date') }}</th>
 						<th>{{ __('app.admin_orders.ordered_at') }}</th>
+						<th>{{ __('app.admin_orders.last_updated') }}</th>
 						<th>{{ __('app.admin_orders.action') }}</th>
 					</tr>
 				</thead>
@@ -89,8 +90,9 @@
 						<td data-label="Uniform">{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</td>
 						<td data-label="Items">{{ $order->items_count }}</td>
 						<td data-label="Status"><span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
-						<td data-label="{{ __('app.admin_orders.collection_date') }}">{{ $order->collection_date ? date('d M Y', strtotime($order->collection_date)) : __('app.admin_orders.to_be_updated') }}</td>
+						<td data-label="{{ __('app.admin_orders.collection_date') }}">{{ $order->collection_date ? \Carbon\Carbon::parse($order->collection_date)->locale(app()->getLocale())->translatedFormat('d/m/y h:i A (D)') : __('app.admin_orders.to_be_updated') }}</td>
 						<td data-label="{{ __('app.admin_orders.ordered_at') }}">{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</td>
+						<td data-label="{{ __('app.admin_orders.last_updated') }}">{{ $order->updated_at ? date('d/m/y h:i A', strtotime($order->updated_at)) : '-' }}</td>
 						<td data-label="{{ __('app.admin_orders.action') }}"><a href="{{ route('admin.uniform-orders.show', ['id' => $orderId]) }}" class="btn btn-sm btn-default"><i class="fa fa-eye" aria-hidden="true"></i> {{ __('app.admin_orders.view_detail') }}</a></td>
 					</tr>
 					@endforeach

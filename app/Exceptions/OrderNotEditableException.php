@@ -8,8 +8,8 @@ use RuntimeException;
  * Raised when a checkout would overwrite an order the member is no longer
  * allowed to change.
  *
- * Checkout upserts into the member's existing order for a uniform (see
- * OrderCheckoutService::resolveOrderId), resetting it to Pending and
+ * A checkout through Edit saves onto the order being edited (see
+ * OrderCheckoutService::reopenOrder), resetting it to Pending and
  * clearing remarks + collection_date. That is the intended way to edit an
  * order while it is still Pending, but doing it to an order the store has
  * already moved on -- Processing above all -- silently discards work that is

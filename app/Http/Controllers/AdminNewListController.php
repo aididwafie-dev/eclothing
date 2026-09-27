@@ -173,7 +173,7 @@
 			$identityCols = $this->adminIdentityColumns();
 			$select = 'SELECT ' . implode(', ', $identityCols);
 			$requestData= $_REQUEST;
-			$columns = ['id', 'name', 'email', 'username', 'jawatan_rank', 'status', 'id_edit', 'id_del'];
+			$columns = ['id', 'name', 'email', 'username', 'jawatan_rank', in_array('role', $identityCols, true) ? 'role' : 'id', 'status', 'id_edit', 'id_del'];
 			$sql = $select . " FROM admins";
 			$query=DB::select($sql);
 			$totalData = DB::table('admins')->count();
@@ -227,6 +227,9 @@
 				$nestedData[] = htmlspecialchars($row->email, ENT_QUOTES);
 				$nestedData[] = htmlspecialchars($serviceId !== '' ? $serviceId : (string) $row->username, ENT_QUOTES);
 				$nestedData[] = htmlspecialchars($jrText, ENT_QUOTES);
+				$nestedData[] = app(AdminRoleService::class)->normalize($row->role ?? null) === AdminRoleService::ORDERS
+					? "<span class='label label-info'>Uniform Orders</span>"
+					: "<span class='label label-primary'>Superadmin</span>";
 				if($row->status == 0) {
 					$nestedData[] = "<td><a href='javascript:void(0)' class='btn btn-sm btn-warning admin_active' data-url=".url('change-admin-status/'.$adminID)."><i class='fa fa-unlock-alt' aria-hidden='true'></i> Inactive</a></td>";
 				}

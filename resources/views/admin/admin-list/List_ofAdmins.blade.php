@@ -13,6 +13,7 @@
 				<th>Email ID</th>
 				<th>Service ID</th>
 				<th>Jawatan / Rank</th>
+				<th>Access</th>
 				<th>Status</th>
 				<th>Edit</th>
 				<th>Delete</th>
@@ -47,7 +48,7 @@
 				},
 				error: function() {
 					$(".employee-grid-error").html("");
-					$("#table").append('<tbody class="table-error"><tr><th colspan="7">No data found in the server</th></tr></tbody>');
+					$("#table").append('<tbody class="table-error"><tr><th colspan="9">No data found in the server</th></tr></tbody>');
 					$("#table_processing").css("display", "none");
 				}
 			}

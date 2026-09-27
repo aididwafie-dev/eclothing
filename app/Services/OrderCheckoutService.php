@@ -25,67 +25,83 @@ class OrderCheckoutService
     }
 
     /**
-     * By default a checkout merges into the member's existing order for a
-     * uniform: lines in the cart are added or updated, other lines stay. For
-     * uniforms listed in $replaceUniformIds -- an order the member loaded into
-     * the cart to edit -- the cart is the whole order, so a line they removed
-     * from the cart is removed from the order too.
+     * Every checkout places a new order per uniform in the cart, except for
+     * uniforms the member loaded into the cart through Edit: those save onto
+     * the order being edited, and the cart becomes that whole order, so a
+     * line removed from the cart is removed from the order too.
      *
-     * @param  array<int, int|string> $replaceUniformIds
-     * @throws \App\Exceptions\OrderNotEditableException when the cart would
-     *         overwrite an order that has already left Pending.
+     * @param  array<int|string, int|string> $editOrders uniforms_id => order id being edited
+     * @return array<int, int> the order ids written, keyed by uniforms_id
+     * @throws \App\Exceptions\OrderNotEditableException when an edited order
+     *         has already left Pending.
      */
-    public function checkoutForUser(int $userId, array $cartByUniform, array $replaceUniformIds = []): void
+    public function checkoutForUser(int $userId, array $cartByUniform, array $editOrders = []): array
     {
         // Checked up front, before anything is written, so a cart spanning
-        // several uniforms cannot be half-applied: either every affected
-        // order is editable or the whole checkout is refused.
-        $this->assertOrdersAreEditable($userId, $cartByUniform);
+        // several uniforms cannot be half-applied: either every edited order
+        // is still editable or the whole checkout is refused.
+        $editedOrders = $this->editedOrders($userId, $cartByUniform, $editOrders);
 
-        $replaceUniformIds = array_map('intval', $replaceUniformIds);
+        $orderIds = [];
 
         foreach ($cartByUniform as $uniformsId => $items) {
             if (!is_array($items) || !count($items)) {
                 continue;
             }
 
-            $orderId = $this->resolveOrderId($userId, (int) $uniformsId);
+            $edited = $editedOrders[(int) $uniformsId] ?? null;
+            $orderId = $edited
+                ? $this->reopenOrder($edited)
+                : $this->createOrder($userId, (int) $uniformsId);
 
             foreach ($items as $item) {
                 $this->upsertOrderedCloth($orderId, (int) $uniformsId, $item);
             }
 
-            if (in_array((int) $uniformsId, $replaceUniformIds, true)) {
+            if ($edited) {
                 DB::table('ordered_clothes')
                     ->where('order_id', '=', $orderId)
                     ->whereNotIn('clothes_slug', array_map(fn ($item) => (string) $item['clothes_slug'], array_values($items)))
                     ->delete();
             }
+
+            $orderIds[(int) $uniformsId] = $orderId;
         }
+
+        return $orderIds;
     }
 
-    private function assertOrdersAreEditable(int $userId, array $cartByUniform): void
+    /**
+     * The orders this checkout edits, keyed by uniforms_id. An edit whose
+     * order has since been deleted is dropped, so that uniform is placed as
+     * a new order instead.
+     *
+     * @return array<int, object>
+     */
+    private function editedOrders(int $userId, array $cartByUniform, array $editOrders): array
     {
-        if (!$this->orderStatus->hasOrderLifecycleColumns()) {
-            return;
-        }
-
+        $edited = [];
         $blocked = [];
 
-        foreach ($cartByUniform as $uniformsId => $items) {
+        foreach ($editOrders as $uniformsId => $orderId) {
+            $items = $cartByUniform[$uniformsId] ?? null;
             if (!is_array($items) || !count($items)) {
                 continue;
             }
 
-            $existing = DB::table('orders')
-                ->where('deleted', '=', 0)
+            $order = DB::table('orders')
+                ->where('id', '=', (int) $orderId)
                 ->where('user_id', '=', $userId)
                 ->where('uniforms_id', '=', (int) $uniformsId)
+                ->where('deleted', '=', 0)
                 ->first();
 
-            // No existing order means this checkout creates a fresh one,
-            // which is always allowed.
-            if (!$existing || $this->orderStatus->isOrderEditable($existing->status ?? null)) {
+            if (!$order) {
+                continue;
+            }
+
+            if ($this->orderStatus->isOrderEditable($order->status ?? null)) {
+                $edited[(int) $uniformsId] = $order;
                 continue;
             }
 
@@ -98,47 +114,52 @@ class OrderCheckoutService
 
             $blocked[] = [
                 'uniform' => $label !== '' ? $label : ('uniform #' . (int) $uniformsId),
-                'status' => $this->orderStatus->orderStatusMeta($existing->status ?? null)['label'],
+                'status' => $this->orderStatus->orderStatusMeta($order->status ?? null)['label'],
             ];
         }
 
         if ($blocked) {
             throw new OrderNotEditableException($blocked);
         }
+
+        return $edited;
     }
 
-    private function resolveOrderId(int $userId, int $uniformsId): int
+    private function createOrder(int $userId, int $uniformsId): int
     {
-        $userOrder = DB::table('orders')
-            ->where('deleted', '=', 0)
-            ->where('user_id', '=', $userId)
-            ->where('uniforms_id', '=', $uniformsId)
-            ->first();
-
-        if (!$userOrder) {
-            $order = new Order;
-            $order->user_id = $userId;
-            $order->uniforms_id = $uniformsId;
-            if ($this->orderStatus->hasOrderLifecycleColumns()) {
-                $order->status = '1';
-                $order->remarks = null;
-                $order->collection_date = null;
-            }
-            $order->save();
-
-            return $order->id;
-        }
-
+        $order = new Order;
+        $order->user_id = $userId;
+        $order->uniforms_id = $uniformsId;
         if ($this->orderStatus->hasOrderLifecycleColumns()) {
-            DB::table('orders')->where('id', '=', $userOrder->id)->update([
+            $order->status = '1';
+            $order->remarks = null;
+            $order->collection_date = null;
+        }
+        $order->save();
+
+        return $order->id;
+    }
+
+    private function reopenOrder(object $order): int
+    {
+        if ($this->orderStatus->hasOrderLifecycleColumns()) {
+            DB::table('orders')->where('id', '=', $order->id)->update([
                 'status' => '1',
                 'remarks' => null,
                 'collection_date' => null,
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
+        } else {
+            DB::table('orders')->where('id', '=', $order->id)->update(['updated_at' => date('Y-m-d H:i:s')]);
         }
 
-        return $userOrder->id;
+        // The member has changed what they asked for, so any quantities an
+        // officer granted earlier no longer apply.
+        if (Schema::hasColumn('ordered_clothes', 'approved_quantity')) {
+            DB::table('ordered_clothes')->where('order_id', '=', $order->id)->update(['approved_quantity' => null]);
+        }
+
+        return (int) $order->id;
     }
 
     private function upsertOrderedCloth(int $orderId, int $uniformsId, array $item): void
