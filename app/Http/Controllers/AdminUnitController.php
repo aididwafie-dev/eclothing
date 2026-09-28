@@ -41,7 +41,8 @@
 
 			$unit = Unit::find($request->input('id'));
 			$unit->value = strtoupper(trim($request->input('value')));
-			
+			$this->fillLocation($unit, $request);
+
 			if ($unit->value) {
 			$unit->save();
 
@@ -62,6 +63,7 @@
 			if ($value) {
 			$unit = new Unit;
 			$unit->value = $value;
+			$this->fillLocation($unit, $request);
 			$unit->save();
 			\Session::flash('message', 'Unit added successfully'); 
 			\Session::flash('alert-class', 'alert-success'); 
@@ -72,6 +74,20 @@
 			return redirect()->route('admin.unit');
 		}
 		
+		/**
+		 * BASE/HQ and ORG, upper-cased like the unit name. Both are optional;
+		 * left blank they are stored empty.
+		 */
+		private function fillLocation(Unit $unit, Request $request) {
+			if (!\Illuminate\Support\Facades\Schema::hasColumn('units', 'base_hq')) {
+				return;
+			}
+			foreach (['base_hq', 'org'] as $field) {
+				$value = mb_substr(strtoupper(trim((string) $request->input($field))), 0, 255);
+				$unit->{$field} = $value !== '' ? $value : null;
+			}
+		}
+
 		public function addUnit(Request $request) {
 
 			if($request->session()->get('admin_id') == '') {

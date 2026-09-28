@@ -12,9 +12,9 @@
 		@endphp
 
 		<ul class="nav nav-tabs" role="tablist">
-			<li role="presentation" class="{{ $activeTab === 'system' ? 'active' : '' }}"><a href="#tab-system-settings" aria-controls="tab-system-settings" role="tab" data-toggle="tab">System Setting</a></li>
-			<li role="presentation" class="{{ $activeTab === 'uniform' ? 'active' : '' }}"><a href="#tab-uniform-settings" aria-controls="tab-uniform-settings" role="tab" data-toggle="tab">Uniform Setting</a></li>
-			<li role="presentation" class="{{ $activeTab === 'scale' ? 'active' : '' }}"><a href="#tab-scale-settings" aria-controls="tab-scale-settings" role="tab" data-toggle="tab">Tetapan Skala Kelayakan Pakaian</a></li>
+			<li role="presentation" class="{{ $activeTab === 'system' ? 'active' : '' }}"><a href="#tab-system-settings" aria-controls="tab-system-settings" role="tab" data-toggle="tab">Tetapan Sistem</a></li>
+			<li role="presentation" class="{{ $activeTab === 'uniform' ? 'active' : '' }}"><a href="#tab-uniform-settings" aria-controls="tab-uniform-settings" role="tab" data-toggle="tab">Tetapan Pakaian</a></li>
+			<li role="presentation" class="{{ $activeTab === 'scale' ? 'active' : '' }}"><a href="#tab-scale-settings" aria-controls="tab-scale-settings" role="tab" data-toggle="tab">Skala Pakaian &amp; Kelayakan</a></li>
 		</ul>
 
 		<div class="tab-content" style="padding-top: 16px;">
@@ -67,7 +67,7 @@
 
 				<div class="uniform-add-panel">
 					<div class="uniform-add-title"><i class="fa fa-plus-circle" aria-hidden="true"></i> Tambah Kategori Uniform Baharu</div>
-					<div class="uniform-add-hint">Kategori baharu akan terus muncul dalam tab <strong>Tetapan Skala Kelayakan Pakaian</strong> selepas disimpan.</div>
+					<div class="uniform-add-hint">Kategori baharu akan terus muncul dalam tab <strong>Skala Pakaian &amp; Kelayakan</strong> selepas disimpan.</div>
 
 					<form autocomplete="off" method="post" action="{{ url('/admin/system-settings/uniform') }}" enctype="multipart/form-data">
 						<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
@@ -157,13 +157,14 @@
 									</tr>
 									<tr>
 										<td colspan="4">
-											<div class="shop-subtitle" style="margin-bottom: 12px;">Clothes & Accessories Images</div>
+											<div class="shop-subtitle" style="margin-bottom: 12px;">Pakaian & Aksesori</div>
 											@if(count($uniformItems))
 											<div class="table-responsive">
 												<table class="table table-bordered" style="margin-bottom: 0;">
 													<thead>
 														<tr>
 															<th>Item Name</th>
+															<th>No. Kod</th>
 															<th>Current Image</th>
 															<th>Upload New Image</th>
 														</tr>
@@ -183,7 +184,15 @@
 																@else
 																<span title="Clothes" aria-label="Clothes" class="item-icon item-icon-clothes"><i class="fa fa-shopping-bag" aria-hidden="true"></i></span>
 																@endif
-																{{ $uniformItem->clothes_type }}
+																<input class="form-control" type="text" name="uniform_clothes_name[{{ $uniformItem->id }}]" maxlength="255"
+																	style="display:inline-block; width:calc(100% - 34px);"
+																	value="{{ old('uniform_clothes_name.' . $uniformItem->id, $uniformItem->clothes_type) }}"
+																	aria-label="Item Name" />
+															</td>
+															<td>
+																<input class="form-control" type="text" name="uniform_clothes_part_no[{{ $uniformItem->id }}]" maxlength="100"
+																	value="{{ old('uniform_clothes_part_no.' . $uniformItem->id, $uniformItem->part_no ?? '') }}"
+																	aria-label="No. Kod: {{ $uniformItem->clothes_type }}" />
 															</td>
 															<td>
 																@if($itemImage)
@@ -401,12 +410,34 @@
 					@endif
 
 					@if(isset($uniforms) && $uniforms && count($uniforms))
+						@php
+							// One tab per uniform. The open tab is carried in the URL so
+							// switching rank, which reloads the page, stays on it.
+							$scaleUniformIds = collect($uniforms)->pluck('id')->map(fn ($id) => (int) $id)->all();
+							$activeScaleUniformId = (int) request()->query('scale_uniform', 0);
+							if (!in_array($activeScaleUniformId, $scaleUniformIds, true)) {
+								$activeScaleUniformId = $scaleUniformIds[0];
+							}
+						@endphp
+						<ul class="nav nav-pills scale-uniform-tabs js-scale-uniform-tabs" role="tablist" style="margin-bottom: 16px;">
+							@foreach($uniforms as $uniform)
+							@php $tabHidden = in_array((int) $uniform->id, $hiddenUniformIds, true); @endphp
+							<li role="presentation" class="{{ (int) $uniform->id === $activeScaleUniformId ? 'active' : '' }}">
+								<a href="#scale-uniform-{{ $uniform->id }}" aria-controls="scale-uniform-{{ $uniform->id }}" role="tab" data-toggle="tab" data-uniform-id="{{ $uniform->id }}">
+									<i class="fa fa-eye-slash js-scale-tab-hidden{{ $tabHidden ? '' : ' hidden' }}" aria-hidden="true" title="Disembunyikan dari troli"></i>
+									{{ $uniform->uniform_type }}{{ $uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '' }}
+								</a>
+							</li>
+							@endforeach
+						</ul>
+						<div class="tab-content">
 						@foreach($uniforms as $uniform)
 						@php
 							$scaleItems = isset($uniformItemsByUniform[$uniform->id]) ? $uniformItemsByUniform[$uniform->id] : [];
 							$scaleUniformLabel = $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '');
 						@endphp
 						@php $groupHidden = in_array((int) $uniform->id, $hiddenUniformIds, true); @endphp
+						<div role="tabpanel" class="tab-pane{{ (int) $uniform->id === $activeScaleUniformId ? ' active' : '' }}" id="scale-uniform-{{ $uniform->id }}">
 						<div class="scale-group{{ $groupHidden ? ' is-uniform-hidden' : '' }}" data-uniform-id="{{ $uniform->id }}">
 							<div class="scale-group-title"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> {{ $scaleUniformLabel }} <span class="scale-group-hidden-tag">Disembunyikan dari troli</span></div>
 							<div class="table-responsive">
@@ -447,14 +478,16 @@
 										@endforeach
 										@if(!count($scaleItems))
 										<tr>
-											<td colspan="3" class="text-muted">Tiada pakaian atau aksesori lagi. Tambah item di tab <strong>Uniform Setting</strong>, kemudian tetapkan skala di sini.</td>
+											<td colspan="3" class="text-muted">Tiada pakaian atau aksesori lagi. Tambah item di tab <strong>Tetapan Pakaian</strong>, kemudian tetapkan skala di sini.</td>
 										</tr>
 										@endif
 									</tbody>
 								</table>
 							</div>
 						</div>
+						</div>
 						@endforeach
+						</div>
 					@else
 					<div class="alert alert-info">Tiada uniform dijumpai.</div>
 					@endif
@@ -522,6 +555,10 @@
 							var url = new URL(window.location.href);
 							url.searchParams.set('tab', 'scale');
 							url.searchParams.set('pangkat_id', this.value);
+							var activeUniformTab = document.querySelector('.js-scale-uniform-tabs li.active a');
+							if (activeUniformTab) {
+								url.searchParams.set('scale_uniform', activeUniformTab.getAttribute('data-uniform-id'));
+							}
 							window.location.href = url.toString();
 						});
 
@@ -529,6 +566,8 @@
 						// hidden state -- quantities are moot while the whole uniform
 						// is hidden from the cart.
 						function applyGroupHidden(uniformId, hidden) {
+							var tabIcon = document.querySelector('.js-scale-uniform-tabs a[data-uniform-id="' + uniformId + '"] .js-scale-tab-hidden');
+							if (tabIcon) { tabIcon.classList.toggle('hidden', !hidden); }
 							var group = document.querySelector('.scale-group[data-uniform-id="' + uniformId + '"]');
 							if (!group) { return; }
 							group.classList.toggle('is-uniform-hidden', hidden);

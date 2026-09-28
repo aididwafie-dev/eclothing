@@ -138,6 +138,7 @@ class OrderController extends Controller
             'applicantPosition' => $this->kewPs8ApplicantPosition($genUser->id),
             'printedAt' => $this->kewPs8PrintedAt(),
             'orderReference' => $this->kewPs8OrderReference($order),
+            'scafReference' => $this->kewPs8ScafReference($order),
             'uniformName' => $this->kewPs8UniformName($uniform),
             'approver' => $this->kewPs8Approver($order),
             'receipt' => $this->kewPs8Receipt($order, $personalDetail),

@@ -21,7 +21,13 @@
 									
 									<label class="label_">Unit name</label>
 											<input class="form-control" type = "text" name="value" value="{{ $units->value }}" required/>
-											
+									<br>
+									<label class="label_">BASE/HQ</label>
+											<input class="form-control" type="text" name="base_hq" maxlength="255" value="{{ old('base_hq', $units->base_hq ?? '') }}" />
+									<br>
+									<label class="label_">ORG</label>
+											<input class="form-control" type="text" name="org" maxlength="255" value="{{ old('org', $units->org ?? '') }}" />
+
 									<div class="subBtn text-center"><br />
 										<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE CHANGES</button>
 										<a href="{{ url('/admin/unit') }}" class="btn btn-default"> CANCEL</a>

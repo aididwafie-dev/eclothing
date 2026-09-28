@@ -20,6 +20,8 @@
 							<tr>
 							<th>#</th>
 								<th>Name of unit</th>
+								<th>BASE/HQ</th>
+								<th>ORG</th>
 								<th>Edit</th>
 								<th>Delete</th>
 							</tr>
@@ -33,6 +35,8 @@
 								<tr>
 								<td></td>
 									<td>{{ $values->value }}</td>
+									<td>{{ $values->base_hq ?? '' }}</td>
+									<td>{{ $values->org ?? '' }}</td>
 									<!--<td><a href="{{ url('unit/edit/'.$unitId) }}"><button><i class="fa fa-edit" aria-hidden="true"></i>Edit</button></a></td>-->
 									<td><a href="{{ url('admin/unit/edit/'.$unitId) }}" class="btn btn-sm btn-primary"><span class="glyphicon glyphicon-edit"></span></a></td>
 									<td><a href='javascript:void(0)' class='btn btn-sm btn-danger delete_unit' data-url="{{url('delete-unit/'.$unitId)}}"><span class='glyphicon glyphicon-trash'></span></a></td>

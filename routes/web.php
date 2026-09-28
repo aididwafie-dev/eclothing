@@ -121,6 +121,7 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	Route::get('/uniform_enable_disable/{id}', [AdminController::class, 'changeUniformEnableDisable'])->name('change.uniform-enable-disable');
 	Route::get('/show/uniform_details/{id}', [AdminController::class, 'listUserUniformDetails'])->name('show.uniform_details');
 	Route::get('/admin/uniform-orders', [AdminController::class, 'uniformOrdersList'])->name('admin.uniform-orders');
+	Route::post('/admin/uniform-orders/data', [AdminController::class, 'uniformOrdersData'])->name('admin.uniform-orders.data');
 	Route::get('/admin/uniform-orders/{id}', [AdminController::class, 'uniformOrderDetail'])->name('admin.uniform-orders.show');
 	Route::get('/admin/uniform-orders/{id}/kew-ps8', [AdminController::class, 'downloadUniformOrderKewPs8'])->name('admin.uniform-orders.kew-ps8');
 	Route::post('/admin/uniform-orders/update', [AdminController::class, 'updateUniformOrderStatus'])->name('admin.uniform-orders.update');
@@ -191,6 +192,7 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 
 	/************	AdminPersonalInventoryController	************/
 	Route::get('/admin/personal-inventory', [AdminPersonalInventoryController::class, 'index'])->name('admin.personal-inventory');
+	Route::post('/admin/personal-inventory/data', [AdminPersonalInventoryController::class, 'data'])->name('admin.personal-inventory.data');
 	Route::get('/admin/personal-inventory/{sId}', [AdminPersonalInventoryController::class, 'show'])->where('sId', '[A-Za-z0-9_-]+')->name('admin.personal-inventory.show');
 
 	/************	AdminReportController / AdminUsersReportController	************/

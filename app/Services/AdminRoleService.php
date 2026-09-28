@@ -29,12 +29,14 @@ class AdminRoleService
      */
     private const ORDERS_ROUTES = [
         'admin.uniform-orders',
+        'admin.uniform-orders.data',
         'admin.uniform-orders.show',
         'admin.uniform-orders.kew-ps8',
         'admin.uniform-orders.update',
         // Read-only view of what each member holds; useful to whoever is
         // servicing the queue, so it is open to both roles.
         'admin.personal-inventory',
+        'admin.personal-inventory.data',
         'admin.personal-inventory.show',
         'admin.change-password',
         'admin.save-change-password',

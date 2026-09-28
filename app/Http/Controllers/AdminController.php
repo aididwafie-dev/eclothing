@@ -399,7 +399,7 @@ $nestedData[] = $row->updated_at;
 				2 => $request->address3,
 				3 => $request->address4,
 			];
-			$address = implode($address_array, "|");
+			$address = implode("|", $address_array);
 			if($request->ketukangans_type == 1) {
 				$ketukangans_type = 1;
 				$ketukangan = $request->ketukangans_officer;
@@ -442,6 +442,8 @@ $nestedData[] = $row->updated_at;
 					->update(['position' => $position !== '' ? $position : null]);
 			}
 
+			\Session::flash('message', 'Personal Details successfully updated!');
+			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('all.users');
 		}
 
@@ -550,12 +552,25 @@ $nestedData[] = $row->updated_at;
 				->get();
 			*/
 
-			// Search by Order ID. Tolerate a leading '#' and stray spacing; an
-			// empty search shows the full list. A non-empty search with no digits
-			// resolves to id 0, which matches nothing -> "not found".
-			$search = trim((string) $request->query('search', ''));
-			$hasSearch = $search !== '';
+			// The rows are loaded by DataTables from uniformOrdersData; this
+			// only renders the page with the filter the list opens on.
+			[$statusOptions, , $status] = $this->uniformOrdersStatusFilter($request, $request->query('status'));
 
+			return view('admin/uniform_orders_list', array(
+				'search' => trim((string) $request->query('search', '')),
+				'status' => $status,
+				'statusOptions' => $statusOptions,
+			));
+		}
+
+		/**
+		 * The status filter an admin may use: the options their role can see,
+		 * those statuses as keys, and the requested status -- or the role's
+		 * default when the request names none or one it may not use.
+		 *
+		 * @return array{0: array<string, string>, 1: array<int, string>, 2: string}
+		 */
+		private function uniformOrdersStatusFilter(Request $request, $requested): array {
 			// The list is a work queue, so it opens on the orders still waiting
 			// on the store. 'all' is the explicit opt-out; anything unrecognized
 			// falls back to the default rather than showing an empty list.
@@ -568,49 +583,101 @@ $nestedData[] = $row->updated_at;
 			$statusOptions = array_intersect_key($statusOptions, array_flip($visibleStatusKeys));
 			$defaultStatus = $this->adminRoles()->defaultOrderStatusKey($role);
 
-			$status = strtolower(trim((string) $request->query('status', $defaultStatus)));
+			$status = strtolower(trim((string) ($requested ?? $defaultStatus)));
 			if ($status !== 'all' && !isset($statusOptions[$status])) {
 				$status = $defaultStatus;
 			}
 
+			return [$statusOptions, $visibleStatusKeys, $status];
+		}
+
+		/**
+		 * Server-side DataTables feed for the Uniform Orders list. Everything
+		 * the client sends -- search, sort, paging -- is bound or matched
+		 * against a fixed list, never pasted into SQL.
+		 */
+		public function uniformOrdersData(Request $request) {
+			[, $visibleStatusKeys, $status] = $this->uniformOrdersStatusFilter($request, $request->input('status'));
+
 			$query = $this->uniformOrdersListQuery();
 
 			// The role's own limit, applied whatever the request asks for --
-			// including an Order ID search, which otherwise looks past the
-			// filter. Narrowing a dropdown is not a restriction.
+			// including a search, which otherwise looks past the status filter.
+			// Narrowing a dropdown is not a restriction.
 			$this->orderStatus()->applyStatusKeysFilter($query, $visibleStatusKeys);
+			$recordsTotal = (clone $query)->count();
 
-			if ($hasSearch) {
-				// An Order ID names one specific order, so the search looks past
-				// the status filter -- otherwise searching an order that has moved
-				// on would report it as missing. The chosen status is still carried
-				// through the request so clearing the search returns to it.
-				$query->where('orders.id', '=', (int) preg_replace('/\D+/', '', $search));
+			$search = trim((string) $request->input('search.value', ''));
+			if ($search !== '') {
+				// A search looks past the status filter, so an order that has
+				// moved on is still found. '#1042' or '1042' matches that Order
+				// ID; any text also matches service ID, name, unit and uniform.
+				$like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+				$orderId = ltrim($search, '#');
+				$query->where(function ($q) use ($like, $orderId) {
+					if (ctype_digit($orderId)) {
+						$q->orWhere('orders.id', '=', (int) $orderId);
+					}
+					$q->orWhere('gen_users.s_id', 'like', $like)
+						->orWhere('personal_details.name', 'like', $like)
+						->orWhere('units.value', 'like', $like)
+						->orWhere('uniforms.uniform_type', 'like', $like)
+						->orWhere('uniforms.uniform_name', 'like', $like);
+				});
 			} elseif ($status !== 'all') {
 				$this->orderStatus()->applyStatusFilter($query, $status);
 			}
 
-			$orders = $query
-				->orderByRaw('COALESCE(orders.updated_at, orders.created_at) DESC')
-				->orderBy('orders.id', 'desc')
-				->simplePaginate(25);
+			$recordsFiltered = (clone $query)->count();
 
-			$appends = ['status' => $status];
-			if ($hasSearch) {
-				$appends['search'] = $search;
+			// Sortable columns by their index in the table; Action (9) is not.
+			// The collection date is not listed -- it is on the order's detail page.
+			$sortColumns = [
+				0 => 'orders.id',
+				1 => 'gen_users.s_id',
+				2 => 'personal_details.name',
+				3 => 'units.value',
+				4 => 'uniforms.uniform_type',
+				5 => 'items_count',
+				6 => 'orders.status',
+				7 => 'orders.created_at',
+				8 => DB::raw('COALESCE(orders.updated_at, orders.created_at)'),
+			];
+			$sortIndex = (int) $request->input('order.0.column', 8);
+			$sortDir = strtolower((string) $request->input('order.0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+			$query->orderBy($sortColumns[$sortIndex] ?? $sortColumns[8], $sortDir)->orderBy('orders.id', 'desc');
+
+			$start = max(0, (int) $request->input('start', 0));
+			$length = (int) $request->input('length', 25);
+			$length = $length < 1 ? 500 : min($length, 500);
+
+			$rows = [];
+			foreach ($query->offset($start)->limit($length)->get() as $order) {
+				$order = $this->orderStatus()->normalizeOrderLifecycle($order);
+				$statusKey = !empty($order->status_key) ? $order->status_key : 'pending';
+				$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
+				$detailUrl = route('admin.uniform-orders.show', ['id' => $this->encodeProtectedId($order->id)]);
+
+				$rows[] = [
+					'#' . (int) $order->id,
+					e($order->s_id ?: '-'),
+					e($order->name ?: 'N/A'),
+					e($order->unit_name ?: 'N/A'),
+					e($order->uniform_type . ($order->uniform_name ? ' (' . $order->uniform_name . ')' : '')),
+					(int) $order->items_count,
+					'<span class="status-badge ' . e($statusClass) . '">' . e(__('app.status.' . $statusKey)) . '</span>',
+					e($order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-'),
+					e($order->updated_at ? date('d/m/y h:i A', strtotime($order->updated_at)) : '-'),
+					'<a href="' . e($detailUrl) . '" class="btn btn-sm btn-default"><i class="fa fa-eye" aria-hidden="true"></i> ' . e(__('app.admin_orders.view_detail')) . '</a>',
+				];
 			}
-			$orders->appends($appends);
 
-			$orders->getCollection()->transform(function ($order) {
-				return $this->orderStatus()->normalizeOrderLifecycle($order);
-			});
-
-			return view('admin/uniform_orders_list', array(
-				'orders' => $orders,
-				'search' => $search,
-				'status' => $status,
-				'statusOptions' => $statusOptions,
-			));
+			return response()->json([
+				'draw' => (int) $request->input('draw', 0),
+				'recordsTotal' => $recordsTotal,
+				'recordsFiltered' => $recordsFiltered,
+				'data' => $rows,
+			]);
 		}
 
 		public function uniformOrderDetail(Request $request, $id) {
@@ -665,6 +732,7 @@ $nestedData[] = $row->updated_at;
 				'orderReference' => $this->kewPs8OrderReference($order),
 				'allowedStatuses' => $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request)),
 				'canApproveQuantities' => $this->canApproveQuantities($request),
+				'isOwnOrder' => $this->isOwnOrder($request, $order),
 			));
 		}
 
@@ -672,6 +740,29 @@ $nestedData[] = $row->updated_at;
 		 * Only a superadmin approves orders, so only they set how many of each
 		 * item is granted.
 		 */
+		/**
+		 * Whether the order was placed by the signed-in admin's own member
+		 * account. Admin and member accounts are separate, so they are matched
+		 * on Service ID -- the admin's s_id, or their username, which is their
+		 * Service ID -- or on email.
+		 */
+		private function isOwnOrder(Request $request, $order): bool {
+			$admin = DB::table('admins')->where('id', '=', (int) $request->session()->get('admin_id'))->first();
+			$member = DB::table('gen_users')->where('id', '=', (int) ($order->user_id ?? 0))->first();
+			if (!$admin || !$member) {
+				return false;
+			}
+
+			$adminServiceId = trim((string) ($admin->s_id ?? '')) ?: trim((string) ($admin->username ?? ''));
+			$memberServiceId = trim((string) ($member->s_id ?? ''));
+			if ($adminServiceId !== '' && strcasecmp($adminServiceId, $memberServiceId) === 0) {
+				return true;
+			}
+
+			$adminEmail = strtolower(trim((string) ($admin->email ?? '')));
+			return $adminEmail !== '' && $adminEmail === strtolower(trim((string) ($member->email ?? '')));
+		}
+
 		private function canApproveQuantities(Request $request): bool {
 			return $this->currentAdminRole($request) === \App\Services\AdminRoleService::SUPERADMIN
 				&& Schema::hasColumn('ordered_clothes', 'approved_quantity');
@@ -717,6 +808,7 @@ $nestedData[] = $row->updated_at;
 				'applicantPosition' => $this->kewPs8ApplicantPosition($order->user_id),
 				'printedAt' => $this->kewPs8PrintedAt(),
 				'orderReference' => $this->kewPs8OrderReference($order),
+				'scafReference' => $this->kewPs8ScafReference($order),
 				'uniformName' => $this->kewPs8UniformName($uniform),
 				'approver' => $this->kewPs8Approver($order),
 				'receipt' => $this->kewPs8Receipt($order, $personalDetail),
@@ -795,6 +887,14 @@ $nestedData[] = $row->updated_at;
 				\Session::flash('message', 'This order is not in your queue yet.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('admin.uniform-orders');
+			}
+
+			// No one approves their own order: the approving officer's name goes
+			// on the KEW.PS-8 as Pegawai Pelulus, so it has to be someone else.
+			if ((string) $request->input('status') === '3' && $this->isOwnOrder($request, $order)) {
+				\Session::flash('message', 'You cannot approve your own order. Another admin must approve it.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->route('admin.uniform-orders.show', ['id' => $this->encodeProtectedId($order->id)]);
 			}
 
 			$status = trim((string) $request->input('status'));
@@ -1055,6 +1155,8 @@ $nestedData[] = $row->updated_at;
 				} else {
 					$uniformItemsQuery->addSelect(DB::raw('NULL as clothes_photo'));
 				}
+
+				$uniformItemsQuery->addSelect(Schema::hasColumn('uniform_clothes', 'part_no') ? 'part_no' : DB::raw('NULL as part_no'));
 
 				$uniformItems = $uniformItemsQuery
 					->orderBy('uniforms_id')
@@ -1940,6 +2042,39 @@ $nestedData[] = $row->updated_at;
 						\Session::flash('alert-class', 'alert-danger');
 						return redirect()->to(route('admin.system-settings') . '?tab=uniform' . $redirectUniformSuffix);
 					}
+				}
+			}
+
+			// Item names and No. Kod. Saved before the image uploads below, which
+			// return early on a bad file and would otherwise drop these edits.
+			// Only the display name changes: items are matched on clothes_slug,
+			// and orders keep the name they were placed under.
+			$itemNames = $request->input('uniform_clothes_name');
+			if (is_array($itemNames)) {
+				foreach ($itemNames as $uniformClothesId => $itemName) {
+					$uniformClothesId = (int) $uniformClothesId;
+					$itemName = mb_substr(trim((string) $itemName), 0, 255);
+					// A blank name would leave the item unlabelled everywhere, so
+					// it is ignored rather than saved.
+					if ($uniformClothesId <= 0 || $itemName === '') {
+						continue;
+					}
+					DB::table('uniform_clothes')->where('id', '=', $uniformClothesId)
+						->where('clothes_type', '!=', $itemName)
+						->update(['clothes_type' => $itemName, 'updated_at' => date('Y-m-d H:i:s')]);
+				}
+			}
+
+			$partNos = $request->input('uniform_clothes_part_no');
+			if (is_array($partNos) && Schema::hasColumn('uniform_clothes', 'part_no')) {
+				foreach ($partNos as $uniformClothesId => $partNo) {
+					$uniformClothesId = (int) $uniformClothesId;
+					if ($uniformClothesId <= 0) {
+						continue;
+					}
+					$partNo = mb_substr(trim((string) $partNo), 0, 100);
+					DB::table('uniform_clothes')->where('id', '=', $uniformClothesId)
+						->update(['part_no' => $partNo !== '' ? $partNo : null]);
 				}
 			}
 

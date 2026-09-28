@@ -11,9 +11,9 @@ use Symfony\Component\HttpFoundation\Response;
  * Applies the language the visitor picked with the EN | BM toggle.
  *
  * The choice lives in the session, so it follows them from the sign-in screen
- * into the app and survives logging in. Anything unrecognised falls back to
- * English rather than erroring, which also covers a session written by an
- * older version of this app.
+ * into the app and survives logging in. A visitor who has not picked one, or
+ * whose session holds anything unrecognised, gets the default language
+ * (Bahasa Malaysia, config app.locale) rather than an error.
  */
 class SetLocale
 {

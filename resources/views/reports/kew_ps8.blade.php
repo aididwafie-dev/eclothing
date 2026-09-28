@@ -122,7 +122,11 @@
 				<td style="text-align: left;">Pekeliling Perbendaharaan Malaysia</td>
 				<td style="text-align: right;">
 					<div class="kewps8-code">KEW.PS-8</div>
-					<div class="kewps8-no">No. Rujukan : {{ $orderReference ?? $order->id }}</div>
+					{{-- Left as dots: the BPSI number is written in by hand. --}}
+					<div class="kewps8-no">No. BPSI : ..........</div>
+					@if(!empty($scafReference))
+					<div class="kewps8-no">{{ $scafReference }}</div>
+					@endif
 					@if(count($reportForms) > 1)
 						<div class="kewps8-page-note">Borang {{ $formIndex + 1 }} / {{ count($reportForms) }}</div>
 					@endif
@@ -139,14 +143,14 @@
 			{{-- The three blocks carry equal weight on the form, so each gets a
 			     third of the width and the signature boxes below them come out
 			     the same size. Pegawai Pelulus and Perakuan Penerimaan split
-			     their third evenly; Permohonan does not, because Bil. holds a
-			     row number and Perihal Stok holds the longest text on the
+			     their third evenly; Permohonan does not, because No. Kod holds a
+			     stock code and Perihal Stok holds the longest text on the
 			     form. Each block still totals a third. --}}
 			<colgroup>
-				<col style="width: 4%">
-				<col style="width: 14.34%">
-				<col style="width: 6%">
 				<col style="width: 9%">
+				<col style="width: 11.34%">
+				<col style="width: 6%">
+				<col style="width: 7%">
 				<col style="width: 11.11%">
 				<col style="width: 11.11%">
 				<col style="width: 11.11%">
@@ -165,10 +169,10 @@
 			     out differently on every order. Browsers use the colgroup, so
 			     the two must be kept in step. --}}
 			<tr>
-				<th style="width: 4%">Bil.</th>
-				<th style="width: 14.34%">Perihal Stok</th>
+				<th style="width: 9%">No. Kod</th>
+				<th style="width: 11.34%">Perihal Stok</th>
 				<th style="width: 6%">Kuantiti<br>Dimohon</th>
-				<th style="width: 9%">Catatan</th>
+				<th style="width: 7%">Catatan</th>
 				<th style="width: 11.11%">Baki Sedia<br>Ada</th>
 				<th style="width: 11.11%">Kuantiti<br>Diluluskan</th>
 				<th style="width: 11.11%">Catatan</th>
@@ -179,7 +183,7 @@
 			<tbody>
 			@foreach($reportRows as $row)
 				<tr>
-					<td class="text-center">{{ $row['bil'] }}</td>
+					<td class="text-center col-wrap">{{ $row['no_kod'] }}</td>
 					<td class="col-wrap">{{ $row['perihal'] }}</td>
 					<td class="text-center">{{ $row['dimohon'] }}</td>
 					<td class="col-wrap">{{ $row['catatan'] }}</td>

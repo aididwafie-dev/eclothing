@@ -1,6 +1,8 @@
 @include('static-layout/header')
 @include('static-layout/admin_sidebar')
 
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+
 <br>
 <div class="title"><i class="fa fa-clipboard" aria-hidden="true"></i> {{ __('app.admin_orders.title') }}</div>
 <hr>
@@ -14,52 +16,32 @@
 			$search = isset($search) ? $search : '';
 			$statusOptions = isset($statusOptions) ? $statusOptions : [];
 			$statusFilter = isset($status) ? $status : 'pending';
-			// Translated from the status key so the filter, the badges and the
-			// summary line all read in the chosen language.
-			$statusFilterLabel = $statusFilter === 'all'
-				? __('app.admin_orders.all_statuses')
-				: __('app.status.' . (isset($statusOptions[$statusFilter]) ? $statusFilter : 'pending'));
 		@endphp
-		<form method="get" action="{{ route('admin.uniform-orders') }}" class="orders-search" role="search">
+		{{-- Drives the DataTable below rather than submitting: typing searches,
+		     changing the status reloads the rows. --}}
+		<form class="orders-search" role="search" onsubmit="return false;">
 			<div class="orders-search-field">
 				<i class="fa fa-search" aria-hidden="true"></i>
-				<input type="text" name="search" value="{{ $search }}" class="form-control"
-					placeholder="{{ __('app.admin_orders.search_placeholder') }}" inputmode="numeric"
+				<input type="text" id="orderSearch" value="{{ $search }}" class="form-control"
+					placeholder="{{ __('app.admin_orders.search_placeholder') }}"
 					aria-label="{{ __('app.admin_orders.search_label') }}" autocomplete="off" />
 			</div>
 			<div class="orders-filter-field">
 				<label class="orders-filter-label" for="orderStatusFilter">{{ __('app.admin_orders.status') }}</label>
-				{{-- Disabled during a search because an Order ID search deliberately
-				     spans every status; the hidden field keeps the chosen status so
-				     Clear returns to it. --}}
-				<select name="status" id="orderStatusFilter" class="form-control"
-					{{ $search !== '' ? 'disabled' : '' }} onchange="this.form.submit();">
+				{{-- Set aside during a search, which spans every status so an
+				     order that has moved on is still found. --}}
+				<select id="orderStatusFilter" class="form-control" {{ $search !== '' ? 'disabled' : '' }}>
 					@foreach($statusOptions as $statusKey => $statusOptionLabel)
 					<option value="{{ $statusKey }}" {{ $statusFilter === $statusKey ? 'selected' : '' }}>{{ __('app.status.' . $statusKey) }}</option>
 					@endforeach
 					<option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>{{ __('app.admin_orders.all_statuses') }}</option>
 				</select>
 			</div>
-			@if($search !== '')
-			<input type="hidden" name="status" value="{{ $statusFilter }}" />
-			@endif
-			<button type="submit" class="btn btn-primary"><i class="fa fa-search" aria-hidden="true"></i> {{ __('app.admin_orders.search') }}</button>
-			@if($search !== '')
-			<a href="{{ route('admin.uniform-orders', ['status' => $statusFilter]) }}" class="btn btn-default"><i class="fa fa-times" aria-hidden="true"></i> {{ __('app.admin_orders.clear') }}</a>
-			@endif
 		</form>
+		<div class="orders-search-result" id="ordersSummary"></div>
 
-		@if($search !== '')
-			@if($orders && $orders->count())
-			<div class="orders-search-result">{!! __('app.admin_orders.showing_search', ['id' => '<strong>#' . e($search) . '</strong>']) !!}</div>
-			@endif
-		@else
-		<div class="orders-search-result">{!! __('app.admin_orders.showing_status', ['status' => '<strong>' . e($statusFilterLabel) . '</strong>']) !!}</div>
-		@endif
-
-		@if($orders && $orders->count())
 		<div class="table-responsive">
-			<table class="table table-orders table-orders-wide">
+			<table class="table table-orders table-orders-wide" id="uniformOrdersTable" style="width:100%">
 				<thead>
 					<tr>
 						<th>{{ __('app.admin_orders.order') }}</th>
@@ -69,55 +51,14 @@
 						<th>{{ __('app.admin_orders.uniform') }}</th>
 						<th>{{ __('app.admin_orders.items') }}</th>
 						<th>{{ __('app.admin_orders.status') }}</th>
-						<th>{{ __('app.admin_orders.collection_date') }}</th>
 						<th>{{ __('app.admin_orders.ordered_at') }}</th>
 						<th>{{ __('app.admin_orders.last_updated') }}</th>
 						<th>{{ __('app.admin_orders.action') }}</th>
 					</tr>
 				</thead>
-				<tbody>
-					@foreach($orders as $order)
-					@php
-						$orderId = base64_encode('DCS'.$order->id.'DCS');
-						$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
-						$statusLabel = __('app.status.' . (!empty($order->status_key) ? $order->status_key : 'pending'));
-					@endphp
-					<tr>
-						<td data-label="Order">#{{ $order->id }}</td>
-						<td data-label="Service ID">{{ $order->s_id ? $order->s_id : '-' }}</td>
-						<td data-label="Name">{{ $order->name ? $order->name : 'N/A' }}</td>
-						<td data-label="Unit">{{ $order->unit_name ? $order->unit_name : 'N/A' }}</td>
-						<td data-label="Uniform">{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</td>
-						<td data-label="Items">{{ $order->items_count }}</td>
-						<td data-label="Status"><span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span></td>
-						<td data-label="{{ __('app.admin_orders.collection_date') }}">{{ $order->collection_date ? \Carbon\Carbon::parse($order->collection_date)->locale(app()->getLocale())->translatedFormat('d/m/y h:i A (D)') : __('app.admin_orders.to_be_updated') }}</td>
-						<td data-label="{{ __('app.admin_orders.ordered_at') }}">{{ $order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-' }}</td>
-						<td data-label="{{ __('app.admin_orders.last_updated') }}">{{ $order->updated_at ? date('d/m/y h:i A', strtotime($order->updated_at)) : '-' }}</td>
-						<td data-label="{{ __('app.admin_orders.action') }}"><a href="{{ route('admin.uniform-orders.show', ['id' => $orderId]) }}" class="btn btn-sm btn-default"><i class="fa fa-eye" aria-hidden="true"></i> {{ __('app.admin_orders.view_detail') }}</a></td>
-					</tr>
-					@endforeach
-				</tbody>
+				<tbody></tbody>
 			</table>
 		</div>
-		@if($orders->hasPages())
-		<div class="order-pagination">
-			<a href="{{ $orders->previousPageUrl() ?: 'javascript:void(0)' }}" class="btn btn-sm btn-default{{ $orders->onFirstPage() ? ' disabled' : '' }}">{{ __('app.admin_orders.previous') }}</a>
-			<span class="order-pagination-label">{{ __('app.admin_orders.page', ['page' => $orders->currentPage()]) }}</span>
-			<a href="{{ $orders->nextPageUrl() ?: 'javascript:void(0)' }}" class="btn btn-sm btn-default{{ $orders->hasMorePages() ? '' : ' disabled' }}">{{ __('app.admin_orders.next') }}</a>
-		</div>
-		@endif
-		@else
-		<div class="alert alert-info">
-			@if($search !== '')
-			{!! __('app.admin_orders.not_found_search', ['id' => '<strong>#' . e($search) . '</strong>']) !!}
-			@elseif($statusFilter === 'all')
-			{{ __('app.admin_orders.none') }}
-			@else
-			{!! __('app.admin_orders.none_status', ['status' => '<strong>' . e($statusFilterLabel) . '</strong>']) !!}
-			<a href="{{ route('admin.uniform-orders', ['status' => 'all']) }}">{{ __('app.admin_orders.view_all_statuses') }}</a>.
-			@endif
-		</div>
-		@endif
 	</div>
 </div>
 <!--#### 3 div open in sidebar ####-->
@@ -125,5 +66,111 @@
 </div>
 </div>
 <!--#### 3 div open in sidebar ####-->
+
+{{-- jQuery and Bootstrap already come from the header; loading jQuery again
+     here would drop Bootstrap's plugins, which the popup alerts rely on. --}}
+<script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		var $search = $('#orderSearch');
+		var $status = $('#orderStatusFilter');
+		var $summary = $('#ordersSummary');
+		var text = {!! json_encode([
+			'showingStatus' => __('app.admin_orders.showing_status'),
+			'showingSearch' => __('app.admin_orders.showing_search_any'),
+			'allStatuses' => __('app.admin_orders.all_statuses'),
+			'none' => __('app.admin_orders.none'),
+			'noneMatch' => __('app.admin_orders.none_match'),
+		]) !!};
+
+		function escapeHtml(value) {
+			return $('<div>').text(value).html();
+		}
+
+		function summary() {
+			var term = $.trim($search.val() || '');
+			var html = term !== ''
+				? text.showingSearch.replace(':search', '<strong>' + escapeHtml(term) + '</strong>')
+				: text.showingStatus.replace(':status', '<strong>' + escapeHtml($status.find('option:selected').text()) + '</strong>');
+			$summary.html(html);
+		}
+
+		// Keeps the filter in the address bar, so a reload or the Back link from
+		// an order's detail page lands on the same list.
+		function rememberFilter() {
+			try {
+				var url = new URL(window.location.href);
+				url.searchParams.set('status', $status.val());
+				var term = $.trim($search.val() || '');
+				if (term !== '') { url.searchParams.set('search', term); } else { url.searchParams.delete('search'); }
+				window.history.replaceState(null, '', url.toString());
+			} catch (e) {}
+		}
+
+		var table = $('#uniformOrdersTable').DataTable({
+			processing: true,
+			serverSide: true,
+			searching: true,
+			// No built-in search box: the one above the table drives it.
+			dom: 'lrtip',
+			pageLength: 25,
+			lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+			order: [[8, 'desc']],
+			search: { search: $.trim($search.val() || '') },
+			columnDefs: [
+				{ targets: 9, orderable: false },
+				// The mobile card layout labels each cell from its header.
+				{ targets: '_all', createdCell: function(td, cellData, rowData, row, col) {
+					$(td).attr('data-label', $('#uniformOrdersTable thead th').eq(col).text());
+				} }
+			],
+			ajax: {
+				url: {!! json_encode(route('admin.uniform-orders.data')) !!},
+				type: 'post',
+				headers: { 'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content') },
+				data: function(d) { d.status = $status.val(); },
+				error: function() {
+					if (window.showAppPopup) {
+						window.showAppPopup('Orders could not be loaded. Please refresh the page.', 'danger');
+					}
+					$('#uniformOrdersTable_processing').hide();
+				}
+			},
+			language: {
+				processing: '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i>',
+				lengthMenu: {!! json_encode(__('app.admin_orders.dt_length')) !!},
+				info: {!! json_encode(__('app.admin_orders.dt_info')) !!},
+				infoEmpty: {!! json_encode(__('app.admin_orders.dt_info_empty')) !!},
+				infoFiltered: '',
+				emptyTable: text.none,
+				zeroRecords: text.noneMatch,
+				paginate: {
+					previous: {!! json_encode(__('app.admin_orders.previous')) !!},
+					next: {!! json_encode(__('app.admin_orders.next')) !!}
+				}
+			}
+		});
+
+		summary();
+
+		var searchTimer = null;
+		$search.on('input', function() {
+			clearTimeout(searchTimer);
+			searchTimer = setTimeout(function() {
+				var term = $.trim($search.val() || '');
+				$status.prop('disabled', term !== '');
+				summary();
+				rememberFilter();
+				table.search(term).draw();
+			}, 400);
+		});
+
+		$status.on('change', function() {
+			summary();
+			rememberFilter();
+			table.ajax.reload();
+		});
+	});
+</script>
 </body>
 </html>

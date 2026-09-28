@@ -13,6 +13,12 @@
 									<input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>"/>
 									<label class="label_">Unit name:</label>
 									<input type="text" class="form-control" name="unit_name" required />
+									<br>
+									<label class="label_">BASE/HQ:</label>
+									<input type="text" class="form-control" name="base_hq" maxlength="255" />
+									<br>
+									<label class="label_">ORG:</label>
+									<input type="text" class="form-control" name="org" maxlength="255" />
 
 									<div class="subBtn text-center"><br />
 										<button class="btn btn-primary" type="submit" id="submit" name="submit">SAVE UNIT</button>

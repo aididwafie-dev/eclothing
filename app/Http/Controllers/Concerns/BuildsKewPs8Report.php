@@ -101,6 +101,34 @@ trait BuildsKewPs8Report
         return 'PLAS-' . $year . '-' . $paddedId;
     }
 
+    /**
+     * The store's reference for the form: "{ORG}/SCAF : {order id}/{year}",
+     * e.g. "TUDM/SCAF : 1042/2026". ORG is the organisation of the member's
+     * unit (All Units); a unit without one prints dots to be filled in.
+     */
+    private function kewPs8ScafReference($order): string
+    {
+        if ($order === null) {
+            return '';
+        }
+
+        $org = '';
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('units', 'org')) {
+                $org = trim((string) \Illuminate\Support\Facades\DB::table('personal_details')
+                    ->join('units', 'units.id', '=', 'personal_details.unit')
+                    ->where('personal_details.user_id', '=', $order->user_id ?? 0)
+                    ->value('units.org'));
+            }
+        } catch (\Throwable $e) {
+            $org = '';
+        }
+
+        $createdTs = !empty($order->created_at) ? strtotime($order->created_at) : time();
+
+        return ($org !== '' ? $org : '..........') . '/SCAF : ' . (int) ($order->id ?? 0) . '/' . date('Y', $createdTs);
+    }
+
     private function kewPs8UniformName($uniform): string
     {
         if ($uniform === null) {
@@ -203,10 +231,10 @@ trait BuildsKewPs8Report
         ];
     }
 
-    private function buildKewPs8Rows($items, int $minimumRows = 8, int $startIndex = 1): array
+    private function buildKewPs8Rows($items, int $minimumRows = 8): array
     {
         $rows = [];
-        $index = $startIndex;
+        $partNos = $this->kewPs8PartNumbers($items);
 
         foreach ($items as $item) {
             $quantity = (int) ($item->quantity ?? 1);
@@ -219,7 +247,7 @@ trait BuildsKewPs8Report
             $approvedStr = isset($item->approved_quantity) ? (string) (int) $item->approved_quantity : $quantityStr;
             $size = trim((string) ($item->size ?? ''));
             $rows[] = [
-                'bil' => (string) $index,
+                'no_kod' => $partNos[(int) ($item->id ?? 0)] ?? '',
                 'perihal' => (string) ($item->clothes ?? ''),
                 'dimohon' => $quantityStr,
                 'catatan' => $size,
@@ -229,12 +257,11 @@ trait BuildsKewPs8Report
                 'diterima' => '',
                 'catatan_terima' => '',
             ];
-            $index++;
         }
 
         while (count($rows) < $minimumRows) {
             $rows[] = [
-                'bil' => '',
+                'no_kod' => '',
                 'perihal' => '',
                 'dimohon' => '',
                 'catatan' => '',
@@ -249,21 +276,46 @@ trait BuildsKewPs8Report
         return $rows;
     }
 
+    /**
+     * The No. Kod (uniform_clothes.part_no) of each ordered line, keyed by
+     * ordered_clothes id. A line is matched to its item through the order's
+     * uniform and the item's slug; an item without a code is left out and
+     * prints blank.
+     *
+     * @return array<int, string>
+     */
+    private function kewPs8PartNumbers($items): array
+    {
+        $ids = collect($items)->pluck('id')->filter()->map(fn ($id) => (int) $id)->values()->all();
+        if (!$ids || !\Illuminate\Support\Facades\Schema::hasColumn('uniform_clothes', 'part_no')) {
+            return [];
+        }
+
+        return \Illuminate\Support\Facades\DB::table('ordered_clothes')
+            ->join('orders', 'orders.id', '=', 'ordered_clothes.order_id')
+            ->join('uniform_clothes', function ($join) {
+                $join->on('uniform_clothes.uniforms_id', '=', 'orders.uniforms_id')
+                    ->on('uniform_clothes.clothes_slug', '=', 'ordered_clothes.clothes_slug');
+            })
+            ->whereIn('ordered_clothes.id', $ids)
+            ->whereNotNull('uniform_clothes.part_no')
+            ->where('uniform_clothes.part_no', '!=', '')
+            ->pluck('uniform_clothes.part_no', 'ordered_clothes.id')
+            ->map(fn ($partNo) => trim((string) $partNo))
+            ->all();
+    }
+
     private function chunkKewPs8Rows($items, int $rowsPerForm = 8): array
     {
         $items = collect($items)->values()->all();
 
         if (empty($items)) {
-            return [$this->buildKewPs8Rows([], $rowsPerForm, 1)];
+            return [$this->buildKewPs8Rows([], $rowsPerForm)];
         }
 
-        $chunks = array_chunk($items, $rowsPerForm);
         $forms = [];
-        $startIndex = 1;
-
-        foreach ($chunks as $chunk) {
-            $forms[] = $this->buildKewPs8Rows($chunk, $rowsPerForm, $startIndex);
-            $startIndex += count($chunk);
+        foreach (array_chunk($items, $rowsPerForm) as $chunk) {
+            $forms[] = $this->buildKewPs8Rows($chunk, $rowsPerForm);
         }
 
         return $forms;

@@ -72,7 +72,7 @@
 									<th>{{ __('app.admin_detail.clothing_item') }}</th>
 									<th>{{ __('app.admin_detail.size_ordered') }}</th>
 									<th>{{ __('app.admin_detail.quantity_request') }}</th>
-									@if($canApproveQuantities ?? false)
+									@if(($canApproveQuantities ?? false) && !($isOwnOrder ?? false))
 									<th>{{ __('app.admin_detail.quantity_approved') }}</th>
 									@endif
 								</tr>
@@ -87,7 +87,7 @@
 									<td data-label="{{ __('app.admin_detail.clothing_item') }}">{{ $cloth->clothes }}</td>
 									<td data-label="{{ __('app.admin_detail.size_ordered') }}">{{ $cloth->size }}</td>
 									<td data-label="{{ __('app.admin_detail.quantity_request') }}">{{ $requestedQuantity }}</td>
-									@if($canApproveQuantities ?? false)
+									@if(($canApproveQuantities ?? false) && !($isOwnOrder ?? false))
 									{{-- Sits outside the sidebar form, so it is tied to it by
 									     form=; saved when the order is approved. --}}
 									<td data-label="{{ __('app.admin_detail.quantity_approved') }}">
@@ -142,6 +142,10 @@
 							// Driven by the admin's role, so an account limited to
 							// servicing the queue is not shown decisions it cannot make.
 							$allowedStatuses = $allowedStatuses ?? ['1', '2', '3', '4', '5', '6'];
+							// No one approves their own order; the server refuses it too.
+							if ($isOwnOrder ?? false) {
+								$allowedStatuses = array_values(array_diff($allowedStatuses, ['3']));
+							}
 							$statusButtons = [
 								['code' => '5', 'class' => 'btn-info',    'icon' => 'fa-cogs',           'label' => __('app.admin_detail.mark_processing')],
 								['code' => '3', 'class' => 'btn-success', 'icon' => 'fa-check',          'label' => __('app.admin_detail.approve')],
@@ -151,6 +155,9 @@
 								['code' => '4', 'class' => 'btn-default', 'icon' => 'fa-ban',            'label' => __('app.admin_detail.mark_expired')],
 							];
 						@endphp
+						@if($isOwnOrder ?? false)
+						<div class="alert alert-warning" role="note"><i class="fa fa-info-circle" aria-hidden="true"></i> {{ __('app.admin_detail.own_order') }}</div>
+						@endif
 						<div class="order-admin-actions">
 							@foreach($statusButtons as $statusButton)
 							@if(in_array($statusButton['code'], $allowedStatuses, true))
@@ -168,7 +175,7 @@
 			<div class="order-card-header">
 				<div>
 					<div class="report-card-title">KEW.PS-8</div>
-					<div class="order-card-meta">{{ __('app.admin_detail.kew_subtitle', ['ref' => $orderReference]) }}</div>
+					<div class="order-card-meta">{{ __('app.admin_detail.kew_subtitle') }}</div>
 				</div>
 			</div>
 

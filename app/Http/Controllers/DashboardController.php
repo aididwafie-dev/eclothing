@@ -83,7 +83,7 @@
 			if(!empty($detail))
 			{
 				$personal_detail = Personal_detail::find($detail->id);
-				\Session::flash('message', 'Your Personal details are successfully updated.'); 
+				\Session::flash('message', 'Personal Details successfully updated!'); 
 				\Session::flash('alert-class', 'alert-success');
 			}
 			else
@@ -741,6 +741,7 @@
 				'applicantPosition' => $this->kewPs8ApplicantPosition($user_id),
 				'printedAt' => $this->kewPs8PrintedAt(),
 				'orderReference' => $this->kewPs8OrderReference($order),
+				'scafReference' => $this->kewPs8ScafReference($order),
 				'uniformName' => $this->kewPs8UniformName($uniform),
 				'approver' => $this->kewPs8Approver($order),
 				'receipt' => $this->kewPs8Receipt($order, $personalDetail),
