@@ -85,7 +85,6 @@ class OrderStatusService
             'approved' => 'Approved',
             'completed' => 'Completed',
             'rejected' => 'Rejected',
-            'expired' => 'Expired',
         ];
     }
 

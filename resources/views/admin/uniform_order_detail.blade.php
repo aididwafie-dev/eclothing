@@ -165,7 +165,7 @@
 						@php
 							// Driven by the admin's role, so an account limited to
 							// servicing the queue is not shown decisions it cannot make.
-							$allowedStatuses = $allowedStatuses ?? ['1', '2', '3', '4', '5', '6'];
+							$allowedStatuses = $allowedStatuses ?? ['1', '2', '3', '5', '6'];
 							// No one approves their own order; the server refuses it too.
 							if ($isOwnOrder ?? false) {
 								$allowedStatuses = array_values(array_diff($allowedStatuses, ['3']));
@@ -176,7 +176,6 @@
 								['code' => '6', 'class' => 'btn-primary', 'icon' => 'fa-flag-checkered', 'label' => __('app.admin_detail.mark_completed')],
 								['code' => '2', 'class' => 'btn-danger',  'icon' => 'fa-times',          'label' => __('app.admin_detail.reject')],
 								['code' => '1', 'class' => 'btn-warning', 'icon' => 'fa-clock-o',        'label' => __('app.admin_detail.mark_pending')],
-								['code' => '4', 'class' => 'btn-default', 'icon' => 'fa-ban',            'label' => __('app.admin_detail.mark_expired')],
 							];
 						@endphp
 						@if($isOwnOrder ?? false)

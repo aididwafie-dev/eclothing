@@ -167,7 +167,7 @@ class AdminRoleService
     /**
      * Order status codes the role may set, as OrderStatusService codes.
      * An orders admin moves work through the queue; the approve/reject
-     * decision and the expiry sweep stay with a superadmin.
+     * decision stays with a superadmin. No role may mark an order Expired.
      *
      * @return array<int, string>
      */
@@ -175,6 +175,6 @@ class AdminRoleService
     {
         return $this->normalize($role) === self::ORDERS
             ? ['5', '6']
-            : ['1', '2', '3', '4', '5', '6'];
+            : ['1', '2', '3', '5', '6'];
     }
 }

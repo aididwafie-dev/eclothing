@@ -970,7 +970,7 @@ $nestedData[] = $row->updated_at;
 				'updated_at' => date("Y-m-d H:i:s"),
 			];
 
-			if (in_array($status, ['2', '4'])) {
+			if ($status === '2') {
 				$updateData['collection_date'] = null;
 			}
 
@@ -1028,9 +1028,9 @@ $nestedData[] = $row->updated_at;
 					// Processing and Completed both follow approval, so they
 					// keep the approver -- clearing it would blank the Pegawai
 					// Pelulus block on the order's KEW.PS-8 part-way through
-					// the very sequence the store works to. Pending, Rejected
-					// and Expired mean the order is not approved any more, so
-					// the record is dropped.
+					// the very sequence the store works to. Pending and
+					// Rejected mean the order is not approved any more, so the
+					// record is dropped.
 					$updateData['approved_by_admin_id'] = null;
 					$updateData['approved_at'] = null;
 					if ($hasApproverSnapshot) {

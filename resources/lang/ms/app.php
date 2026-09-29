@@ -205,7 +205,6 @@ return [
         'mark_completed' => 'Tanda Selesai',
         'reject' => 'Tolak Pesanan',
         'mark_pending' => 'Tanda Menunggu',
-        'mark_expired' => 'Tanda Tamat Tempoh',
         'kew_subtitle' => 'Borang Permohonan Stok',
         'preview_title' => 'Pratonton borang KEW.PS-8',
         'preview_missing' => 'Pratonton tidak dipaparkan?',

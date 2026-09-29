@@ -33,6 +33,51 @@ class FcmSender
     }
 
     /**
+     * Checks each step push depends on, in order, stopping at the first that
+     * fails -- for `php artisan fcm:test` when setting Firebase up.
+     *
+     * @return array<int, array{check: string, ok: bool, detail: string}>
+     */
+    public function diagnose(): array
+    {
+        $checks = [];
+        $add = function (string $check, bool $ok, string $detail) use (&$checks) {
+            $checks[] = ['check' => $check, 'ok' => $ok, 'detail' => $detail];
+            return $ok;
+        };
+
+        if (!$add('FCM_PROJECT_ID set', $this->projectId() !== '', $this->projectId() ?: 'empty in .env')) {
+            return $checks;
+        }
+
+        $path = (string) config('services.fcm.credentials');
+        if (!$add('FCM_CREDENTIALS file readable', $path !== '' && is_file($path) && is_readable($path), $path ?: 'empty in .env')) {
+            return $checks;
+        }
+
+        $credentials = $this->credentials();
+        $validKey = is_array($credentials) && is_string($credentials['private_key'] ?? null) && is_string($credentials['client_email'] ?? null);
+        if (!$add('Service-account JSON has private_key and client_email', $validKey, $validKey ? $credentials['client_email'] : 'not a service-account key file')) {
+            return $checks;
+        }
+
+        $fileProject = (string) ($credentials['project_id'] ?? '');
+        if (!$add('Key belongs to FCM_PROJECT_ID', $fileProject === '' || $fileProject === $this->projectId(), $fileProject !== '' ? $fileProject : 'no project_id in the file')) {
+            return $checks;
+        }
+
+        Cache::forget(self::TOKEN_CACHE_KEY);
+        try {
+            $token = $this->accessToken();
+            $add('Google issued an access token', $token !== null, $token !== null ? 'ok' : 'rejected - see storage/logs/laravel.log');
+        } catch (\Throwable $e) {
+            $add('Google issued an access token', false, $e->getMessage());
+        }
+
+        return $checks;
+    }
+
+    /**
      * Pushes one message to many device tokens.
      *
      * @param  array<string> $deviceTokens

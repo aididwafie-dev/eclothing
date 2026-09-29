@@ -204,7 +204,6 @@ return [
         'mark_completed' => 'Mark Completed',
         'reject' => 'Reject Order',
         'mark_pending' => 'Mark Pending',
-        'mark_expired' => 'Mark Expired',
         'kew_subtitle' => 'Borang Permohonan Stok',
         'preview_title' => 'KEW.PS-8 preview',
         'preview_missing' => 'Preview not showing?',

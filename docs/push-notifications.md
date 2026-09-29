@@ -53,6 +53,17 @@ token, and posts to FCM HTTP v1.
 Until both keys are set, `FcmSender::isConfigured()` is false and push is
 skipped silently — no errors, no crashes, inbox unaffected.
 
+Then `php artisan config:clear` and check the setup:
+
+```
+php artisan fcm:test            # checks .env, the key file, and gets a Google token
+php artisan fcm:test 733212     # ...then pushes a test notification to that member
+```
+
+It stops at the first failing step and says which, so a wrong path, a key
+from another project, or a revoked key are told apart. The member needs to
+have signed in to the mobile app at least once so a device is registered.
+
 **2. Mobile (plas-mobile)**:
 
 ```
@@ -66,7 +77,14 @@ then drop the generated files in place:
 
 `PushService.initialise()` already calls `Firebase.initializeApp()` inside a
 try/catch, so the app runs normally without these and starts delivering push
-once they land. The Android notification channel (`plas_orders`) and the
+once they land. On Android the Google Services Gradle plugin is declared in
+`android/settings.gradle.kts` and applied by `android/app/build.gradle.kts`
+only when `google-services.json` is present, so builds work before and after.
+The Firebase Android app must use the package name `com.plas.plas_mobile`.
+
+Note that plas-mobile's `.gitignore` excludes the whole `android/` folder, so
+`google-services.json` and the Gradle changes live only on the machine that
+builds the app — keep a copy of the JSON somewhere safe. The Android notification channel (`plas_orders`) and the
 `POST_NOTIFICATIONS` permission are already declared in the manifest, and
 `FcmSender` targets that same channel id.
 
@@ -92,8 +110,8 @@ detaches the handset in one request.
     {
       "id": 12,
       "type": "order_approved",
-      "title": "Pesanan Diluluskan",
-      "body": "Pesanan uniform #99 anda telah diluluskan. Tarikh kutipan: 15/09/2026.",
+      "title": "Permohonan Diluluskan",
+      "body": "Permohonan pakaian #99 anda telah diluluskan. Tarikh kutipan: 15/09/2026.",
       "order_id": 99,
       "read": false,
       "created_at": "2026-08-17 20:14:03"
