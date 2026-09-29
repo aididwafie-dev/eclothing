@@ -23,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        $siteTitle = 'Personnel Logistic Accounting System';
+        $siteTitle = 'e-Clothing';
         $siteLogoPath = 'front_end/images/logo.png';
         $siteLogoVersion = null;
         try {

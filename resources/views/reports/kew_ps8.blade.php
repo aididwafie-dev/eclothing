@@ -92,7 +92,8 @@
 		@media print {
 			body { background: #fff; padding: 0; }
 			.no-print { display: none; }
-			.kewps8-sheet { border: none; margin: 0 0 12px 0; page-break-after: always; }
+			.kewps8-sheet { border: none; margin: 0 0 12px 0; }
+			.kewps8-sheet.has-next { page-break-after: always; }
 		}
 	</style>
 	@if($forPdf ?? false)
@@ -101,7 +102,8 @@
 		<style>
 			body { background: #fff; padding: 0; }
 			.no-print { display: none; }
-			.kewps8-sheet { border: none; margin: 0 0 12px 0; page-break-after: always; }
+			.kewps8-sheet { border: none; margin: 0 0 12px 0; }
+			.kewps8-sheet.has-next { page-break-after: always; }
 			/* Under table-layout:fixed dompdf drops the column widths and
 			   spaces all nine evenly, which is what pushed the three blocks to
 			   44/33/22. Its automatic layout does read them. */
@@ -116,7 +118,7 @@
 </div>
 
 @foreach($reportForms as $formIndex => $reportRows)
-	<section class="kewps8-sheet">
+	<section class="kewps8-sheet{{ $loop->last ? '' : ' has-next' }}">
 		<table class="kewps8-topbar">
 			<tr>
 				<td style="text-align: left;">Pekeliling Perbendaharaan Malaysia</td>

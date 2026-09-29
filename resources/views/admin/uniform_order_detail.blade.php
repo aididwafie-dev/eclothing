@@ -23,7 +23,7 @@
 		<div class="order-card">
 			<div class="order-card-header">
 				<div>
-					<div class="report-card-title">{{ $order->uniform_type }}{{ $order->uniform_name ? ' (' . $order->uniform_name . ')' : '' }}</div>
+					<div class="report-card-title">{{ ($uniformLabel ?? '') !== '' ? $uniformLabel : $order->uniform_type . ($order->uniform_name ? ' (' . $order->uniform_name . ')' : '') }}</div>
 					<div class="order-card-meta">{{ __('app.admin_detail.order_no', ['id' => $order->id]) }}</div>
 				</div>
 				<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
@@ -71,9 +71,18 @@
 								<tr>
 									<th>{{ __('app.admin_detail.clothing_item') }}</th>
 									<th>{{ __('app.admin_detail.size_ordered') }}</th>
-									<th>{{ __('app.admin_detail.quantity_request') }}</th>
+									@php
+										// The Uniform Orders admin hands over what was approved, so
+										// that is the quantity they see, beside the issue voucher.
+										$recordsVouchers = $canRecordIssueVouchers ?? false;
+										$quantityLabel = $recordsVouchers ? __('app.admin_detail.quantity_approved') : __('app.admin_detail.quantity_request');
+									@endphp
+									<th>{{ $quantityLabel }}</th>
 									@if(($canApproveQuantities ?? false) && !($isOwnOrder ?? false))
 									<th>{{ __('app.admin_detail.quantity_approved') }}</th>
+									@endif
+									@if($recordsVouchers)
+									<th>{{ __('app.admin_detail.issue_voucher') }}</th>
 									@endif
 								</tr>
 							</thead>
@@ -84,9 +93,14 @@
 									$approvedQuantity = isset($cloth->approved_quantity) ? (int) $cloth->approved_quantity : $requestedQuantity;
 								@endphp
 								<tr>
-									<td data-label="{{ __('app.admin_detail.clothing_item') }}">{{ $cloth->clothes }}</td>
+									<td data-label="{{ __('app.admin_detail.clothing_item') }}">{{ $cloth->clothes }}
+										{{-- Names the uniform when the order holds more than one. --}}
+										@if(count(array_unique($lineUniformLabels ?? [])) > 1)
+										<div class="text-muted small">{{ $lineUniformLabels[$cloth->id] ?? '' }}</div>
+										@endif
+									</td>
 									<td data-label="{{ __('app.admin_detail.size_ordered') }}">{{ $cloth->size }}</td>
-									<td data-label="{{ __('app.admin_detail.quantity_request') }}">{{ $requestedQuantity }}</td>
+									<td data-label="{{ $quantityLabel }}">{{ $recordsVouchers ? $approvedQuantity : $requestedQuantity }}</td>
 									@if(($canApproveQuantities ?? false) && !($isOwnOrder ?? false))
 									{{-- Sits outside the sidebar form, so it is tied to it by
 									     form=; saved when the order is approved. --}}
@@ -95,6 +109,16 @@
 											class="form-control input-sm" style="max-width:90px;" min="0" max="{{ $requestedQuantity }}" step="1"
 											value="{{ old('approved_quantity.' . $cloth->id, $approvedQuantity) }}"
 											aria-label="{{ __('app.admin_detail.quantity_approved') }}: {{ $cloth->clothes }}">
+									</td>
+									@endif
+									@if($recordsVouchers)
+									{{-- Tied to the sidebar form by form=; saved with whichever
+									     status is set, and printed on the KEW.PS-8. --}}
+									<td data-label="{{ __('app.admin_detail.issue_voucher') }}">
+										<input type="text" name="issue_voucher[{{ $cloth->id }}]" form="orderReviewForm"
+											class="form-control input-sm" style="max-width:160px;" maxlength="100"
+											value="{{ old('issue_voucher.' . $cloth->id, $cloth->issue_voucher ?? '') }}"
+											aria-label="{{ __('app.admin_detail.issue_voucher') }}: {{ $cloth->clothes }}">
 									</td>
 									@endif
 								</tr>

@@ -4,7 +4,7 @@
 	<div class="content content-log">
 
 		<img src="{{ $siteLogoUrl ?? asset('front_end/images/logo.png') }}" class="img-responsive center-block" alt="logo" />
-		<h2 class="text-center">{{ $siteTitle ?? 'Personnel Logistic Accounting System' }}</h2>
+		<h2 class="text-center">{{ $siteTitle ?? 'e-Clothing' }}</h2>
 <br />
 
 		<form autocomplete="off" method="post" action="{{ url('/user/login-check') }}" name="login-form" id="login-form" class="login-form">

@@ -72,13 +72,15 @@ class AdminReportController extends Controller
 
     public function orderDetailsWithUserDetails($uniforms_id)
     {
-        $orders = DB::table('orders')
+        // Orders holding this uniform -- one order can hold several.
+        $orderUniforms = app(\App\Services\OrderUniformService::class);
+        $orders = $orderUniforms->whereHasUniform(DB::table('orders')
             ->leftJoin("personal_details", "personal_details.user_id", "=", "orders.user_id")
             ->leftJoin("pangkats", "pangkats.id", "=", "personal_details.pangkat")
-            ->where('uniforms_id', '=', $uniforms_id)
-            ->where('deleted', '=', 0)
+            ->where('deleted', '=', 0), (int) $uniforms_id)
+            ->select('orders.*')
             ->orderBy("pangkats_order", "asc")
-            ->orderBy("s_id", "asc")
+            ->orderBy("personal_details.s_id", "asc")
             ->get();
 
         $orders_detail = [];
@@ -89,7 +91,8 @@ class AdminReportController extends Controller
                     'user_details' => $personal_details,
                     'rank' => DB::table('pangkats')->where('id', '=', $personal_details->pangkat)->first(),
                     'unit' => DB::table('units')->where('id', '=', $personal_details->unit)->first(),
-                    'cloth_details' => DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get(),
+                    // Only this uniform's items.
+                    'cloth_details' => $orderUniforms->linesForUniform($order, (int) $uniforms_id),
                 ];
             }
         }
@@ -104,7 +107,7 @@ class AdminReportController extends Controller
         }
         $uniforms_id = $request->input('uniforms_id');
         $uniforms = DB::table('uniforms')->where('id', '=', $uniforms_id)->first();
-        $orders = DB::table('orders')->where('deleted', '=', 0)->where('uniforms_id', '=', $uniforms_id)->first();
+        $orders = app(\App\Services\OrderUniformService::class)->whereHasUniform(DB::table('orders')->where('deleted', '=', 0), (int) $uniforms_id)->first();
 
         $ordered_clothes = !empty($orders) ? $this->orderedSizeCountUniformwise($uniforms_id) : 0;
 
@@ -203,7 +206,7 @@ class AdminReportController extends Controller
         $uniforms_id = $request->input('uniforms_id');
         $uniforms = DB::table('uniforms')->where('id', '=', $uniforms_id)->first();
         $uniform_clothes = DB::table('uniform_clothes')->where('uniforms_id', '=', $uniforms_id)->get();
-        $orders = DB::table('orders')->where('deleted', '=', 0)->where('uniforms_id', '=', $uniforms_id)->first();
+        $orders = app(\App\Services\OrderUniformService::class)->whereHasUniform(DB::table('orders')->where('deleted', '=', 0), (int) $uniforms_id)->first();
 
         $orders_detail = !empty($orders) ? $this->orderDetailsWithUserDetails($uniforms_id) : 0;
 
@@ -233,7 +236,8 @@ class AdminReportController extends Controller
             $uniforms[$uniform_info->id] = $uniform_info->uniform_type;
         }
 
-        $orders = DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get();
+        // One entry per uniform an order holds, since the report checks each uniform.
+        $orders = app(\App\Services\OrderUniformService::class)->expandByUniform(DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get());
 
         $pangkats_obj = DB::table('pangkats')->get();
         $pangkats = [];
@@ -325,7 +329,8 @@ class AdminReportController extends Controller
             ->get();
 
         $userids = $users->pluck('user_id')->toArray();
-        $orders = DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get();
+        // One entry per uniform an order holds, since the report checks each uniform.
+        $orders = app(\App\Services\OrderUniformService::class)->expandByUniform(DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get());
 
         $uniforms_all = DB::table('uniforms')->where("active", 1)->get();
         $uniforms = [];
@@ -479,7 +484,8 @@ class AdminReportController extends Controller
         foreach ($uniforms_all as $uniform_info) {
             $uniforms[$uniform_info->id] = $uniform_info->uniform_type;
         }
-        $orders = DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get();
+        // One entry per uniform an order holds, since the report checks each uniform.
+        $orders = app(\App\Services\OrderUniformService::class)->expandByUniform(DB::table('orders')->where('deleted', '=', 0)->whereIn('user_id', $userids)->get());
 
         return view('admin/orders/unitwise_orderReport', ["orders" => $orders, "uniforms" => $uniforms, "id" => $unit_id, "unit" => $unit]);
     }
@@ -499,11 +505,13 @@ class AdminReportController extends Controller
         $users = DB::table('personal_details')->where('unit', '=', $unit_id)->get();
         $userids = $users->pluck('user_id')->toArray();
 
-        $orders = DB::table('orders')
+        // Orders holding this uniform -- one order can hold several.
+        $orders = app(\App\Services\OrderUniformService::class)->whereHasUniform(DB::table('orders')
             ->where('deleted', '=', 0)
-            ->whereIn('user_id', $userids)
-            ->rightJoin("uniform_clothes", "uniform_clothes.uniforms_id", "=", "orders.uniforms_id")
-            ->where('orders.uniforms_id', '=', $uniforms_id)
+            ->whereIn('user_id', $userids), (int) $uniforms_id)
+            ->join('uniform_clothes', function ($join) use ($uniforms_id) {
+                $join->where('uniform_clothes.uniforms_id', '=', $uniforms_id);
+            })
             ->get();
 
         return view('admin/orders/uniformunitwise_orderReport', ["uniforms" => $uniforms, "units" => $units, "ordered_clothes" => $orders]);

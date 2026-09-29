@@ -71,7 +71,7 @@
 			$string = $str.$time;
 			
 			$email = $request->input('email');
-			$subject = "Activation Code For Personnel Logistic Accounting System";
+			$subject = "Activation Code For e-Clothing";
 			
 			$genuser = new Gen_user;
 			$genuser->email = $request->email;
@@ -85,7 +85,7 @@
 
 			$mailSent = true;
 			try {
-				Mail::raw('Hello! Welcome to Personnel Logistic Accounting System! '.$body.'',function ($message) use($subject, $email) {
+				Mail::raw('Hello! Welcome to e-Clothing! '.$body.'',function ($message) use($subject, $email) {
 					$message->from(config('mail.from.address'), config('mail.from.name'));
 					$message->to($email)->subject($subject);
 				});
@@ -157,7 +157,7 @@
 			}
 			$string = $str.$time;
 			
-			$subject = "Personnel Logistic Accounting System Password Recovery";
+			$subject = "e-Clothing Password Recovery";
 			
 			$body = 'Your new password is: '.$string.'. ';
 			$body.='You can now login using this password. We recommend you to reset this password as soon as you login.';

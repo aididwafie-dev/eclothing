@@ -1,7 +1,7 @@
 {
-	"name": "PLAS e-Clothing",
-	"short_name": "PLAS",
-	"description": "Personnel Logistic Accounting System - order and track uniform issues.",
+	"name": "e-Clothing",
+	"short_name": "e-Clothing",
+	"description": "e-Clothing - order and track uniform issues.",
 	"id": "/",
 	"start_url": "/",
 	"scope": "/",

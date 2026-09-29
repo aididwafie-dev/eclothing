@@ -25,104 +25,97 @@ class OrderCheckoutService
     }
 
     /**
-     * Every checkout places a new order per uniform in the cart, except for
-     * uniforms the member loaded into the cart through Edit: those save onto
-     * the order being edited, and the cart becomes that whole order, so a
-     * line removed from the cart is removed from the order too.
+     * One checkout is one order: every uniform in the cart goes onto it,
+     * each line recording its own uniform. When the member is editing an
+     * order, the cart is saved back onto that order instead and becomes the
+     * whole of it, so a line removed from the cart is removed from the order.
      *
-     * @param  array<int|string, int|string> $editOrders uniforms_id => order id being edited
-     * @return array<int, int> the order ids written, keyed by uniforms_id
-     * @throws \App\Exceptions\OrderNotEditableException when an edited order
+     * @param  int|null $editOrderId the order loaded into the cart through Edit
+     * @return int|null the order written, or null when the cart held nothing
+     * @throws \App\Exceptions\OrderNotEditableException when the edited order
      *         has already left Pending.
      */
-    public function checkoutForUser(int $userId, array $cartByUniform, array $editOrders = []): array
+    public function checkoutForUser(int $userId, array $cartByUniform, ?int $editOrderId = null): ?int
     {
-        // Checked up front, before anything is written, so a cart spanning
-        // several uniforms cannot be half-applied: either every edited order
-        // is still editable or the whole checkout is refused.
-        $editedOrders = $this->editedOrders($userId, $cartByUniform, $editOrders);
-
-        $orderIds = [];
-
+        $lines = [];
         foreach ($cartByUniform as $uniformsId => $items) {
-            if (!is_array($items) || !count($items)) {
+            if (!is_array($items)) {
                 continue;
             }
-
-            $edited = $editedOrders[(int) $uniformsId] ?? null;
-            $orderId = $edited
-                ? $this->reopenOrder($edited)
-                : $this->createOrder($userId, (int) $uniformsId);
-
             foreach ($items as $item) {
-                $this->upsertOrderedCloth($orderId, (int) $uniformsId, $item);
+                if (is_array($item) && !empty($item['clothes_slug'])) {
+                    $lines[] = [(int) $uniformsId, $item];
+                }
             }
-
-            if ($edited) {
-                DB::table('ordered_clothes')
-                    ->where('order_id', '=', $orderId)
-                    ->whereNotIn('clothes_slug', array_map(fn ($item) => (string) $item['clothes_slug'], array_values($items)))
-                    ->delete();
-            }
-
-            $orderIds[(int) $uniformsId] = $orderId;
+        }
+        if (!$lines) {
+            return null;
         }
 
-        return $orderIds;
+        // Checked before anything is written, so a refused edit leaves the
+        // order exactly as it was.
+        $edited = $this->editedOrder($userId, $editOrderId);
+
+        $orderId = $edited
+            ? $this->reopenOrder($edited)
+            : $this->createOrder($userId, $lines[0][0]);
+
+        $kept = [];
+        foreach ($lines as [$uniformsId, $item]) {
+            if ($this->upsertOrderedCloth($orderId, $uniformsId, $item)) {
+                $kept[] = $uniformsId . '|' . $item['clothes_slug'];
+            }
+        }
+
+        if ($edited) {
+            foreach (DB::table('ordered_clothes')->where('order_id', '=', $orderId)->get() as $line) {
+                if (!in_array($this->lineUniformId($line, $edited) . '|' . $line->clothes_slug, $kept, true)) {
+                    DB::table('ordered_clothes')->where('id', '=', $line->id)->delete();
+                }
+            }
+        }
+
+        return $orderId;
     }
 
     /**
-     * The orders this checkout edits, keyed by uniforms_id. An edit whose
-     * order has since been deleted is dropped, so that uniform is placed as
-     * a new order instead.
-     *
-     * @return array<int, object>
+     * The order being edited, if it is still the member's and still there.
+     * One that has since been deleted is ignored, so the cart is placed as a
+     * new order instead.
      */
-    private function editedOrders(int $userId, array $cartByUniform, array $editOrders): array
+    private function editedOrder(int $userId, ?int $editOrderId): ?object
     {
-        $edited = [];
-        $blocked = [];
+        if (!$editOrderId) {
+            return null;
+        }
 
-        foreach ($editOrders as $uniformsId => $orderId) {
-            $items = $cartByUniform[$uniformsId] ?? null;
-            if (!is_array($items) || !count($items)) {
-                continue;
-            }
+        $order = DB::table('orders')
+            ->where('id', '=', $editOrderId)
+            ->where('user_id', '=', $userId)
+            ->where('deleted', '=', 0)
+            ->first();
 
-            $order = DB::table('orders')
-                ->where('id', '=', (int) $orderId)
-                ->where('user_id', '=', $userId)
-                ->where('uniforms_id', '=', (int) $uniformsId)
-                ->where('deleted', '=', 0)
-                ->first();
+        if (!$order) {
+            return null;
+        }
 
-            if (!$order) {
-                continue;
-            }
-
-            if ($this->orderStatus->isOrderEditable($order->status ?? null)) {
-                $edited[(int) $uniformsId] = $order;
-                continue;
-            }
-
-            $uniform = DB::table('uniforms')->where('id', '=', (int) $uniformsId)->first();
-            // uniform_type is often a bare numeric code, so prefer the
-            // readable name when the row carries one.
-            $label = trim((string) ($uniform->uniform_name ?? '')) !== ''
-                ? trim((string) $uniform->uniform_name)
-                : trim((string) ($uniform->uniform_type ?? ''));
-
-            $blocked[] = [
-                'uniform' => $label !== '' ? $label : ('uniform #' . (int) $uniformsId),
+        if (!$this->orderStatus->isOrderEditable($order->status ?? null)) {
+            throw new OrderNotEditableException([[
+                'uniform' => 'Order #' . (int) $order->id,
                 'status' => $this->orderStatus->orderStatusMeta($order->status ?? null)['label'],
-            ];
+            ]]);
         }
 
-        if ($blocked) {
-            throw new OrderNotEditableException($blocked);
-        }
+        return $order;
+    }
 
-        return $edited;
+    /**
+     * A line's uniform: its own, or its order's for a line written before
+     * lines carried one.
+     */
+    private function lineUniformId(object $line, object $order): int
+    {
+        return (int) (!empty($line->uniforms_id) ? $line->uniforms_id : $order->uniforms_id);
     }
 
     private function createOrder(int $userId, int $uniformsId): int
@@ -162,7 +155,11 @@ class OrderCheckoutService
         return (int) $order->id;
     }
 
-    private function upsertOrderedCloth(int $orderId, int $uniformsId, array $item): void
+    /**
+     * Adds or updates one cart line on the order. False when the item is no
+     * longer offered for that uniform, so it is left off.
+     */
+    private function upsertOrderedCloth(int $orderId, int $uniformsId, array $item): bool
     {
         $cloth = DB::table('uniform_clothes')
             ->select('clothes_type')
@@ -171,7 +168,7 @@ class OrderCheckoutService
             ->first();
 
         if (!$cloth) {
-            return;
+            return false;
         }
 
         $sizeValue = $item['size'];
@@ -179,10 +176,16 @@ class OrderCheckoutService
             $sizeValue = implode(',', $sizeValue);
         }
 
-        $existing = DB::table('ordered_clothes')
+        $hasUniformColumn = $this->orderedClothesHasUniform();
+        $existingQuery = DB::table('ordered_clothes')
             ->where('order_id', '=', $orderId)
-            ->where('clothes_slug', '=', $item['clothes_slug'])
-            ->first();
+            ->where('clothes_slug', '=', $item['clothes_slug']);
+        if ($hasUniformColumn) {
+            $existingQuery->where(function ($q) use ($uniformsId) {
+                $q->where('uniforms_id', '=', $uniformsId)->orWhereNull('uniforms_id');
+            });
+        }
+        $existing = $existingQuery->first();
 
         // Carts written before the quantity column existed have no quantity
         // key; those rows are one piece each, matching the old behaviour.
@@ -195,10 +198,16 @@ class OrderCheckoutService
             if ($hasQuantityColumn) {
                 $orderedCloth->quantity = $quantity;
             }
+            if ($hasUniformColumn) {
+                $orderedCloth->uniforms_id = $uniformsId;
+            }
             $orderedCloth->save();
         } else {
             $orderedCloth = new Ordered_clothe;
             $orderedCloth->order_id = $orderId;
+            if ($hasUniformColumn) {
+                $orderedCloth->uniforms_id = $uniformsId;
+            }
             $orderedCloth->clothes = $cloth->clothes_type;
             $orderedCloth->clothes_slug = $item['clothes_slug'];
             $orderedCloth->size = $sizeValue;
@@ -207,6 +216,23 @@ class OrderCheckoutService
             }
             $orderedCloth->save();
         }
+
+        return true;
+    }
+
+    private function orderedClothesHasUniform(): bool
+    {
+        static $has = null;
+
+        if ($has === null) {
+            try {
+                $has = Schema::hasColumn('ordered_clothes', 'uniforms_id');
+            } catch (\Throwable $e) {
+                $has = false;
+            }
+        }
+
+        return $has;
     }
 
     private function orderedClothesHasQuantity(): bool

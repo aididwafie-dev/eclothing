@@ -7,7 +7,7 @@
 
 				<div class="sidebar-brand">
 					<img src="{{ $siteLogoUrl ?? asset('front_end/images/logo.png') }}" class="sidebar-logo" alt="logo" />
-					<div class="sidebar-brand-title">{{ $siteTitle ?? 'PLAS' }}</div>
+					<div class="sidebar-brand-title">{{ $siteTitle ?? 'e-Clothing' }}</div>
 				</div>
 
 				<a href="#" class="btn btn-link btn-pnl btn-block sidebar-close"><i class="fa fa-times" aria-hidden="true"></i> {{ __('app.nav.close') }}</a>

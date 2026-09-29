@@ -128,29 +128,27 @@ class CartController extends Controller
         $lines = app(OrderCartSeeder::class)->linesForOrder($order, (int) $genUser->id);
 
         DB::transaction(function () use ($genUser, $order, $lines) {
-            // Replace this uniform's cart lines rather than merging: the cart
-            // should show the order as it currently stands, not the order plus
-            // whatever the member happened to leave behind earlier. Lines for
-            // other uniforms are untouched.
-            DB::table('cart_items')
-                ->where('gen_user_id', '=', $genUser->id)
-                ->where('uniforms_id', '=', $order->uniforms_id)
-                ->delete();
+            // The cart becomes this order, every uniform on it, so checking
+            // out saves it back as it stands. Anything else in the cart is
+            // cleared: one checkout is one order.
+            DB::table('cart_items')->where('gen_user_id', '=', $genUser->id)->delete();
 
             $hasEditColumn = Schema::hasColumn('cart_items', 'edit_order_id');
 
-            foreach ($lines as $line) {
-                DB::table('cart_items')->insert([
-                    'gen_user_id' => $genUser->id,
-                    'uniforms_id' => $order->uniforms_id,
-                ] + ($hasEditColumn ? ['edit_order_id' => $order->id] : []) + [
-                    'clothes_slug' => $line['clothes_slug'],
-                    'clothes_type' => $line['clothes_type'],
-                    'size' => json_encode($line['size']),
-                    'quantity' => $line['quantity'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            foreach ($lines as $uniformsId => $uniformLines) {
+                foreach ($uniformLines as $line) {
+                    DB::table('cart_items')->insert([
+                        'gen_user_id' => $genUser->id,
+                        'uniforms_id' => $uniformsId,
+                    ] + ($hasEditColumn ? ['edit_order_id' => $order->id] : []) + [
+                        'clothes_slug' => $line['clothes_slug'],
+                        'clothes_type' => $line['clothes_type'],
+                        'size' => json_encode($line['size']),
+                        'quantity' => $line['quantity'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         });
 
@@ -167,29 +165,30 @@ class CartController extends Controller
         }
 
         $cartByUniform = [];
-        $editOrders = [];
+        $editOrderId = null;
         foreach ($rows as $row) {
             $cartByUniform[$row->uniforms_id][$row->clothes_slug] = [
                 'clothes_slug' => $row->clothes_slug,
                 'size' => json_decode($row->size, true),
                 'quantity' => isset($row->quantity) ? (int) $row->quantity : 1,
             ];
-            // Set by load-from-order: this uniform saves onto the order being
+            // Set by load-from-order: the cart saves back onto the order being
             // edited. Lines added afterwards carry no id but still belong to it.
             if (!empty($row->edit_order_id)) {
-                $editOrders[$row->uniforms_id] = (int) $row->edit_order_id;
+                $editOrderId = (int) $row->edit_order_id;
             }
         }
 
         try {
-            $orderIds = app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform, $editOrders);
+            // The whole cart is one order, whatever uniforms it holds.
+            $orderId = app(OrderCheckoutService::class)->checkoutForUser($genUser->id, $cartByUniform, $editOrderId);
         } catch (OrderNotEditableException $e) {
-            // The cart is deliberately left intact so the member can drop the
-            // offending uniform and still check the rest out.
+            // The cart is deliberately left intact so the member can see what
+            // they had and start a new order from it.
             return response()->json(['message' => $e->getMessage()], 403);
         }
 
-        $orderIds = array_values($orderIds);
+        $orderIds = $orderId ? [$orderId] : [];
 
         DB::table('cart_items')->where('gen_user_id', '=', $genUser->id)->delete();
 

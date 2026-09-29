@@ -40,7 +40,9 @@ class AdminUsersReportController extends Controller
 
     public function orderDetailsWithUserDetails($uniforms_id)
     {
-        $orders = DB::table('orders')->where('deleted', '=', 0)->where('uniforms_id', '=', $uniforms_id)->get();
+        // Orders holding this uniform -- one order can hold several.
+        $orderUniforms = app(\App\Services\OrderUniformService::class);
+        $orders = $orderUniforms->whereHasUniform(DB::table('orders')->where('deleted', '=', 0), (int) $uniforms_id)->get();
         $orders_detail = [];
 
         foreach ($orders as $order) {
@@ -50,7 +52,8 @@ class AdminUsersReportController extends Controller
                     'user_details' => $personal_details,
                     'rank' => DB::table('pangkats')->where('id', '=', $personal_details->pangkat)->first(),
                     'unit' => DB::table('units')->where('id', '=', $personal_details->unit)->first(),
-                    'cloth_details' => DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get(),
+                    // Only this uniform's items.
+                    'cloth_details' => $orderUniforms->linesForUniform($order, (int) $uniforms_id),
                 ];
             }
         }

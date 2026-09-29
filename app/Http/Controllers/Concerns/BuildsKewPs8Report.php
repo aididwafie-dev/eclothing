@@ -98,7 +98,7 @@ trait BuildsKewPs8Report
         $createdTs = !empty($order->created_at) ? strtotime($order->created_at) : time();
         $year = date('Y', $createdTs);
         $paddedId = str_pad((string) ((int) ($order->id ?? 0)), 5, '0', STR_PAD_LEFT);
-        return 'PLAS-' . $year . '-' . $paddedId;
+        return 'e-Clothing-' . $year . '-' . $paddedId;
     }
 
     /**
@@ -231,10 +231,11 @@ trait BuildsKewPs8Report
         ];
     }
 
-    private function buildKewPs8Rows($items, int $minimumRows = 8): array
+    private function buildKewPs8Rows($items, int $minimumRows = 5): array
     {
         $rows = [];
         $partNos = $this->kewPs8PartNumbers($items);
+        $handedOver = $this->kewPs8HandedOverOrderIds($items);
 
         foreach ($items as $item) {
             $quantity = (int) ($item->quantity ?? 1);
@@ -254,8 +255,11 @@ trait BuildsKewPs8Report
                 'baki' => '',
                 'diluluskan' => $approvedStr,
                 'catatan_pelulus' => $size,
-                'diterima' => '',
-                'catatan_terima' => '',
+                // Once the store is processing or has completed the order, what
+                // is received is what was approved.
+                'diterima' => isset($handedOver[(int) ($item->order_id ?? 0)]) ? $approvedStr : '',
+                // The issue voucher the store recorded when handing the item over.
+                'catatan_terima' => trim((string) ($item->issue_voucher ?? '')),
             ];
         }
 
@@ -294,7 +298,8 @@ trait BuildsKewPs8Report
         return \Illuminate\Support\Facades\DB::table('ordered_clothes')
             ->join('orders', 'orders.id', '=', 'ordered_clothes.order_id')
             ->join('uniform_clothes', function ($join) {
-                $join->on('uniform_clothes.uniforms_id', '=', 'orders.uniforms_id')
+                // Each line's own uniform: one order can hold several.
+                $join->on('uniform_clothes.uniforms_id', '=', \Illuminate\Support\Facades\DB::raw(\App\Services\OrderUniformService::LINE_UNIFORM_SQL))
                     ->on('uniform_clothes.clothes_slug', '=', 'ordered_clothes.clothes_slug');
             })
             ->whereIn('ordered_clothes.id', $ids)
@@ -305,7 +310,33 @@ trait BuildsKewPs8Report
             ->all();
     }
 
-    private function chunkKewPs8Rows($items, int $rowsPerForm = 8): array
+    /**
+     * The orders among these lines that the store is processing or has
+     * completed (statuses 5 and 6), keyed by order id.
+     *
+     * @return array<int, true>
+     */
+    private function kewPs8HandedOverOrderIds($items): array
+    {
+        $orderIds = collect($items)->pluck('order_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        if (!$orderIds) {
+            return [];
+        }
+
+        return \Illuminate\Support\Facades\DB::table('orders')
+            ->whereIn('id', $orderIds)
+            ->whereIn('status', ['5', '6'])
+            ->pluck('id')
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
+    }
+
+    /**
+     * One KEW.PS-8 form per five items. A sixth item onwards goes on a
+     * second form in the same format, and so on; each form is padded to
+     * five rows so every page looks the same.
+     */
+    private function chunkKewPs8Rows($items, int $rowsPerForm = 5): array
     {
         $items = collect($items)->values()->all();
 

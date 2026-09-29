@@ -16,6 +16,8 @@
 
 	class AdminPasswordController extends Controller
 	{
+		use \App\Http\Controllers\Concerns\ResolvesAdminRole;
+
 	    public function index(Request $request) {
 
 	    	if($request->session()->get('admin_id') == '') {
@@ -36,7 +38,7 @@
 				DB::table('admins')->where('id', '=', $admin_id)->update(['password' => PasswordHasher::make($new_password),'updated_at' => $time]);
 				\Session::flash('message', 'You have successfully updated your password.'); 
 				\Session::flash('alert-class', 'alert-success');
-				return redirect()->route('admin.new-admin');
+				return redirect()->route($this->adminHomeRoute($request));
 			}
 			else {
 				\Session::flash('message', 'Wrong password.'); 
@@ -48,7 +50,7 @@
 	    public function adminForgotPassword(Request $request) {
 
 	    	if($request->session()->get('admin_id') != '') {
-				return redirect()->route('admin.new-admin');
+				return redirect()->route($this->adminHomeRoute($request));
 			}
 			return view('admin/password_control/forgotPassword_admin');
 	    }

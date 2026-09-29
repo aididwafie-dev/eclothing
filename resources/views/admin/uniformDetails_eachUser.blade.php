@@ -20,7 +20,7 @@
 			<div class="content">
 				<div class="order-card-header">
 					<div>
-						<div class="report-card-title">Uniform: {{ $orders['uniform_type']->uniform_type }}{{ $orders['uniform_type']->uniform_name ? ' (' . $orders['uniform_type']->uniform_name . ')' : '' }}</div>
+						<div class="report-card-title">Uniform: {{ $orders['uniform_label'] ?: ($orders['uniform_type'] ? $orders['uniform_type']->uniform_type . ($orders['uniform_type']->uniform_name ? ' (' . $orders['uniform_type']->uniform_name . ')' : '') : '-') }}</div>
 						<div class="order-card-meta">Order #{{ $orders['user_order']->id }}</div>
 					</div>
 					<span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>

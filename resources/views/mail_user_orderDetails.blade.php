@@ -13,7 +13,7 @@
 				@foreach($array['orderDetails'] as $order_key => $clothsDetails)
 					<tr>
 						@if($order_key == 0)
-							<td rowspan="{{ $array['count'] }}" style="width: 125px; text-align: center;border: 1px solid #d2d0d0; padding: 8px;background: #f9f9f9;"><label>{{$array['orderedUniform']->uniform_type}}</label></td>
+							<td rowspan="{{ $array['count'] }}" style="width: 125px; text-align: center;border: 1px solid #d2d0d0; padding: 8px;background: #f9f9f9;"><label>{{ !empty($array['uniformLabel']) ? $array['uniformLabel'] : ($array['orderedUniform']->uniform_type ?? '') }}</label></td>
 						@endif
 						<td style="width: 150px; text-align: center;border: 1px solid #d2d0d0; padding: 8px; border-top: 0;border-left: 0; white-space: normal; word-wrap: break-word;">{{$clothsDetails->clothes}}</td>
 						<td style="width: 150px; text-align: center;border: 1px solid #d2d0d0; padding: 8px; border-top: 0;border-left: 0">{{$clothsDetails->size}}</td>

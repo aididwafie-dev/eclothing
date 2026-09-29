@@ -11,7 +11,7 @@
 			<hr>
 			<div class="containerMain">
 				<div class="content">
-					<i class="fa fa-pencil" aria-hidden="true"></i> <B>Uniform: {{ $uniforms->uniform_type }}</B>
+					<i class="fa fa-pencil" aria-hidden="true"></i> <B>Uniform: {{ !empty($uniformLabel) ? $uniformLabel : $uniforms->uniform_type }}</B>
 					<hr>
 					<form autocomplete="off" method="post" action="{{ url('/uniform-details-saveEdit') }}" name="uniform-details" id="uniform-details">
 						<input type = "hidden" name = "_token" value = "<?php echo csrf_token(); ?>">

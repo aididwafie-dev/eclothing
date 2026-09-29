@@ -1,6 +1,6 @@
 <html>
 <head>
-	<title>{{ $siteTitle ?? 'PLAS' }}</title>
+	<title>{{ $siteTitle ?? 'e-Clothing' }}</title>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no">
 
@@ -12,7 +12,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<meta name="apple-mobile-web-app-title" content="PLAS">
+	<meta name="apple-mobile-web-app-title" content="e-Clothing">
 	<link rel="apple-touch-icon" href="/front_end/icons/apple-touch-icon.png">
 
 	<meta name="_token" content="{{ csrf_token() }}" />
@@ -124,7 +124,7 @@
 							<span class="icon-bar"></span>
 							<span class="icon-bar"></span>
 						</button>
-						<div class="topbar-title">{{ $siteTitle ?? 'Personnel Logistic Accounting System' }}</div>
+						<div class="topbar-title">{{ $siteTitle ?? 'e-Clothing' }}</div>
 					</div>
 
 					<div class="topbar-right">

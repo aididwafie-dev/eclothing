@@ -3,7 +3,7 @@
 		<div class="banner">
 			<div class="content content-log">
 				<img src="{{ $siteLogoUrl ?? asset('front_end/images/logo.png') }}" class="img-responsive center-block" alt="logo" />
-				<!-- <h2 class="text-center">Personnel Logistic Accounting System</h2> -->
+				<!-- <h2 class="text-center">e-Clothing</h2> -->
 				<div class="title">{{ __('app.register.title') }}</div>
 				<hr>
 

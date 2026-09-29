@@ -110,7 +110,7 @@
 			$username = $request->input('username');
 			$password = $request->input('password');
 			$subject = "New Admin for DCS";
-			$body = ' '.$name.'! You are added as a admin for the site Personnel Logistic Accounting System. You can login as a admin to the site with the same username and password you use to login as a user. Thank you.';
+			$body = ' '.$name.'! You are added as a admin for the site e-Clothing. You can login as a admin to the site with the same username and password you use to login as a user. Thank you.';
 			try {
 				Mail::raw('Hi, '.$body.'',function ($message) use($subject, $email) {
 					$message->from(config('mail.from.address'), config('mail.from.name'));

@@ -26,10 +26,16 @@ class OrderController extends Controller
 
         $orders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $genUser->id)->get();
 
-        $result = $orders->map(function ($order) {
+        // One order can hold several uniforms.
+        $orderUniforms = app(\App\Services\OrderUniformService::class);
+        $uniformIdsByOrder = $orderUniforms->uniformIdsByOrder($orders->pluck('id')->all());
+        $uniformsById = $orderUniforms->uniforms(array_merge([], ...array_values($uniformIdsByOrder ?: [[]])));
+
+        $result = $orders->map(function ($order) use ($uniformIdsByOrder, $uniformsById) {
             $order = app(OrderStatusService::class)->normalizeOrderLifecycle($order);
             $uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
             $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
+            $orderUniformList = array_values(array_filter(array_map(fn ($id) => $uniformsById[$id] ?? null, $uniformIdsByOrder[(int) $order->id] ?? [])));
 
             return [
                 'id' => (string) $order->id,
@@ -37,7 +43,12 @@ class OrderController extends Controller
                 // right uniform when a member edits a pending order.
                 'uniformsId' => (string) $order->uniforms_id,
                 'uniformType' => $uniform->uniform_type ?? '',
-                'uniformName' => $uniform->uniform_name ?? null,
+                // Every uniform's name when the order holds more than one, so
+                // an app that shows a single name still lists them all.
+                'uniformName' => count($orderUniformList) > 1
+                    ? implode(', ', array_map(fn ($u) => $u->uniform_name ?: $u->uniform_type, $orderUniformList))
+                    : ($uniform->uniform_name ?? null),
+                'uniforms' => array_map(fn ($u) => ['id' => (string) $u->id, 'type' => $u->uniform_type, 'name' => $u->uniform_name], $orderUniformList),
                 'itemCount' => $items->count(),
                 'status' => $order->status_key,
                 'statusLabel' => $order->status_label,
@@ -48,7 +59,7 @@ class OrderController extends Controller
                 'collectionDate' => $order->collection_date,
                 'remarks' => $order->remarks,
                 'updatedAt' => $order->updated_at,
-                'items' => $items->map(fn ($i) => ['clothes' => $i->clothes, 'size' => $i->size])->values(),
+                'items' => $items->map(fn ($i) => ['clothes' => $i->clothes, 'size' => $i->size, 'uniformsId' => (string) ($i->uniforms_id ?? $order->uniforms_id)])->values(),
             ];
         });
 
@@ -61,10 +72,12 @@ class OrderController extends Controller
 
         $orders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $genUser->id)->get();
 
-        $data = $orders->map(function ($order) {
+        $uniformLabels = app(\App\Services\OrderUniformService::class)->labelsByOrder($orders->pluck('id')->all());
+        $data = $orders->map(function ($order) use ($uniformLabels) {
             return [
                 'userOrders' => $order,
                 'orderedUniform' => DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first(),
+                'uniformLabel' => $uniformLabels[(int) $order->id] ?? '',
                 'orderDetails' => DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get(),
                 'count' => DB::table('ordered_clothes')->where('order_id', '=', $order->id)->count(),
             ];
@@ -72,7 +85,7 @@ class OrderController extends Controller
 
         try {
             Mail::send('mail_user_orderDetails', ['data' => $data], function ($message) use ($genUser) {
-                $message->subject('Order Summary from Personnel Logistic Accounting System');
+                $message->subject('Order Summary from e-Clothing');
                 $message->from(config('mail.from.address'), config('mail.from.name'));
                 $message->to($genUser->email);
             });

@@ -219,7 +219,7 @@
 			$sizes = DB::table('sizes')->get();
 			$user_id = session()->get('user_id');
 
-			$orders_r = DB::table('ordered_clothes')->leftJoin("orders", "orders.id", "=", "ordered_clothes.order_id")->where('orders.uniforms_id', '=', $uniform_id)->where('deleted', '=', 0)->where('orders.user_id', '=', $user_id)->orderBy("orders.id", "asc")->get(); // oldest first, so the latest order's sizes are the ones left standing
+			$orders_r = DB::table('ordered_clothes')->leftJoin("orders", "orders.id", "=", "ordered_clothes.order_id")->whereRaw(\App\Services\OrderUniformService::LINE_UNIFORM_SQL . ' = ?', [(int) $uniform_id])->where('deleted', '=', 0)->where('orders.user_id', '=', $user_id)->orderBy("orders.id", "asc")->get(); // oldest first, so the latest order's sizes are the ones left standing
 			
 			if ($orders_r) {
 			foreach ($uniform_clothes as $id => $uniform_cloth) {
@@ -388,10 +388,11 @@
 			}
 
 			try {
-				// Uniforms loaded through Edit (editPendingOrder) save onto that
-				// order; everything else in the cart is placed as a new order.
+				// The whole cart is one order: the one loaded through Edit
+				// (editPendingOrder), or a new one.
 				$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
-				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart, $editOrders);
+				$editOrderId = $editOrders ? (int) reset($editOrders) : null;
+				app(OrderCheckoutService::class)->checkoutForUser($user_id, $cart, $editOrderId);
 			} catch (\App\Exceptions\OrderNotEditableException $e) {
 				// Same rule as the mobile API: an order that has left Pending
 				// must not be silently reset by a re-checkout. The session cart
@@ -496,28 +497,25 @@
 				return redirect()->route('user.ordered-uniform');
 			}
 
-			$uniformsId = (int) $order->uniforms_id;
-			$uniform = DB::table('uniforms')->where('id', '=', $uniformsId)->first();
-			$displayName = $uniform ? ($uniform->uniform_name ? $uniform->uniform_name : $uniform->uniform_type) : '';
-
-			// Replace this uniform's cart lines rather than merging, so the cart
-			// shows the order as it stands. Lines for other uniforms are kept.
-			$cart = $this->getUniformCart($request);
-			$cart[$uniformsId] = [];
-			foreach (app(OrderCartSeeder::class)->linesForOrder($order, $user_id) as $slug => $line) {
-				$cart[$uniformsId][$slug] = $line + ['uniforms_id' => $uniformsId, 'uniform_name' => $displayName];
+			// The cart becomes this order, every uniform on it, so checking out
+			// saves it back as it stands. Anything else in the cart is set aside:
+			// one checkout is one order.
+			$cart = [];
+			$editOrders = [];
+			foreach (app(OrderCartSeeder::class)->linesForOrder($order, $user_id) as $uniformsId => $lines) {
+				$uniform = DB::table('uniforms')->where('id', '=', $uniformsId)->first();
+				$displayName = $uniform ? ($uniform->uniform_name ? $uniform->uniform_name : $uniform->uniform_type) : '';
+				foreach ($lines as $slug => $line) {
+					$cart[$uniformsId][$slug] = $line + ['uniforms_id' => $uniformsId, 'uniform_name' => $displayName];
+				}
+				// Which order each uniform in the cart belongs to, so the pages
+				// can name the Order ID the member is changing.
+				$editOrders[$uniformsId] = (int) $order->id;
 			}
 			$this->setUniformCart($request, $cart);
-
-			$editing = (array) $request->session()->get('uniform_cart_edit', []);
-			$editing[] = $uniformsId;
-			$request->session()->put('uniform_cart_edit', array_values(array_unique($editing)));
-
-			// Which order each edited uniform belongs to, so the shopping cart
-			// page can name the Order ID the member is changing.
-			$editOrders = (array) $request->session()->get('uniform_cart_edit_orders', []);
-			$editOrders[$uniformsId] = (int) $order->id;
+			$request->session()->put('uniform_cart_edit', array_keys($editOrders));
 			$request->session()->put('uniform_cart_edit_orders', $editOrders);
+			$uniformsId = $editOrders ? array_key_first($editOrders) : (int) $order->uniforms_id;
 
 			\Session::flash('message', 'Order #' . $order->id . ' is in your cart. Change the sizes, quantities or items, then check out to save your changes.');
 			\Session::flash('alert-class', 'alert-info');
@@ -610,8 +608,20 @@
 					if (ctype_digit($orderId)) {
 						$q->orWhere('orders.id', '=', (int) $orderId);
 					}
-					$q->orWhere('uniforms.uniform_name', 'like', '%' . $search . '%')
-						->orWhere('uniforms.uniform_type', 'like', '%' . $search . '%');
+					$like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+					$q->orWhere('uniforms.uniform_name', 'like', $like)
+						->orWhere('uniforms.uniform_type', 'like', $like)
+						// Any uniform on the order, not just its first.
+						->orWhereExists(function ($lines) use ($like) {
+							$lines->select(DB::raw(1))
+								->from('ordered_clothes')
+								->join('uniforms as line_uniforms', 'line_uniforms.id', '=', DB::raw(\App\Services\OrderUniformService::LINE_UNIFORM_SQL))
+								->whereColumn('ordered_clothes.order_id', 'orders.id')
+								->where(function ($u) use ($like) {
+									$u->where('line_uniforms.uniform_name', 'like', $like)
+										->orWhere('line_uniforms.uniform_type', 'like', $like);
+								});
+						});
 				});
 			} else {
 				if ($year !== 'all') {
@@ -632,11 +642,14 @@
 			if ($userOrders->isNotEmpty()) {
 				$data = [];
 				$i = 0;
+				// One order can hold several uniforms; each row names them all.
+				$uniformLabels = app(\App\Services\OrderUniformService::class)->labelsByOrder($userOrders->pluck('id')->all());
 				foreach ($userOrders as $userOrder) {
 					$userOrder = $this->orderStatus()->normalizeOrderLifecycle($userOrder);
 					$data[$i] = [
 						'userOrders' => $userOrder,
 						'orderedUniform' => DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first(),
+						'uniformLabel' => $uniformLabels[(int) $userOrder->id] ?? '',
 						'orderCount' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->count(),
 						'editable' => $this->orderStatus()->isOrderEditable($userOrder->status ?? null),
 						'orderDetails' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->get(),
@@ -665,11 +678,13 @@
 			$user_id = $request->session()->get('user_id');
 			$user_email = DB::table('gen_users')->select('email')->where('id', '=', $user_id)->first();
 			$userOrders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $user_id)->get();
+			$uniformLabels = app(\App\Services\OrderUniformService::class)->labelsByOrder($userOrders->pluck('id')->all());
 			$i = 0;
 			foreach ($userOrders as $userOrder) {
 				$data[$i] = [
 					'userOrders' => $userOrder,
 					'orderedUniform' => DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first(),
+					'uniformLabel' => $uniformLabels[(int) $userOrder->id] ?? '',
 					'orderDetails' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->get(),
 					'count' => DB::table('ordered_clothes')->where('order_id', '=', $userOrder->id)->count(),
 				];
@@ -677,8 +692,8 @@
 			}
 			
 			Mail::send('mail_user_orderDetails', array("data"=>$data), function($message) use($user_email){
-				$message->subject('Order Summary from Personnel Logistic Accounting System');
-				$message->from('email@example.com', 'Personnel Logistic Accounting System');
+				$message->subject('Order Summary from e-Clothing');
+				$message->from('email@example.com', 'e-Clothing');
 				$message->to($user_email->email);
 			});
 			echo 'mail has been sent';

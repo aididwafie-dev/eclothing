@@ -19,8 +19,11 @@ class OrderCartSeeder
     }
 
     /**
-     * @return array<string, array{clothes_slug: string, clothes_type: string, size: array|string, quantity: int}>
-     *         keyed by clothes_slug
+     * The order's lines as cart lines, grouped by the uniform each belongs
+     * to -- one order can hold items from several uniforms.
+     *
+     * @return array<int, array<string, array{clothes_slug: string, clothes_type: string, size: array|string, quantity: int}>>
+     *         keyed by uniforms_id, then clothes_slug
      */
     public function linesForOrder(object $order, int $userId): array
     {
@@ -29,8 +32,11 @@ class OrderCartSeeder
         $lines = [];
 
         foreach ($items as $item) {
+            // A line written before lines carried their uniform belongs to
+            // its order's.
+            $uniformsId = (int) (!empty($item->uniforms_id) ? $item->uniforms_id : $order->uniforms_id);
             $cloth = DB::table('uniform_clothes')
-                ->where('uniforms_id', '=', $order->uniforms_id)
+                ->where('uniforms_id', '=', $uniformsId)
                 ->where('clothes_slug', '=', $item->clothes_slug)
                 ->first();
 
@@ -45,7 +51,7 @@ class OrderCartSeeder
                 continue;
             }
 
-            $lines[$item->clothes_slug] = [
+            $lines[$uniformsId][$item->clothes_slug] = [
                 'clothes_slug' => $item->clothes_slug,
                 'clothes_type' => $cloth->clothes_type,
                 'size' => $size,

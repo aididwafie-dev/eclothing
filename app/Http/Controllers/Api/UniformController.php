@@ -70,7 +70,8 @@ class UniformController extends Controller
 
         $orderedSizes = DB::table('ordered_clothes')
             ->leftJoin('orders', 'orders.id', '=', 'ordered_clothes.order_id')
-            ->where('orders.uniforms_id', '=', $uniformId)
+            // Each line's own uniform: one order can hold several.
+            ->whereRaw(\App\Services\OrderUniformService::LINE_UNIFORM_SQL . ' = ?', [(int) $uniformId])
             ->where('orders.deleted', '=', 0)
             ->where('orders.user_id', '=', $genUser->id)
             // Oldest first: keyBy keeps the last row, so the latest order's

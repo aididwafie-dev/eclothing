@@ -83,7 +83,7 @@ class AuthController extends Controller
         try {
             Mail::raw("Please use this code to activate your account: {$authCode}", function ($message) use ($validated) {
                 $message->from(config('mail.from.address'), config('mail.from.name'));
-                $message->to($validated['email'])->subject('Activation Code For Personnel Logistic Accounting System');
+                $message->to($validated['email'])->subject('Activation Code For e-Clothing');
             });
         } catch (\Throwable $e) {
             // Registration still succeeds; the user can request the code again.
@@ -141,7 +141,7 @@ class AuthController extends Controller
         try {
             Mail::raw("Your new password is: {$newPassword}. We recommend you reset this password as soon as you login.", function ($message) use ($email) {
                 $message->from(config('mail.from.address'), config('mail.from.name'));
-                $message->to($email)->subject('Personnel Logistic Accounting System Password Recovery');
+                $message->to($email)->subject('e-Clothing Password Recovery');
             });
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Email could not be sent right now. Please contact the administrator.'], 500);

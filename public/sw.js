@@ -1,5 +1,5 @@
 /*
- * PLAS service worker.
+ * e-Clothing service worker.
  *
  * Deliberately conservative: pages are never cached. Every screen in this app
  * is behind a session and shows one member's (or one admin's) data, so a

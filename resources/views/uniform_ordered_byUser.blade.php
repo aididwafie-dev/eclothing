@@ -98,9 +98,10 @@
 						$remarks = trim((string) $order->remarks);
 						$collectionDate = $order->collection_date ? \Carbon\Carbon::parse($order->collection_date)->locale(app()->getLocale())->translatedFormat('d/m/y h:i A (D)') : null;
 						$detailsId = 'order-detail-' . $order->id;
-						$uniformLabel = $uniform
-							? $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '')
-							: '-';
+						// Every uniform on the order; one checkout can hold several.
+						$uniformLabel = !empty($array['uniformLabel'])
+							? $array['uniformLabel']
+							: ($uniform ? $uniform->uniform_type . ($uniform->uniform_name ? ' (' . $uniform->uniform_name . ')' : '') : '-');
 					@endphp
 					<tr class="order-row" data-detail="{{ $detailsId }}">
 						<td data-label="Order">

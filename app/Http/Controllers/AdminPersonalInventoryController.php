@@ -83,13 +83,15 @@ class AdminPersonalInventoryController extends Controller
             ->selectRaw('orders.user_id as user_id')
             ->selectRaw('COUNT(DISTINCT orders.id) as order_count')
             ->selectRaw("COALESCE(SUM($itemExpr), 0) as item_count");
+        // Counted by each line's own uniform: one order can hold several.
+        $lineUniform = \App\Services\OrderUniformService::LINE_UNIFORM_SQL;
         foreach ($columns as $uniform) {
             $id = (int) $uniform->id;
-            $inventory->selectRaw("COALESCE(SUM(CASE WHEN orders.uniforms_id = $id THEN $itemExpr END), 0) as items_$id")
-                ->selectRaw("COUNT(DISTINCT CASE WHEN orders.uniforms_id = $id THEN orders.id END) as orders_$id");
+            $inventory->selectRaw("COALESCE(SUM(CASE WHEN $lineUniform = $id THEN $itemExpr END), 0) as items_$id")
+                ->selectRaw("COUNT(DISTINCT CASE WHEN $lineUniform = $id THEN orders.id END) as orders_$id");
         }
         if ($uniformFilter !== 'all') {
-            $inventory->where('orders.uniforms_id', '=', (int) $uniformFilter);
+            $inventory->whereRaw("$lineUniform = ?", [(int) $uniformFilter]);
         }
         if ($yearFilter !== 'all') {
             $inventory->whereYear('orders.created_at', (int) $yearFilter);
@@ -298,31 +300,45 @@ class AdminPersonalInventoryController extends Controller
                 ->get()
                 ->groupBy(fn ($item) => (int) $item->order_id);
 
+        // Grouped by each line's own uniform: an order holding several
+        // uniforms appears under each, with the items that belong there.
+        $uniformsById = app(\App\Services\OrderUniformService::class)->uniforms(
+            $itemsByOrder->flatten(1)->map(fn ($item) => (int) ($item->uniforms_id ?? 0))
+                ->merge($orders->pluck('uniforms_id')->map(fn ($id) => (int) $id))->all()
+        );
+
         $groups = [];
         foreach ($orders as $order) {
-            $items = $itemsByOrder->get((int) $order->id, collect());
-            $itemCount = (int) $items->sum(fn ($item) => max(1, (int) ($item->quantity ?? 1)));
-            $uniformId = (int) $order->uniforms_id;
+            $orderItems = $itemsByOrder->get((int) $order->id, collect());
+            $byUniform = $orderItems->isEmpty()
+                ? collect([(int) $order->uniforms_id => collect()])
+                : $orderItems->groupBy(fn ($item) => (int) ($item->uniforms_id ?? 0) ?: (int) $order->uniforms_id);
 
-            if (!isset($groups[$uniformId])) {
-                $groups[$uniformId] = [
-                    'label' => $order->uniform_type
-                        ? $order->uniform_type . ($order->uniform_name ? ' - ' . $order->uniform_name : '')
-                        : 'Uniform #' . $uniformId,
-                    'orders' => [],
-                    'orderCount' => 0,
-                    'itemCount' => 0,
+            foreach ($byUniform as $uniformId => $items) {
+                $uniformId = (int) $uniformId;
+                $itemCount = (int) $items->sum(fn ($item) => max(1, (int) ($item->quantity ?? 1)));
+                $uniform = $uniformsById[$uniformId] ?? null;
+
+                if (!isset($groups[$uniformId])) {
+                    $groups[$uniformId] = [
+                        'label' => $uniform
+                            ? $uniform->uniform_type . ($uniform->uniform_name ? ' - ' . $uniform->uniform_name : '')
+                            : 'Uniform #' . $uniformId,
+                        'orders' => [],
+                        'orderCount' => 0,
+                        'itemCount' => 0,
+                    ];
+                }
+
+                $groups[$uniformId]['orders'][] = [
+                    'order' => $order,
+                    'items' => $items,
+                    'itemCount' => $itemCount,
+                    'status' => $this->orderStatus()->orderStatusMeta($order->status ?? null),
                 ];
+                $groups[$uniformId]['orderCount']++;
+                $groups[$uniformId]['itemCount'] += $itemCount;
             }
-
-            $groups[$uniformId]['orders'][] = [
-                'order' => $order,
-                'items' => $items,
-                'itemCount' => $itemCount,
-                'status' => $this->orderStatus()->orderStatusMeta($order->status ?? null),
-            ];
-            $groups[$uniformId]['orderCount']++;
-            $groups[$uniformId]['itemCount'] += $itemCount;
         }
 
         return view('admin/personal_inventory_detail', [

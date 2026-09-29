@@ -330,7 +330,7 @@ $nestedData[] = $row->updated_at;
 					
 					try {
 						Mail::raw($body,function ($message) use($subject, $from, $to) {
-							$message->from($from, 'Personnel Logistic Accounting System');
+							$message->from($from, 'e-Clothing');
 							$message->to($to)->subject($subject);
 						});
 						$sent_to++;
@@ -513,6 +513,8 @@ $nestedData[] = $row->updated_at;
 					$data[$i] = [
 						'user_order' => $userOrder,
 						'uniform_type' => $uniform_type,
+						// Every uniform on the order; one checkout can hold several.
+						'uniform_label' => app(\App\Services\OrderUniformService::class)->labelsByOrder([$userOrder->id])[(int) $userOrder->id] ?? '',
 						'ordered_clothes' => $ordered_clothes,
 					];
 					$i++;
@@ -622,7 +624,18 @@ $nestedData[] = $row->updated_at;
 						->orWhere('personal_details.name', 'like', $like)
 						->orWhere('units.value', 'like', $like)
 						->orWhere('uniforms.uniform_type', 'like', $like)
-						->orWhere('uniforms.uniform_name', 'like', $like);
+						->orWhere('uniforms.uniform_name', 'like', $like)
+						// Any uniform on the order, not just its first.
+						->orWhereExists(function ($lines) use ($like) {
+							$lines->select(DB::raw(1))
+								->from('ordered_clothes')
+								->join('uniforms as line_uniforms', 'line_uniforms.id', '=', DB::raw('COALESCE(ordered_clothes.uniforms_id, orders.uniforms_id)'))
+								->whereColumn('ordered_clothes.order_id', 'orders.id')
+								->where(function ($u) use ($like) {
+									$u->where('line_uniforms.uniform_type', 'like', $like)
+										->orWhere('line_uniforms.uniform_name', 'like', $like);
+								});
+						});
 				});
 			} elseif ($status !== 'all') {
 				$this->orderStatus()->applyStatusFilter($query, $status);
@@ -652,7 +665,10 @@ $nestedData[] = $row->updated_at;
 			$length = $length < 1 ? 500 : min($length, 500);
 
 			$rows = [];
-			foreach ($query->offset($start)->limit($length)->get() as $order) {
+			$pageOrders = $query->offset($start)->limit($length)->get();
+			// One order can hold several uniforms; the column lists them all.
+			$uniformLabels = app(\App\Services\OrderUniformService::class)->labelsByOrder($pageOrders->pluck('id')->all());
+			foreach ($pageOrders as $order) {
 				$order = $this->orderStatus()->normalizeOrderLifecycle($order);
 				$statusKey = !empty($order->status_key) ? $order->status_key : 'pending';
 				$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
@@ -663,7 +679,7 @@ $nestedData[] = $row->updated_at;
 					e($order->s_id ?: '-'),
 					e($order->name ?: 'N/A'),
 					e($order->unit_name ?: 'N/A'),
-					e($order->uniform_type . ($order->uniform_name ? ' (' . $order->uniform_name . ')' : '')),
+					e($uniformLabels[(int) $order->id] ?? ($order->uniform_type . ($order->uniform_name ? ' (' . $order->uniform_name . ')' : ''))),
 					(int) $order->items_count,
 					'<span class="status-badge ' . e($statusClass) . '">' . e(__('app.status.' . $statusKey)) . '</span>',
 					e($order->created_at ? date('d M Y h:i A', strtotime($order->created_at)) : '-'),
@@ -725,14 +741,27 @@ $nestedData[] = $row->updated_at;
 
 			$ordered_clothes = DB::table('ordered_clothes')->where('order_id', '=', $order_id)->get();
 
+			$orderUniforms = app(\App\Services\OrderUniformService::class);
+			$lineUniforms = $orderUniforms->uniforms($ordered_clothes->map(fn ($line) => (int) ($line->uniforms_id ?? 0) ?: (int) $order->uniforms_id)->all());
+			$lineUniformLabels = [];
+			foreach ($ordered_clothes as $line) {
+				$lineUniformId = (int) ($line->uniforms_id ?? 0) ?: (int) $order->uniforms_id;
+				$lineUniformLabels[(int) $line->id] = $orderUniforms->label($lineUniforms[$lineUniformId] ?? null, $lineUniformId);
+			}
+
 			return view('admin/uniform_order_detail', array(
 				'order' => $order,
 				'ordered_clothes' => $ordered_clothes,
+				// Every uniform on the order, and each line's, since one order can
+				// hold several.
+				'uniformLabel' => $orderUniforms->labelsByOrder([$order->id])[(int) $order->id] ?? '',
+				'lineUniformLabels' => $lineUniformLabels,
 				'orderKey' => $this->encodeProtectedId($order->id),
 				'orderReference' => $this->kewPs8OrderReference($order),
 				'allowedStatuses' => $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request)),
 				'canApproveQuantities' => $this->canApproveQuantities($request),
 				'isOwnOrder' => $this->isOwnOrder($request, $order),
+				'canRecordIssueVouchers' => $this->canRecordIssueVouchers($request),
 			));
 		}
 
@@ -740,6 +769,26 @@ $nestedData[] = $row->updated_at;
 		 * Only a superadmin approves orders, so only they set how many of each
 		 * item is granted.
 		 */
+		/**
+		 * Collection date for an order approved at $approvedAt. The store is
+		 * open Monday to Friday: approved on a weekday up to 17:00, it can be
+		 * collected at once; approved after 17:00 or at the weekend, it is
+		 * collected at 09:00 on the next weekday.
+		 */
+		private function collectionDateForApproval(int $approvedAt): string {
+			$isWeekday = (int) date('N', $approvedAt) <= 5;
+			if ($isWeekday && date('H:i:s', $approvedAt) <= '17:00:00') {
+				return date('Y-m-d H:i:s', $approvedAt);
+			}
+
+			$next = strtotime('+1 day', $approvedAt);
+			while ((int) date('N', $next) > 5) {
+				$next = strtotime('+1 day', $next);
+			}
+
+			return date('Y-m-d', $next) . ' 09:00:00';
+		}
+
 		/**
 		 * Whether the order was placed by the signed-in admin's own member
 		 * account. Admin and member accounts are separate, so they are matched
@@ -761,6 +810,15 @@ $nestedData[] = $row->updated_at;
 
 			$adminEmail = strtolower(trim((string) ($admin->email ?? '')));
 			return $adminEmail !== '' && $adminEmail === strtolower(trim((string) ($member->email ?? '')));
+		}
+
+		/**
+		 * The Uniform Orders admin hands the items over, so they record the
+		 * issue voucher for each one.
+		 */
+		private function canRecordIssueVouchers(Request $request): bool {
+			return $this->adminRoles()->isOrdersOnly($request->session()->get('admin_id'))
+				&& Schema::hasColumn('ordered_clothes', 'issue_voucher');
 		}
 
 		private function canApproveQuantities(Request $request): bool {
@@ -852,6 +910,8 @@ $nestedData[] = $row->updated_at;
 				'collection_time' => 'nullable|date_format:H:i',
 				'approved_quantity' => 'nullable|array',
 				'approved_quantity.*' => 'nullable|integer|min:0|max:999',
+				'issue_voucher' => 'nullable|array',
+				'issue_voucher.*' => 'nullable|string|max:100',
 			];
 
 			// A rejection reaches the member with the remarks as the reason, so
@@ -912,6 +972,14 @@ $nestedData[] = $row->updated_at;
 
 			if (in_array($status, ['2', '4'])) {
 				$updateData['collection_date'] = null;
+			}
+
+			// Approving with no collection date set books one: the order can be
+			// collected as soon as it is approved, unless that is after 17:00,
+			// when collection moves to 09:00 the next day. A date the admin
+			// keys in is kept as it is.
+			if ($status === '3' && empty($collectionDate)) {
+				$updateData['collection_date'] = $this->collectionDateForApproval(time());
 			}
 
 			$prevStatus = trim((string) ($order->status ?? ''));
@@ -978,6 +1046,20 @@ $nestedData[] = $row->updated_at;
 			// Kuantiti Diluluskan on the KEW.PS-8. Keyed by ordered_clothes id and
 			// limited to this order's own lines. An item left blank is granted
 			// in full, and no more than was asked for can be granted.
+			// Issue vouchers, saved with whichever status the Uniform Orders admin
+			// sets. Keyed by ordered_clothes id and limited to this order's own
+			// lines; a cleared field clears the voucher.
+			if ($this->canRecordIssueVouchers($request) && is_array($request->input('issue_voucher'))) {
+				$vouchers = $request->input('issue_voucher');
+				foreach (DB::table('ordered_clothes')->where('order_id', '=', $order->id)->pluck('id') as $lineId) {
+					if (!array_key_exists($lineId, $vouchers)) {
+						continue;
+					}
+					$voucher = mb_substr(trim((string) $vouchers[$lineId]), 0, 100);
+					DB::table('ordered_clothes')->where('id', '=', $lineId)->update(['issue_voucher' => $voucher !== '' ? $voucher : null]);
+				}
+			}
+
 			if ($status === '3' && $this->canApproveQuantities($request)) {
 				$approvedQuantities = (array) $request->input('approved_quantity', []);
 				foreach (DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get() as $line) {
@@ -1015,7 +1097,9 @@ $nestedData[] = $row->updated_at;
 			$userOrder = DB::table('orders')->where('deleted', '=', 0)->where('id', '=', $order_id)->first();
 			$uniforms = DB::table('uniforms')->where('id', '=', $userOrder->uniforms_id)->first();
 			$ordered_clothes = DB::table('ordered_clothes')->where('order_id', '=', $order_id)->get();
-			return view('admin/uniformDetails_edit', array("uniforms"=>$uniforms,"userOrder"=>$userOrder,"ordered_clothes"=>$ordered_clothes));
+			// Every uniform on the order; one checkout can hold several.
+			$uniformLabel = app(\App\Services\OrderUniformService::class)->labelsByOrder([$userOrder->id])[(int) $userOrder->id] ?? '';
+			return view('admin/uniformDetails_edit', array("uniforms"=>$uniforms,"userOrder"=>$userOrder,"ordered_clothes"=>$ordered_clothes,"uniformLabel"=>$uniformLabel));
 		}
 
 		public function saveUniformEditedDetails(Request $request) {
@@ -1036,10 +1120,12 @@ $nestedData[] = $row->updated_at;
 
 							$ordered_clothes->clothes_slug = $key;
 							$ordered_clothes->size = $request->$key;
+							// Saved here, only for a line that was posted: a line
+							// with no field on the form is left as it is.
+							$ordered_clothes->save();
 						}
 					}
 				}
-				$ordered_clothes->save();
 			}
 			return redirect()->route('all.users');
 		}
@@ -1106,7 +1192,7 @@ $nestedData[] = $row->updated_at;
 			$user_details = DB::table('gen_users')->where('id', '=', $user_id)->first();
 			$auth_code = $user_details->auth_code;
 			$email = $user_details->email;
-			$subject = "Activation Code For Personnel Logistic Accounting System";
+			$subject = "Activation Code For e-Clothing";
 			$activationUrl = secure_url('/verify-account/'.$auth_code);
 			$body = 'Please Click On This link '.$activationUrl.' to activate your account.';
 			try {
@@ -1125,7 +1211,7 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
-			$site_title = 'Personnel Logistic Accounting System';
+			$site_title = 'e-Clothing';
 			try {
 				$value = DB::table('site_settings')->where('setting_key', '=', 'site_title')->value('setting_value');
 				if(is_string($value) && trim($value) !== '') {
