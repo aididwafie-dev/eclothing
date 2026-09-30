@@ -8,13 +8,14 @@
 	<div class="content">
 		@php
 			$requestedTab = Request::get('tab');
-			$activeTab = in_array($requestedTab, ['uniform', 'scale'], true) ? $requestedTab : 'system';
+			$activeTab = in_array($requestedTab, ['uniform', 'scale', 'notifications'], true) ? $requestedTab : 'system';
 		@endphp
 
 		<ul class="nav nav-tabs" role="tablist">
 			<li role="presentation" class="{{ $activeTab === 'system' ? 'active' : '' }}"><a href="#tab-system-settings" aria-controls="tab-system-settings" role="tab" data-toggle="tab">Tetapan Sistem</a></li>
 			<li role="presentation" class="{{ $activeTab === 'uniform' ? 'active' : '' }}"><a href="#tab-uniform-settings" aria-controls="tab-uniform-settings" role="tab" data-toggle="tab">Tetapan Pakaian</a></li>
 			<li role="presentation" class="{{ $activeTab === 'scale' ? 'active' : '' }}"><a href="#tab-scale-settings" aria-controls="tab-scale-settings" role="tab" data-toggle="tab">Skala Pakaian &amp; Kelayakan</a></li>
+			<li role="presentation" class="{{ $activeTab === 'notifications' ? 'active' : '' }}"><a href="#tab-notification-settings" aria-controls="tab-notification-settings" role="tab" data-toggle="tab">Pemberitahuan</a></li>
 		</ul>
 
 		<div class="tab-content" style="padding-top: 16px;">
@@ -622,9 +623,85 @@
 				</script>
 				@endif
 			</div>
+
+			<div role="tabpanel" class="tab-pane {{ $activeTab === 'notifications' ? 'active' : '' }}" id="tab-notification-settings">
+				<div class="shop-subtitle">Hidupkan/matikan pemberitahuan push, dan hantar pengumuman kepada pengguna.</div>
+				<br>
+
+				@if(session('message') && $activeTab === 'notifications')
+				<div class="alert {{ session('alert-class', 'alert-info') }}">{{ session('message') }}</div>
+				@endif
+
+				<div class="panel panel-default">
+					<div class="panel-heading"><strong>Pemberitahuan Push</strong></div>
+					<div class="panel-body">
+						<p>
+							Status FCM:
+							@if($fcmConfigured ?? false)
+								<span class="label label-success">Dikonfigurasi</span>
+							@else
+								<span class="label label-default">Belum dikonfigurasi</span> &mdash; lihat <code>docs/push-notifications.md</code>.
+							@endif
+						</p>
+
+						<form autocomplete="off" method="post" action="{{ url('/admin/system-settings/notifications') }}">
+							<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
+							<div class="checkbox">
+								<label>
+									<input type="checkbox" name="push_notifications_enabled" value="1" {{ ($pushNotificationsEnabled ?? true) ? 'checked' : '' }} />
+									Aktifkan pemberitahuan push
+								</label>
+							</div>
+							<p class="help-block">Apabila dimatikan, pesanan dan pengumuman masih direkod dalam inbox aplikasi, tetapi tiada push dihantar ke peranti.</p>
+							<div class="subBtn">
+								<input class="btn btn-default text-uppercase" type="submit" value="Simpan" />
+							</div>
+						</form>
+					</div>
+				</div>
+
+				<div class="panel panel-default">
+					<div class="panel-heading"><strong>Hantar Pengumuman</strong></div>
+					<div class="panel-body">
+						<p>Penerima: <strong>{{ $notificationActiveUserCount ?? 0 }}</strong> pengguna aktif, <strong>{{ $notificationDeviceCount ?? 0 }}</strong> peranti berdaftar.</p>
+
+						<form autocomplete="off" method="post" action="{{ url('/admin/system-settings/announcement') }}" id="announcement-form">
+							<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
+
+							<div class="form-group">
+								<label class="label_">Tajuk</label>
+								<input class="form-control" type="text" name="title" maxlength="255" value="{{ old('title') }}" required />
+							</div>
+
+							<div class="form-group">
+								<label class="label_">Mesej</label>
+								<textarea class="form-control" name="body" rows="6" maxlength="1000" required>{{ old('body') }}</textarea>
+							</div>
+
+							<div class="subBtn">
+								<input class="btn btn-primary text-uppercase" type="submit" value="Hantar Pengumuman" />
+							</div>
+							<br />
+							<div class="alert alert-danger"><strong>PERHATIAN!</strong> Pengumuman akan dihantar serta-merta kepada semua pengguna aktif yang disenaraikan di atas. Sila semak sebelum menghantar.</div>
+						</form>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
+
+<script>
+	(function () {
+		var form = document.getElementById('announcement-form');
+		if (!form) { return; }
+		form.addEventListener('submit', function (e) {
+			if (!window.confirm('Hantar pengumuman ini kepada semua pengguna aktif sekarang?')) {
+				e.preventDefault();
+			}
+		});
+	})();
+</script>
 
 </div>
 </div>

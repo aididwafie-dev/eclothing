@@ -1220,6 +1220,25 @@ $nestedData[] = $row->updated_at;
 			} catch (\Throwable $e) {
 			}
 
+			$fcm = app(\App\Services\FcmSender::class);
+			$pushNotificationsEnabled = $fcm->isEnabled();
+			$fcmConfigured = $fcm->isConfigured();
+
+			$activeUserCount = 0;
+			$deviceCount = 0;
+			try {
+				$activeUserCount = DB::table('gen_users')->where('status', '=', 1)->where('activation_status', '=', 1)->count();
+			} catch (\Throwable $e) {
+			}
+			try {
+				$deviceCount = DB::table('device_tokens')
+					->join('gen_users', 'gen_users.id', '=', 'device_tokens.gen_user_id')
+					->where('gen_users.status', '=', 1)
+					->where('gen_users.activation_status', '=', 1)
+					->count();
+			} catch (\Throwable $e) {
+			}
+
 			$uniforms = [];
 			try {
 				$uniforms = DB::table('uniforms')
@@ -1300,6 +1319,10 @@ $nestedData[] = $row->updated_at;
 				'scaleStorageReady' => $scaleService->tableExists(),
 				'hiddenUniformIds' => $scaleService->hiddenUniformsForRank($selectedRankId ?: null),
 				'hiddenStorageReady' => $scaleService->hiddenTableExists(),
+				'pushNotificationsEnabled' => $pushNotificationsEnabled,
+				'fcmConfigured' => $fcmConfigured,
+				'notificationActiveUserCount' => $activeUserCount,
+				'notificationDeviceCount' => $deviceCount,
 			]);
 		}
 
@@ -1815,6 +1838,127 @@ $nestedData[] = $row->updated_at;
 			\Session::flash('message', ($isAccessory ? 'Aksesori' : 'Pakaian') . ' "' . $clothesType . '" berjaya ditambah.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->to($redirect);
+		}
+
+		/**
+		 * Notifications tab: on/off switch for FcmSender::isEnabled(). Does not
+		 * touch FCM_PROJECT_ID/FCM_CREDENTIALS -- those stay .env-only -- this
+		 * is purely the superadmin's kill switch, checked by every send() call
+		 * regardless of caller (order updates, this announcement feature, or
+		 * anything added later).
+		 */
+		public function saveNotificationSettings(Request $request) {
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+
+			$enabled = $request->input('push_notifications_enabled') === '1' ? '1' : '0';
+
+			try {
+				$exists = DB::table('site_settings')->where('setting_key', '=', 'push_notifications_enabled')->count();
+				if ($exists > 0) {
+					DB::table('site_settings')->where('setting_key', '=', 'push_notifications_enabled')->update(['setting_value' => $enabled]);
+				} else {
+					DB::table('site_settings')->insert(['setting_key' => 'push_notifications_enabled', 'setting_value' => $enabled]);
+				}
+				\Session::flash('message', $enabled === '1' ? 'Pemberitahuan push telah diaktifkan.' : 'Pemberitahuan push telah dimatikan.');
+				\Session::flash('alert-class', 'alert-success');
+			} catch (\Throwable $e) {
+				\Session::flash('message', 'Gagal simpan tetapan pemberitahuan.');
+				\Session::flash('alert-class', 'alert-danger');
+			}
+
+			return redirect()->to(route('admin.system-settings') . '?tab=notifications');
+		}
+
+		/**
+		 * Notifications tab: broadcasts one message to every active, activated
+		 * member -- recorded in their in-app inbox first (so it is never lost),
+		 * then pushed to their registered devices if FCM is on. Mirrors
+		 * OrderNotificationService's record-then-push order, but fans out to
+		 * every eligible user instead of one.
+		 */
+		public function sendPushAnnouncement(Request $request) {
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+
+			$title = trim((string) $request->input('title'));
+			$body = trim((string) $request->input('body'));
+
+			$validator = Validator::make(
+				['title' => $title, 'body' => $body],
+				['title' => 'required|string|max:255', 'body' => 'required|string|max:1000']
+			);
+			if ($validator->fails()) {
+				return redirect()->to(route('admin.system-settings') . '?tab=notifications')->withErrors($validator)->withInput();
+			}
+
+			if (!Schema::hasTable('user_notifications')) {
+				\Session::flash('message', 'Jadual pemberitahuan tiada. Jalankan migrasi terlebih dahulu.');
+				\Session::flash('alert-class', 'alert-danger');
+				return redirect()->to(route('admin.system-settings') . '?tab=notifications');
+			}
+
+			$userIds = DB::table('gen_users')
+				->where('status', '=', 1)
+				->where('activation_status', '=', 1)
+				->pluck('id')
+				->all();
+
+			$payload = ['type' => 'announcement'];
+			$now = now();
+			$sentToInbox = 0;
+
+			foreach (array_chunk($userIds, 500) as $chunk) {
+				$rows = array_map(fn ($userId) => [
+					'gen_user_id' => $userId,
+					'order_id' => null,
+					'type' => 'announcement',
+					'title' => $title,
+					'body' => $body,
+					'payload' => json_encode($payload),
+					'read_at' => null,
+					'created_at' => $now,
+					'updated_at' => $now,
+				], $chunk);
+
+				try {
+					DB::table('user_notifications')->insert($rows);
+					$sentToInbox += count($chunk);
+				} catch (\Throwable $e) {
+				}
+			}
+
+			$pushedTo = 0;
+			$pushSkipped = false;
+			try {
+				$fcm = app(\App\Services\FcmSender::class);
+
+				if (!$fcm->isConfigured() || !$fcm->isEnabled()) {
+					$pushSkipped = true;
+				} else {
+					$tokens = DB::table('device_tokens')
+						->whereIn('gen_user_id', $userIds)
+						->pluck('token')
+						->all();
+
+					if (!empty($tokens)) {
+						$deadTokens = $fcm->send($tokens, $title, $body, $payload);
+						$pushedTo = count($tokens) - count($deadTokens);
+
+						if (!empty($deadTokens)) {
+							DB::table('device_tokens')->whereIn('token', $deadTokens)->delete();
+						}
+					}
+				}
+			} catch (\Throwable $e) {
+			}
+
+			$pushSummary = $pushSkipped ? 'push dimatikan' : ('push ke ' . $pushedTo . ' peranti');
+			\Session::flash('message', 'Pengumuman dihantar ke inbox ' . $sentToInbox . ' pengguna, ' . $pushSummary . '.');
+			\Session::flash('alert-class', 'alert-success');
+			return redirect()->to(route('admin.system-settings') . '?tab=notifications');
 		}
 
 		/**

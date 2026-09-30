@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -30,6 +31,23 @@ class FcmSender
     public function isConfigured(): bool
     {
         return $this->projectId() !== '' && $this->credentials() !== null;
+    }
+
+    /**
+     * The superadmin's kill switch (site_settings.push_notifications_enabled),
+     * separate from isConfigured() so `fcm:test` still diagnoses credentials
+     * while push is switched off. Missing row reads as enabled, matching
+     * behaviour before this setting existed.
+     */
+    public function isEnabled(): bool
+    {
+        try {
+            $value = DB::table('site_settings')->where('setting_key', '=', 'push_notifications_enabled')->value('setting_value');
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        return $value === null || $value === '1';
     }
 
     /**
@@ -74,6 +92,14 @@ class FcmSender
             $add('Google issued an access token', false, $e->getMessage());
         }
 
+        // Last on purpose: credentials can be fully valid while a superadmin
+        // has switched push off in Tetapan Sistem > Pemberitahuan. Reported
+        // after the connectivity checks so "off" reads as a deliberate
+        // setting, not a broken one -- but it still fails the overall
+        // diagnose() so `fcm:test <id>` does not send a test push while
+        // disabled (send() would only no-op it anyway).
+        $add('Push enabled in Notification Settings', $this->isEnabled(), $this->isEnabled() ? 'on' : 'off - send() will skip silently');
+
         return $checks;
     }
 
@@ -88,7 +114,7 @@ class FcmSender
     {
         $deviceTokens = array_values(array_unique(array_filter($deviceTokens)));
 
-        if (empty($deviceTokens) || !$this->isConfigured()) {
+        if (empty($deviceTokens) || !$this->isConfigured() || !$this->isEnabled()) {
             return [];
         }
 

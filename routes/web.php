@@ -138,6 +138,9 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	// Uniform tab: add a new uniform category, and clothes/accessories under it.
 	Route::post('/admin/system-settings/uniform', [AdminController::class, 'storeUniform'])->name('admin.system-settings.uniform.store');
 	Route::post('/admin/system-settings/uniform-item', [AdminController::class, 'storeUniformItem'])->name('admin.system-settings.uniform-item.store');
+	// Notifications tab: push on/off switch and one-off announcement broadcast.
+	Route::post('/admin/system-settings/notifications', [AdminController::class, 'saveNotificationSettings'])->name('admin.system-settings.notifications.save');
+	Route::post('/admin/system-settings/announcement', [AdminController::class, 'sendPushAnnouncement'])->name('admin.system-settings.announcement.send');
 	// Scale tab auto-save (AJAX, no form submit).
 	Route::post('/admin/scale/uniform-visibility', [AdminController::class, 'toggleUniformVisibility'])->name('admin.scale.uniform-visibility');
 	Route::post('/admin/scale/item', [AdminController::class, 'saveUniformScaleItem'])->name('admin.scale.item');

@@ -256,8 +256,11 @@ class OrderNotificationTest extends TestCase
 
     public function test_notifications_are_recorded_even_though_push_is_not_configured(): void
     {
-        // No FCM credentials in the test environment; the inbox must still
-        // be written, which is the whole point of recording before pushing.
+        // Force "not configured" regardless of the host's real .env -- a
+        // deployment with live FCM credentials must not make this test
+        // assert something false. The inbox must still be written, which is
+        // the whole point of recording before pushing.
+        config(['services.fcm.project_id' => '', 'services.fcm.credentials' => '']);
         $this->assertFalse(app(\App\Services\FcmSender::class)->isConfigured());
 
         $userId = $this->userId();
