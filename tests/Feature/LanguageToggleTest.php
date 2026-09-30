@@ -207,7 +207,7 @@ class LanguageToggleTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Butiran Peribadi');
-        $response->assertSee('ID PERKHIDMATAN');
+        $response->assertSee('NO. TENTERA');
         $response->assertSee('NAMA WARIS');
         $response->assertSee('KUASA KHAS (JIKA ADA)');
         $response->assertSee('SIMPAN');
