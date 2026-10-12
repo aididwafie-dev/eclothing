@@ -23,7 +23,12 @@
 											<input class="form-control" type = "text" name="value" value="{{ $units->value }}" required/>
 									<br>
 									<label class="label_">BASE/HQ</label>
-											<input class="form-control" type="text" name="base_hq" maxlength="255" value="{{ old('base_hq', $units->base_hq ?? '') }}" />
+											<select class="form-control" name="base_hq">
+												<option value="">--NONE--</option>
+												@foreach(($bases ?? []) as $base)
+												<option value="{{ $base->id }}" <?= (int) old('base_hq', $units->base_hq ?? 0) === (int) $base->id ? 'selected' : ''; ?>>{{ $base->base }}</option>
+												@endforeach
+											</select>
 									<br>
 									<label class="label_">ORG</label>
 											<input class="form-control" type="text" name="org" maxlength="255" value="{{ old('org', $units->org ?? '') }}" />

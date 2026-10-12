@@ -53,6 +53,10 @@
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminTredController'){ echo 'active'; } ?>"><i class="fa fa-shirtsinbulk" aria-hidden="true"></i> {{ __('app.admin_nav.tred') }}</button>
 				</a>
 
+				<a href="{{ url('/admin/base') }}">
+					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminBaseController'){ echo 'active'; } ?>"><i class="fa fa-building" aria-hidden="true"></i> {{ __('app.admin_nav.bases') }}</button>
+				</a>
+
 				<a href="{{ url('/admin/size') }}" class="hide">
 					<button type="button" class="btn btn-pnl btn-block <?php if ($current_class_method[0] == 'App\Http\Controllers\AdminSizeController'){ echo 'active'; } ?>"><i class="fa fa-arrows" aria-hidden="true"></i> {{ __('app.admin_nav.sizes') }}</button>
 				</a>

@@ -57,8 +57,23 @@
 				if (Schema::hasColumn('admins', 'role')) {
 					$cols[] = 'role';
 				}
+				if (Schema::hasColumn('admins', 'base_id')) {
+					$cols[] = 'base_id';
+				}
 			}
 			return $cols;
+		}
+
+		private function allBases(): array {
+			try {
+				if (!Schema::hasTable('bases')) {
+					return [];
+				}
+				$rows = DB::table('bases')->orderBy('base')->get();
+				return $rows ? $rows->all() : [];
+			} catch (\Throwable $e) {
+				return [];
+			}
 		}
 
 	    public function index(Request $request) {
@@ -85,6 +100,7 @@
 				'genDetails_newAdmin' => DB::table('gen_users')->where('s_id', '=', $s_id)->first(),
 				'personalDetails_newAdmin' => DB::table('personal_details')->where('s_id', '=', $s_id)->first(),
 				'pangkats' => $this->allPangkats(),
+				'bases' => $this->allBases(),
 			];
 			if(!empty($data['genDetails_newAdmin'])) {
 				if($data['genDetails_newAdmin']->profile_status == 0) {
@@ -134,6 +150,7 @@
 				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
 				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
 				$hasRole = Schema::hasColumn('admins', 'role');
+				$hasBase = Schema::hasColumn('admins', 'base_id');
 				if ($hasSId) {
 					$sId = trim((string) $request->input('s_id'));
 					$update['s_id'] = $sId !== '' ? $sId : null;
@@ -149,6 +166,10 @@
 				if ($hasRole) {
 					// Normalized, so an unexpected value can never widen access.
 					$update['role'] = app(AdminRoleService::class)->normalize($request->input('role'));
+				}
+				if ($hasBase) {
+					$baseId = (int) $request->input('base_id');
+					$update['base_id'] = $baseId > 0 ? $baseId : null;
 				}
 				if (!empty($update)) {
 					DB::table('admins')->where('id', '=', $newAdminId)->update($update);
@@ -276,6 +297,7 @@
 					'admin_id_encoded' => (string) $id,
 					'admin' => $admin,
 					'pangkats' => $this->allPangkats(),
+					'bases' => $this->allBases(),
 				],
 			]);
 		}
@@ -304,6 +326,7 @@
 				$hasPangkat = Schema::hasColumn('admins', 'pangkat_id');
 				$hasJawatan = Schema::hasColumn('admins', 'jawatan');
 				$hasRole = Schema::hasColumn('admins', 'role');
+				$hasBase = Schema::hasColumn('admins', 'base_id');
 				if ($hasSId) {
 					$sId = trim((string) $request->input('s_id'));
 					$update['s_id'] = $sId !== '' ? $sId : null;
@@ -319,6 +342,10 @@
 				if ($hasRole) {
 					// Normalized, so an unexpected value can never widen access.
 					$update['role'] = app(AdminRoleService::class)->normalize($request->input('role'));
+				}
+				if ($hasBase) {
+					$baseId = (int) $request->input('base_id');
+					$update['base_id'] = $baseId > 0 ? $baseId : null;
 				}
 				if (!empty($update)) {
 					$update['updated_at'] = date('Y-m-d H:i:s');

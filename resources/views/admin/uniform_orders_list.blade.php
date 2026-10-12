@@ -16,6 +16,8 @@
 			$search = isset($search) ? $search : '';
 			$statusOptions = isset($statusOptions) ? $statusOptions : [];
 			$statusFilter = isset($status) ? $status : 'pending';
+			$unitOptions = isset($unitOptions) ? $unitOptions : [];
+			$unitFilter = isset($unit) ? (int) $unit : 0;
 		@endphp
 		{{-- Drives the DataTable below rather than submitting: typing searches,
 		     changing the status reloads the rows. --}}
@@ -35,6 +37,15 @@
 					<option value="{{ $statusKey }}" {{ $statusFilter === $statusKey ? 'selected' : '' }}>{{ __('app.status.' . $statusKey) }}</option>
 					@endforeach
 					<option value="all" {{ $statusFilter === 'all' ? 'selected' : '' }}>{{ __('app.admin_orders.all_statuses') }}</option>
+				</select>
+			</div>
+			<div class="orders-filter-field">
+				<label class="orders-filter-label" for="orderUnitFilter">{{ __('app.admin_orders.unit') }}</label>
+				<select id="orderUnitFilter" class="form-control">
+					<option value="0">{{ __('app.admin_orders.all_units') }}</option>
+					@foreach($unitOptions as $unitOption)
+					<option value="{{ $unitOption->id }}" {{ $unitFilter === (int) $unitOption->id ? 'selected' : '' }}>{{ $unitOption->value }}</option>
+					@endforeach
 				</select>
 			</div>
 		</form>
@@ -74,6 +85,7 @@
 	$(document).ready(function() {
 		var $search = $('#orderSearch');
 		var $status = $('#orderStatusFilter');
+		var $unit = $('#orderUnitFilter');
 		var $summary = $('#ordersSummary');
 		var text = {!! json_encode([
 			'showingStatus' => __('app.admin_orders.showing_status'),
@@ -101,6 +113,7 @@
 			try {
 				var url = new URL(window.location.href);
 				url.searchParams.set('status', $status.val());
+				url.searchParams.set('unit', $unit.val());
 				var term = $.trim($search.val() || '');
 				if (term !== '') { url.searchParams.set('search', term); } else { url.searchParams.delete('search'); }
 				window.history.replaceState(null, '', url.toString());
@@ -128,7 +141,7 @@
 				url: {!! json_encode(route('admin.uniform-orders.data')) !!},
 				type: 'post',
 				headers: { 'X-CSRF-TOKEN': $('meta[name="_token"]').attr('content') },
-				data: function(d) { d.status = $status.val(); },
+				data: function(d) { d.status = $status.val(); d.unit = $unit.val(); },
 				error: function() {
 					if (window.showAppPopup) {
 						window.showAppPopup('Orders could not be loaded. Please refresh the page.', 'danger');
@@ -167,6 +180,11 @@
 
 		$status.on('change', function() {
 			summary();
+			rememberFilter();
+			table.ajax.reload();
+		});
+
+		$unit.on('change', function() {
 			rememberFilter();
 			table.ajax.reload();
 		});

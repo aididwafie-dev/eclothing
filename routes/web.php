@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminAccessoriesController;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminNewListController;
 use App\Http\Controllers\AdminPasswordController;
@@ -130,6 +131,7 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	Route::get('/delete-user/{id}', [AdminController::class, 'deleteGeneralUser'])->name('admin.delete-user');
 	Route::get('/delete-unit/{id}', [AdminController::class, 'deleteUnit'])->name('admin.delete-unit');
 	Route::get('/delete-tred/{id}', [AdminController::class, 'deleteTred'])->name('admin.delete-tred');
+	Route::get('/delete-base/{id}', [AdminController::class, 'deleteBase'])->name('admin.delete-base');
 	Route::get('/delete-order/{user_id}/{id}', [AdminController::class, 'deleteOrder'])->name('admin.delete-order');
 	Route::post('/ajax-resend-mail', [AdminController::class, 'resendActivationMailToUser'])->name('admin.resend-mail');
 	Route::post('/send-announcements', [AdminController::class, 'sendAnnouncement'])->name('send.announcements');
@@ -168,9 +170,13 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	Route::get('/admin/tred', [AdminTredController::class, 'index'])->name('admin.tred');
 	Route::get('/admin/tred/edit/{id}', [AdminTredController::class, 'editTred'])->name('tred.edit');
 	Route::get('/admin/tred/add', [AdminTredController::class, 'addTred'])->name('tred.add');
+	Route::get('/admin/base', [AdminBaseController::class, 'index'])->name('admin.base');
+	Route::get('/admin/base/edit/{id}', [AdminBaseController::class, 'editBase'])->name('base.edit');
+	Route::get('/admin/base/add', [AdminBaseController::class, 'addBase'])->name('base.add');
 	Route::post('/save-edited-unit', [AdminUnitController::class, 'saveEditedUnit'])->name('save-edited.unit');
 	Route::post('/save-edited-size', [AdminSizeController::class, 'saveEditedSize'])->name('save-edited.size');
 	Route::post('/save-edited-tred', [AdminTredController::class, 'saveEditedTred'])->name('save-edited.tred');
+	Route::post('/save-edited-base', [AdminBaseController::class, 'saveEditedBase'])->name('save-edited.base');
 	Route::get('/uniform/edit-name/{id}', [AdminUniformController::class, 'editUniformName'])->name('uniform.edit-name');
 	Route::post('/save-edited-uniformName', [AdminUniformController::class, 'saveEditedUniformName'])->name('save-edited.uniformName');
 	Route::get('/admin/uniform-edit-cancel', [AdminUniformController::class, 'index'])->name('uniform.edit-name-cancel');
@@ -183,6 +189,7 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 	Route::post('/save-added-accessory', [AdminAccessoriesController::class, 'saveAddedAccessory'])->name('save.added-accessory');
 	Route::post('/save-added-unit', [AdminUnitController::class, 'saveAddedUnit'])->name('save.added-unit');
 	Route::post('/save-added-tred', [AdminTredController::class, 'saveAddedTred'])->name('save.added-tred');
+	Route::post('/save-added-base', [AdminBaseController::class, 'saveAddedBase'])->name('save.added-base');
 	Route::post('/save-added-uniform', [AdminUniformController::class, 'saveAddedUniform'])->name('save.added-uniform');
 	Route::post('/save-added-size', [AdminSizeController::class, 'saveAddedSize'])->name('save.added-size');
 	Route::get('/uniform/clothes-edit/{id}', [AdminUniformController::class, 'uniformClothesEditForm'])->name('uniform.clothes-edit');

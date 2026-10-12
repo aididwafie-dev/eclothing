@@ -15,7 +15,12 @@
 									<input type="text" class="form-control" name="unit_name" required />
 									<br>
 									<label class="label_">BASE/HQ:</label>
-									<input type="text" class="form-control" name="base_hq" maxlength="255" />
+									<select class="form-control" name="base_hq">
+										<option value="">--NONE--</option>
+										@foreach(($bases ?? []) as $base)
+										<option value="{{ $base->id }}">{{ $base->base }}</option>
+										@endforeach
+									</select>
 									<br>
 									<label class="label_">ORG:</label>
 									<input type="text" class="form-control" name="org" maxlength="255" />

@@ -81,6 +81,17 @@
 									<p class="help-block">"Uniform Orders only" limits the account to the order queue, where it can set Processing and Completed.</p>
 								</div>
 
+								<div class="form-group">
+									<label class="label_" for="base_id">Base:</label>
+									<select class="form-control" id="base_id" name="base_id">
+										<option value="">-- No base (sees every unit) --</option>
+										@foreach(($data['bases'] ?? []) as $base)
+										<option value="{{ $base->id }}">{{ $base->base }}</option>
+										@endforeach
+									</select>
+									<p class="help-block">Scopes the Unit filter on the Uniform Orders list to this base's units.</p>
+								</div>
+
 								<div class="subBtn">
 									<input class="btn btn-default" type="submit" value="ADD" id="submit" name="submit" />
 									<a href="{{ url('/new-admin') }}" class="btn btn-default"> CANCEL</a>

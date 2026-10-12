@@ -557,12 +557,47 @@ $nestedData[] = $row->updated_at;
 			// The rows are loaded by DataTables from uniformOrdersData; this
 			// only renders the page with the filter the list opens on.
 			[$statusOptions, , $status] = $this->uniformOrdersStatusFilter($request, $request->query('status'));
+			[$unitOptions, $unit] = $this->uniformOrdersUnitFilter($request, $request->query('unit'));
 
 			return view('admin/uniform_orders_list', array(
 				'search' => trim((string) $request->query('search', '')),
 				'status' => $status,
 				'statusOptions' => $statusOptions,
+				'unit' => $unit,
+				'unitOptions' => $unitOptions,
 			));
+		}
+
+		/**
+		 * Units an admin's filter dropdown may choose from: every unit under
+		 * their own base if one is assigned, otherwise every unit -- same as
+		 * before this base scoping existed. Mirrors uniformOrdersStatusFilter,
+		 * but a mistyped/foreign unit id is simply ignored rather than falling
+		 * back to a default, since "no unit chosen" already means "every
+		 * order the status filter allows".
+		 *
+		 * @return array{0: \Illuminate\Support\Collection, 1: int}
+		 */
+		private function uniformOrdersUnitFilter(Request $request, $requested): array {
+			$baseId = 0;
+			try {
+				$baseId = (int) DB::table('admins')->where('id', '=', (int) $request->session()->get('admin_id'))->value('base_id');
+			} catch (\Throwable $e) {
+				$baseId = 0;
+			}
+
+			$query = DB::table('units')->orderBy('value');
+			if ($baseId > 0) {
+				$query->where('base_hq', '=', $baseId);
+			}
+			$unitOptions = $query->get();
+
+			$unit = (int) $requested;
+			if ($unit > 0 && !$unitOptions->contains(fn ($u) => (int) $u->id === $unit)) {
+				$unit = 0;
+			}
+
+			return [$unitOptions, $unit];
 		}
 
 		/**
@@ -600,6 +635,7 @@ $nestedData[] = $row->updated_at;
 		 */
 		public function uniformOrdersData(Request $request) {
 			[, $visibleStatusKeys, $status] = $this->uniformOrdersStatusFilter($request, $request->input('status'));
+			[, $unit] = $this->uniformOrdersUnitFilter($request, $request->input('unit'));
 
 			$query = $this->uniformOrdersListQuery();
 
@@ -607,6 +643,9 @@ $nestedData[] = $row->updated_at;
 			// including a search, which otherwise looks past the status filter.
 			// Narrowing a dropdown is not a restriction.
 			$this->orderStatus()->applyStatusKeysFilter($query, $visibleStatusKeys);
+			if ($unit > 0) {
+				$query->where('personal_details.unit', '=', $unit);
+			}
 			$recordsTotal = (clone $query)->count();
 
 			$search = trim((string) $request->input('search.value', ''));
@@ -1168,6 +1207,20 @@ $nestedData[] = $row->updated_at;
 			$tred_id = str_replace('DCS','',$stringId);
 			DB::table('ketukangans')->where('id', '=', $tred_id)->delete();
 			return redirect()->route('admin.tred', ['id' => $tred_id]);
+		}
+
+		public function deleteBase(Request $request, $id) {
+			if($request->session()->get('admin_id') == '') {
+				return redirect()->route('site-admin.login');
+			}
+			$stringId = base64_decode($id);
+			$base_id = str_replace('DCS','',$stringId);
+			// units.base_hq is ON DELETE SET NULL, so its units simply lose
+			// their base rather than being deleted.
+			DB::table('bases')->where('id', '=', $base_id)->delete();
+			\Session::flash('message', 'The base was successfully deleted.');
+			\Session::flash('alert-class', 'alert-success');
+			return redirect()->route('admin.base', ['id' => $base_id]);
 		}
 		
 		public function deleteOrder(Request $request, $user_id, $id) {

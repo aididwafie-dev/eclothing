@@ -22,7 +22,10 @@
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
-			$units = DB::table('units')->get();
+			$units = DB::table('units')
+				->leftJoin('bases', 'bases.id', '=', 'units.base_hq')
+				->select('units.*', 'bases.base as base_hq_name')
+				->get();
 			return view('admin/unit/unitList', array("units"=>$units));
 		}
 
@@ -34,7 +37,8 @@
 				return redirect()->route('site-admin.login');
 			}
 			$units = DB::table('units')->where('id', '=', $unit_id)->first();
-			return view('admin/unit/editUnit', array("units"=>$units));
+			$bases = DB::table('bases')->orderBy('base')->get();
+			return view('admin/unit/editUnit', array("units"=>$units, "bases"=>$bases));
 		}
 
 		public function saveEditedUnit(Request $request) {
@@ -75,17 +79,19 @@
 		}
 		
 		/**
-		 * BASE/HQ and ORG, upper-cased like the unit name. Both are optional;
-		 * left blank they are stored empty.
+		 * BASE/HQ is a bases.id foreign key (picked from a dropdown); ORG stays
+		 * a free-text field, upper-cased like the unit name. Both optional.
 		 */
 		private function fillLocation(Unit $unit, Request $request) {
 			if (!\Illuminate\Support\Facades\Schema::hasColumn('units', 'base_hq')) {
 				return;
 			}
-			foreach (['base_hq', 'org'] as $field) {
-				$value = mb_substr(strtoupper(trim((string) $request->input($field))), 0, 255);
-				$unit->{$field} = $value !== '' ? $value : null;
-			}
+
+			$baseId = (int) $request->input('base_hq');
+			$unit->base_hq = $baseId > 0 ? $baseId : null;
+
+			$org = mb_substr(strtoupper(trim((string) $request->input('org'))), 0, 255);
+			$unit->org = $org !== '' ? $org : null;
 		}
 
 		public function addUnit(Request $request) {
@@ -93,7 +99,8 @@
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
-			return view('admin/unit/addUnit');
+			$bases = DB::table('bases')->orderBy('base')->get();
+			return view('admin/unit/addUnit', array("bases"=>$bases));
 		}
 
 	}
