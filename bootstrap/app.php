@@ -47,7 +47,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->api(prepend: [
-            'throttle:60,1',
+            // Named limiter defined in AppServiceProvider::boot() -- keyed by
+            // bearer token when present, IP only for pre-auth endpoints.
+            'throttle:api',
             'bindings',
         ]);
 
