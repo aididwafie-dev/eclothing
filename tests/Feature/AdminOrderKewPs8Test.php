@@ -133,7 +133,7 @@ class AdminOrderKewPs8Test extends TestCase
         $this->assertStringStartsWith('%PDF', $response->getContent());
     }
 
-    public function test_the_detail_page_embeds_the_preview_and_the_download_button(): void
+    public function test_the_detail_page_offers_the_download_button_without_a_preview(): void
     {
         $this->actingAsAdmin();
         $seed = $this->seedOrder();
@@ -142,24 +142,12 @@ class AdminOrderKewPs8Test extends TestCase
         $response = $this->get('/admin/uniform-orders/' . $key);
 
         $response->assertOk();
-        $response->assertSee('kewps8-preview-frame', false);
-        $response->assertSee('preview=1', false);
         $response->assertSee('Download KEW.PS-8');
         $response->assertSee($key . '/kew-ps8', false);
-    }
-
-    public function test_the_download_button_sits_below_the_preview(): void
-    {
-        $this->actingAsAdmin();
-        $seed = $this->seedOrder();
-
-        $body = $this->get('/admin/uniform-orders/' . $this->orderKey($seed['orderId']))->getContent();
-
-        $this->assertLessThan(
-            strpos($body, 'Download KEW.PS-8'),
-            strpos($body, 'kewps8-preview-frame'),
-            'The download button should come after the preview, at the bottom of the page.'
-        );
+        // The inline iframe preview was removed from this page -- the
+        // /kew-ps8?preview=1 route it used still works (tested above), it is
+        // just no longer embedded here.
+        $response->assertDontSee('kewps8-preview-frame', false);
     }
 
     public function test_download_requires_an_admin_session(): void

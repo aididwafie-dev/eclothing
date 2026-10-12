@@ -4,11 +4,6 @@
 @php
 	$statusClass = !empty($order->status_class) ? $order->status_class : 'status-pending';
 	$statusLabel = __('app.status.' . (!empty($order->status_key) ? $order->status_key : 'pending'));
-	if ($order->uniform_photo) {
-		$image = glob(strpos($order->uniform_photo, '/') !== false ? $order->uniform_photo : "uploads/" . $order->uniform_photo);
-	} else {
-		$image = glob("front_end/images/uniforms/" . $order->uniform_type . ".jpg");
-	}
 @endphp
 
 <br>
@@ -32,11 +27,6 @@
 			<div class="order-detail-layout">
 				<div class="order-detail-main">
 					<div class="order-summary-grid">
-						<div class="order-photo-block">
-							@if($image)
-							<img src="../../{{$image[0]}}" class="uniform_photo order-photo-preview" alt="Uniform photo" />
-							@endif
-						</div>
 						<div class="order-meta-block">
 							<div class="order-info-row">
 								<span class="order-info-label">{{ __('app.admin_detail.service_id') }}</span>
@@ -193,24 +183,12 @@
 			</div>
 		</div>
 
-		@php $kewPs8PreviewUrl = route('admin.uniform-orders.kew-ps8', ['id' => $orderKey, 'preview' => 1]); @endphp
 		<div class="order-card">
 			<div class="order-card-header">
 				<div>
 					<div class="report-card-title">KEW.PS-8</div>
 					<div class="order-card-meta">{{ __('app.admin_detail.kew_subtitle') }}</div>
 				</div>
-			</div>
-
-			{{-- The preview is the same PDF the button below downloads, served
-			     inline, so there is no second rendering path to keep in step.
-			     Loaded lazily: an admin who only came to set a status should not
-			     pay for a PDF render they never scroll to. --}}
-			<iframe class="kewps8-preview-frame" src="{{ $kewPs8PreviewUrl }}"
-				title="{{ __('app.admin_detail.preview_title') }}" loading="lazy"></iframe>
-			<p class="help-block">{{ __('app.admin_detail.preview_missing') }} <a href="{{ $kewPs8PreviewUrl }}" target="_blank" rel="noopener">{{ __('app.admin_detail.open_new_tab') }}</a>.</p>
-
-			<div class="kewps8-preview-actions">
 				<a href="{{ route('admin.uniform-orders.kew-ps8', ['id' => $orderKey]) }}" class="btn btn-brand">
 					<i class="fa fa-download" aria-hidden="true"></i> {{ __('app.admin_detail.download_kew') }}
 				</a>

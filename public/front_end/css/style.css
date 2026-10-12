@@ -1712,31 +1712,6 @@ label {
 		flex: 1 1 auto;
 	}
 }
-/* --- KEW.PS-8 preview ---------------------------------------------------- */
-.kewps8-preview-frame {
-	display: block;
-	width: 100%;
-	height: 70vh;
-	min-height: 480px;
-	border: 1px solid var(--border);
-	border-radius: var(--radius);
-	background: #fff;
-}
-.kewps8-preview-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 10px;
-	flex-wrap: wrap;
-	margin-top: 12px;
-}
-@media screen and (max-width: 640px) {
-	.kewps8-preview-frame {
-		height: 60vh;
-	}
-	.kewps8-preview-actions .btn {
-		flex: 1 1 auto;
-	}
-}
 .order-card {
 	background: var(--card);
 	border: 1px solid var(--border);
@@ -1876,7 +1851,7 @@ label {
 /* Photo beside the meta list: narrow fixed image column, text takes the rest. */
 .order-summary-grid {
 	display: grid;
-	grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr);
 	gap: 20px;
 }
 /* Page layout: wide detail column with a narrow action rail beside it.
@@ -1914,17 +1889,6 @@ label {
 .order-details-panel {
 	margin-top: 10px;
 }
-.order-photo-block {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.order-photo-preview {
-	width: 100%;
-	max-width: 210px;
-	border-radius: 18px;
-	box-shadow: var(--shadow-sm);
-}
 .order-meta-block {
 	display: flex;
 	flex-direction: column;
@@ -1933,7 +1897,7 @@ label {
 .order-info-row {
 	display: flex;
 	align-items: flex-start;
-	justify-content: space-between;
+	justify-content: flex-start;
 	gap: 16px;
 	padding-bottom: 10px;
 	border-bottom: 1px solid var(--border);
@@ -1943,12 +1907,14 @@ label {
 	padding-bottom: 0;
 }
 .order-info-label {
+	flex: 0 0 180px;
 	font-size: var(--fs-xs);
 	font-weight: 700;
 	color: var(--muted);
 	text-transform: uppercase;
 }
 .order-info-value {
+	flex: 1 1 auto;
 	font-size: var(--fs-base);
 	font-weight: 600;
 	color: var(--text);
@@ -2912,6 +2878,11 @@ label {
 	.order-info-row {
 		flex-direction: column;
 		gap: 6px;
+	}
+	.order-info-label {
+		/* flex-basis sizes height, not width, once the row above stacks to
+		   column -- unset it so the label doesn't become 180px tall. */
+		flex-basis: auto;
 	}
 	.order-summary-cell {
 		border-right: 0;
