@@ -26,6 +26,7 @@ class OrderNotificationService
     public const TYPE_COLLECTION_DATE = 'order_collection_date_updated';
     public const TYPE_PROCESSING = 'order_processing';
     public const TYPE_COMPLETED = 'order_completed';
+    public const TYPE_COLLECTION_TIMEOUT = 'order_collection_timeout';
 
     public function __construct(
         private FcmSender $fcm,

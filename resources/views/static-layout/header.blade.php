@@ -132,10 +132,130 @@
 						<button type="button" class="btn btn-default topbar-action" aria-label="Search">
 							<i class="fa fa-search" aria-hidden="true"></i>
 						</button>
-						<button type="button" class="btn btn-default topbar-action" aria-label="Notifications">
-							<i class="fa fa-bell-o" aria-hidden="true"></i>
-						</button>
+						@php
+							// Both a member and an admin session can be open in this
+							// browser at once (see UserController::userLogout /
+							// AdminController::adminLogout, which only forget their
+							// own keys). When both are present, which inbox the bell
+							// shows follows which area the current page belongs to.
+							$hasAdminSession = (bool) session('admin_id');
+							$hasUserSession = (bool) session('user_id');
+							$currentRouteAction = (string) \Illuminate\Support\Facades\Route::currentRouteAction();
+							$looksLikeAdminPage = str_contains($currentRouteAction, 'App\Http\Controllers\Admin')
+								|| str_contains($currentRouteAction, 'AnnouncementsController');
+							$notifContext = ($hasAdminSession && (!$hasUserSession || $looksLikeAdminPage))
+								? 'admin'
+								: ($hasUserSession ? 'user' : null);
+						@endphp
+						@if($notifContext)
+						<div class="notif-wrap" id="notifWrap"
+							data-index-url="{{ $notifContext === 'admin' ? route('admin.notifications') : route('user.notifications') }}"
+							data-read-url="{{ $notifContext === 'admin' ? route('admin.notifications.read') : route('user.notifications.read') }}">
+							<button type="button" class="btn btn-default topbar-action" id="notifBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+								<i class="fa fa-bell-o" aria-hidden="true"></i>
+								<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+							</button>
+							<div class="notif-dropdown" id="notifDropdown" style="display:none;">
+								<div class="notif-dropdown-header">Pemberitahuan</div>
+								<div class="notif-dropdown-list" id="notifList">
+									<div class="notif-empty">Memuatkan...</div>
+								</div>
+							</div>
+						</div>
+						@endif
 					</div>
 				</div>
 			</header>
 	<div class="sidebar-backdrop"></div>
+
+	@if($notifContext)
+	<script type="text/javascript">
+		(function () {
+			var $wrap = $('#notifWrap');
+			var indexUrl = $wrap.data('index-url');
+			var readUrl = $wrap.data('read-url');
+			var $bell = $('#notifBell');
+			var $badge = $('#notifBadge');
+			var $dropdown = $('#notifDropdown');
+			var $list = $('#notifList');
+			var csrf = $('meta[name="_token"]').attr('content');
+			var open = false;
+
+			function escapeHtml(value) {
+				return $('<div>').text(value == null ? '' : value).html();
+			}
+
+			function renderBadge(count) {
+				if (count > 0) {
+					$badge.text(count > 99 ? '99+' : count).show();
+				} else {
+					$badge.hide();
+				}
+			}
+
+			function renderList(notifications) {
+				if (!notifications.length) {
+					$list.html('<div class="notif-empty">Tiada pemberitahuan.</div>');
+					return;
+				}
+				var html = notifications.map(function (n) {
+					return '<div class="notif-item' + (n.read ? '' : ' notif-unread') + '">'
+						+ '<div class="notif-item-title">' + escapeHtml(n.title) + '</div>'
+						+ '<div class="notif-item-body">' + escapeHtml(n.body) + '</div>'
+						+ '<div class="notif-item-time">' + escapeHtml(n.created_at) + '</div>'
+						+ '</div>';
+				}).join('');
+				$list.html(html);
+			}
+
+			function fetchNotifications(markAsRead) {
+				$.ajax({
+					type: 'get',
+					url: indexUrl,
+					dataType: 'json'
+				}).done(function (data) {
+					renderBadge(data.unread_count || 0);
+					if (markAsRead) {
+						renderList(data.notifications || []);
+						if ((data.unread_count || 0) > 0) {
+							$.ajax({
+								type: 'post',
+								url: readUrl,
+								headers: { 'X-CSRF-TOKEN': csrf },
+								dataType: 'json'
+							}).done(function (readData) {
+								renderBadge(readData.unread_count || 0);
+							});
+						}
+					}
+				}).fail(function () {
+					if (markAsRead) {
+						$list.html('<div class="notif-empty">Gagal memuatkan pemberitahuan.</div>');
+					}
+				});
+			}
+
+			$bell.on('click', function (e) {
+				e.stopPropagation();
+				open = !open;
+				$dropdown.toggle(open);
+				$bell.attr('aria-expanded', open ? 'true' : 'false');
+				if (open) {
+					fetchNotifications(true);
+				}
+			});
+
+			$(document).on('click', function (e) {
+				if (open && !$.contains($wrap[0], e.target)) {
+					open = false;
+					$dropdown.hide();
+					$bell.attr('aria-expanded', 'false');
+				}
+			});
+
+			// Badge only, on load -- the full list (and marking read) waits
+			// for the admin/member to actually open the dropdown.
+			fetchNotifications(false);
+		})();
+	</script>
+	@endif

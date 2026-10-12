@@ -42,6 +42,9 @@ class AdminRoleService
         'admin.save-change-password',
         'admin.logout',
         'admin.cancel',
+        // Every admin sees their own notifications, whatever their role.
+        'admin.notifications',
+        'admin.notifications.read',
     ];
 
     private ?bool $hasRoleColumn = null;

@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -53,3 +54,31 @@ Artisan::command('fcm:test {serviceId? : Service ID of a member to push a test n
 
     return 0;
 })->purpose('Check the Firebase push setup, optionally sending a member a test notification');
+
+/*
+ * Orders left in Processing for 14+ days revert to Pending (approver
+ * snapshot kept) and the member is notified. See
+ * App\Services\OrderCollectionTimeoutService for why.
+ *
+ *   php artisan orders:process-collection-timeouts
+ */
+Artisan::command('orders:process-collection-timeouts', function () {
+    $service = app(\App\Services\OrderCollectionTimeoutService::class);
+
+    if (!$service->tableReady()) {
+        $this->warn('orders.processing_at is missing. Run the latest migration first.');
+        return 1;
+    }
+
+    $count = $service->process();
+    $this->info($count === 1
+        ? '1 order reverted to Pending (collection window expired).'
+        : "{$count} orders reverted to Pending (collection window expired).");
+
+    return 0;
+})->purpose('Revert Processing orders not collected within 14 days back to Pending');
+
+// The actual cron entry (Windows Task Scheduler here) only ever needs to
+// run `php artisan schedule:run` once a minute -- Laravel decides from the
+// schedule below whether anything is actually due.
+Schedule::command('orders:process-collection-timeouts')->daily();

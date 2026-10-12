@@ -60,8 +60,9 @@
 
 		public function adminLogout(Request $request) {
 
-			$request->session()->flush();
-			$request->session()->put('admin_id', '');
+			// Only the admin key -- a member identity in the same session
+			// (testing both roles in one browser) must survive.
+			$request->session()->forget('admin_id');
 			\Session::flash('message', 'You have successfully logged out.'); 
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('home');
@@ -1037,6 +1038,17 @@ $nestedData[] = $row->updated_at;
 				}
 			}
 
+			// Dates the start of the 14-day collection window the scheduled
+			// orders:process-collection-timeouts command measures against.
+			// Only stamped on the way in, like approved_at/completed_at -- an
+			// unrelated edit (remarks, collection_date) while still Processing
+			// must not reset the clock.
+			if (Schema::hasTable('orders') && Schema::hasColumn('orders', 'processing_at')) {
+				if ($status === '5' && $prevStatus !== '5') {
+					$updateData['processing_at'] = date("Y-m-d H:i:s");
+				}
+			}
+
 			$hasApproverColumns = Schema::hasTable('orders')
 				&& Schema::hasColumn('orders', 'approved_by_admin_id')
 				&& Schema::hasColumn('orders', 'approved_at');
@@ -1081,6 +1093,8 @@ $nestedData[] = $row->updated_at;
 
 			DB::table('orders')->where('id', '=', $order->id)->update($updateData);
 
+			$this->notifyAdminsOfStatusChange($request, (int) $order->id, $prevStatus, $status);
+
 			// Approving records how many of each item is granted -- the
 			// Kuantiti Diluluskan on the KEW.PS-8. Keyed by ordered_clothes id and
 			// limited to this order's own lines. An item left blank is granted
@@ -1124,6 +1138,71 @@ $nestedData[] = $row->updated_at;
 			\Session::flash('alert-class', 'alert-success');
 
 			return redirect()->route('admin.uniform-orders.show', ['id' => $this->encodeProtectedId($order->id)]);
+		}
+
+		/**
+		 * Tells the admins whose queue actually just changed, not every admin --
+		 * an "orders" admin's work is Approved/Processing/Completed
+		 * (AdminRoleService::ORDERS_VISIBLE_STATUSES), so they only need to
+		 * hear about an order entering that set. Every other transition is a
+		 * superadmin concern, since "orders" cannot see Pending/Rejected
+		 * anyway. The admin who just did this already knows, so they are
+		 * excluded. Mirrors the status coverage of the member-facing
+		 * OrderNotificationService::diff(), just for the other audience.
+		 */
+		private function notifyAdminsOfStatusChange(Request $request, int $orderId, string $prevStatus, string $newStatus): void {
+			if ($prevStatus === $newStatus) {
+				return;
+			}
+
+			$actingAdminId = (int) $request->session()->get('admin_id', 0);
+			$service = app(\App\Services\AdminNotificationService::class);
+
+			try {
+				if ($newStatus === '3') {
+					$service->notifyOrdersAdmins(
+						$actingAdminId ?: null,
+						$orderId,
+						\App\Services\AdminNotificationService::TYPE_ORDER_APPROVED,
+						'Pesanan Diluluskan',
+						'Pesanan #' . $orderId . ' telah diluluskan dan kini dalam baris gilir pemprosesan.'
+					);
+				} elseif ($newStatus === '1') {
+					$service->notifySuperadmins(
+						$actingAdminId ?: null,
+						$orderId,
+						\App\Services\AdminNotificationService::TYPE_ORDER_REVERTED,
+						'Pesanan Dikembalikan ke Menunggu',
+						'Pesanan #' . $orderId . ' telah dikembalikan ke status Menunggu.'
+					);
+				} elseif ($newStatus === '2') {
+					$service->notifySuperadmins(
+						$actingAdminId ?: null,
+						$orderId,
+						\App\Services\AdminNotificationService::TYPE_ORDER_REJECTED,
+						'Pesanan Ditolak',
+						'Pesanan #' . $orderId . ' telah ditolak.'
+					);
+				} elseif ($newStatus === '5') {
+					$service->notifySuperadmins(
+						$actingAdminId ?: null,
+						$orderId,
+						\App\Services\AdminNotificationService::TYPE_ORDER_PROCESSING,
+						'Pesanan Sedang Diproses',
+						'Pesanan #' . $orderId . ' kini sedang diproses di stor.'
+					);
+				} elseif ($newStatus === '6') {
+					$service->notifySuperadmins(
+						$actingAdminId ?: null,
+						$orderId,
+						\App\Services\AdminNotificationService::TYPE_ORDER_COMPLETED,
+						'Pesanan Selesai',
+						'Pesanan #' . $orderId . ' telah selesai.'
+					);
+				}
+			} catch (\Throwable $e) {
+				\Log::warning('Admin notification failed: ' . $e->getMessage());
+			}
 		}
 
 		public function fromEditUserUniformDetails(Request $request, $id) {

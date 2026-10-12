@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminAccessoriesController;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminNewListController;
+use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPasswordController;
 use App\Http\Controllers\AdminPersonalInventoryController;
 use App\Http\Controllers\AdminReportController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserChangesController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserNotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -73,6 +75,10 @@ Route::middleware('user.auth')->group(function (): void {
 
 	Route::get('/user/logout', [UserController::class, 'userLogout'])->name('user.logout');
 
+	/************	UserNotificationController (notification bell)	************/
+	Route::get('/user/notifications', [UserNotificationController::class, 'index'])->name('user.notifications');
+	Route::post('/user/notifications/read', [UserNotificationController::class, 'markRead'])->name('user.notifications.read');
+
 	/************	UserChangesController	************/
 	Route::get('/user/change-password', [UserChangesController::class, 'changePassword'])->name('user.change-password');
 	Route::post('/user/edit-password', [UserChangesController::class, 'editPassword'])->name('user.edit-password');
@@ -108,6 +114,10 @@ Route::middleware(['admin.auth', 'admin.scope'])->group(function (): void {
 
 	/************	AdminController	************/
 	Route::get('/admin-logout', [AdminController::class, 'adminLogout'])->name('admin.logout');
+
+	/************	AdminNotificationController (notification bell)	************/
+	Route::get('/admin/notifications', [AdminNotificationController::class, 'index'])->name('admin.notifications');
+	Route::post('/admin/notifications/read', [AdminNotificationController::class, 'markRead'])->name('admin.notifications.read');
 	Route::get('/all-users', [AdminController::class, 'allUsersTable'])->name('all.users');
 	Route::post('/ajax-usersTable', [AdminController::class, 'ajaxDatatableUsersDetails'])->name('ajax.usersTable');
 	Route::get('/edit/basic_details/{id}', [AdminController::class, 'fromEditUserBasicDetails'])->name('edit.basic_details');

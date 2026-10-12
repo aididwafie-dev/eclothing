@@ -20,8 +20,10 @@ use Illuminate\Support\Facades\Schema;
  */
 class OrderCheckoutService
 {
-    public function __construct(private OrderStatusService $orderStatus)
-    {
+    public function __construct(
+        private OrderStatusService $orderStatus,
+        private AdminNotificationService $adminNotifications,
+    ) {
     }
 
     /**
@@ -75,7 +77,44 @@ class OrderCheckoutService
             }
         }
 
+        $this->notifyAdminsOfCheckout($userId, $orderId, (bool) $edited);
+
         return $orderId;
+    }
+
+    /**
+     * A new order, or an edit to one still Pending, is a superadmin concern
+     * -- orders.status for either reads Pending, which an "orders" admin's
+     * queue does not include (AdminRoleService::ORDERS_VISIBLE_STATUSES).
+     */
+    private function notifyAdminsOfCheckout(int $userId, int $orderId, bool $wasEdit): void
+    {
+        $who = DB::table('gen_users')
+            ->leftJoin('personal_details', 'personal_details.user_id', '=', 'gen_users.id')
+            ->where('gen_users.id', '=', $userId)
+            ->select('gen_users.s_id', 'personal_details.name')
+            ->first();
+        $label = $who && trim((string) ($who->name ?? '')) !== ''
+            ? $who->name
+            : ('Service ID ' . ($who->s_id ?? $userId));
+
+        if ($wasEdit) {
+            $this->adminNotifications->notifySuperadmins(
+                null,
+                $orderId,
+                AdminNotificationService::TYPE_ORDER_EDITED,
+                'Pesanan Dikemaskini',
+                $label . ' telah mengemaskini pesanan #' . $orderId . ' semasa ia masih Menunggu.'
+            );
+        } else {
+            $this->adminNotifications->notifySuperadmins(
+                null,
+                $orderId,
+                AdminNotificationService::TYPE_NEW_ORDER,
+                'Pesanan Baharu',
+                $label . ' telah menghantar pesanan uniform baharu #' . $orderId . '.'
+            );
+        }
     }
 
     /**

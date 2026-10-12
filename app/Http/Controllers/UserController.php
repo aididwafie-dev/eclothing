@@ -195,9 +195,10 @@
 		}
 
 		public function userLogout(Request $request) {
-			
-			$request->session()->flush();
-			$request->session()->put('user_id', '');
+
+			// Only this member's own keys -- an admin identity in the same
+			// session (testing both roles in one browser) must survive.
+			$request->session()->forget(['user_id', 'uniform_cart', 'uniform_cart_edit', 'uniform_cart_edit_orders', 'uniform_ordered']);
 			\Session::flash('message', 'You have successfully logged out.'); 
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('home');
