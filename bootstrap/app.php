@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureAdminIsAuthenticated;
 use App\Http\Middleware\EnsureAdminRoleAllowsRoute;
 use App\Http\Middleware\EnsureMobileTokenIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAuthenticated;
+use App\Http\Middleware\LogTransaction;
 use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\TrimStrings;
@@ -48,6 +49,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             'throttle:60,1',
             'bindings',
+        ]);
+
+        // Appended, not prepended: terminate() runs after the response is
+        // final regardless of position, and this keeps it out of the way of
+        // the auth/throttle middleware that actually gate the request.
+        $middleware->api(append: [
+            LogTransaction::class,
         ]);
 
         $middleware->alias([
