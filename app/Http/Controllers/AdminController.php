@@ -109,101 +109,45 @@
 
 		public function ajaxDatatableUsersDetails(Request $request) {
 
-			$requestData= $_REQUEST;
+			$columns = ['id', 's_id', 'pangkat', 'name', 'unit', 'id', 'id', 'id', 'status', 'id', 'id', 'created_at', 'updated_at'];
+			$sortIndex = (int) $request->input('order.0.column', 0);
+			$sortColumn = $columns[$sortIndex] ?? 'id';
+			$sortDir = (string) $request->input('order.0.dir', 'asc');
 
-			$columns = array(
-				0=> 'id',
-				1=> 's_id',
-				2=> 'pangkat',
-				3=> 'name',
-				4=> 'unit',
-				5=> 'id',
-				6=> 'id',
-				7=> 'id',
-				8=> 'status',
-				9=> 'id',
-				10=> 'id',
-				11=> 'created_at',
-				12=> 'updated_at',
+			$start = (int) $request->input('start', 0);
+			$length = (int) $request->input('length', 10);
+
+			$result = app(\App\Services\AdminUserService::class)->listRows(
+				$request->input('filter'),
+				(string) $request->input('search.value', ''),
+				$sortColumn,
+				$sortDir,
+				$start,
+				$length
 			);
 
-			$sql = "SELECT gen_users.id, gen_users.s_id, gen_users.status, gen_users.activation_status, gen_users.profile_status, personal_details.name, personal_details.unit, personal_details.pangkat, personal_details.created_at, personal_details.updated_at FROM gen_users LEFT JOIN personal_details ON gen_users.id=personal_details.user_id";
-			$query=DB::select($sql);
-			$totalData = DB::table('gen_users')->count();
-			$totalFiltered = $totalData;
-
-			$sql.=" WHERE 1=1";
-			if (!empty($requestData['filter'])) {
-				$filter = $requestData['filter'];
-				if ($filter == 'incomplete_rank') {
-					$sql.=" AND (personal_details.pangkat IS NULL OR personal_details.pangkat = '')";
-				} else if ($filter == 'incomplete_name') {
-					$sql.=" AND (personal_details.name IS NULL OR personal_details.name = '')";
-				} else if ($filter == 'incomplete_unit') {
-					$sql.=" AND (personal_details.unit IS NULL OR personal_details.unit = '')";
-				} else if ($filter == 'incomplete_personal') {
-					$sql.=" AND (gen_users.profile_status IS NULL OR gen_users.profile_status <> 1)";
-				} else if ($filter == 'incomplete_uniform') {
-					$sql.=" AND NOT EXISTS (SELECT 1 FROM orders WHERE orders.deleted = 0 AND orders.user_id = gen_users.id)";
-				} else if ($filter == 'complete_all') {
-					$sql.=" AND personal_details.pangkat IS NOT NULL AND personal_details.pangkat <> ''";
-					$sql.=" AND personal_details.name IS NOT NULL AND personal_details.name <> ''";
-					$sql.=" AND personal_details.unit IS NOT NULL AND personal_details.unit <> ''";
-					$sql.=" AND gen_users.profile_status = 1";
-					$sql.=" AND EXISTS (SELECT 1 FROM orders WHERE orders.deleted = 0 AND orders.user_id = gen_users.id)";
-				}
-			}
-			if( !empty($requestData['search']['value']) ) {
-				$sql.=" AND ( personal_details.name LIKE '%".$requestData['search']['value']."%' ";    
-				$sql.=" OR personal_details.pangkat LIKE '%".$requestData['search']['value']."%' ";
-				$sql.=" OR personal_details.unit LIKE '%".$requestData['search']['value']."%' ";
-				$sql.=" OR gen_users.s_id LIKE '%".$requestData['search']['value']."%' )";
-			}
-			$query=DB::select($sql);
-			$totalFiltered = DB::table('gen_users')->count();
-
-			$sql.=" ORDER BY ". $columns[$requestData['order'][0]['column']]."   ".$requestData['order'][0]['dir']."  LIMIT ".$requestData['start']." ,".$requestData['length']."   ";	
-			$query=DB::select($sql);
-
 			$data = array();
-			foreach($query as $row_id => $row) {
+			foreach($result['rows'] as $row_id => $row) {
 
 				$stringId = "DCS".$row->id."DCS";
 				$userId = base64_encode($stringId);
 
 				$nestedData=array();
-					$nestedData[] = $requestData['start'] + $row_id+1;
-				
+					$nestedData[] = $start + $row_id+1;
+
 					// Marks whether the user has ever ordered. "No orders" is a neutral
 					// fact, not a warning, so it uses the neutral tone rather than the
 					// gold reserved for pending states. Both carry an icon and a title
 					// so the distinction is not conveyed by colour alone.
-					$orders = DB::table('orders')->where('deleted', '=', 0)->where('user_id', '=', $row->id)->first();
-					if ($orders && $orders->id) {
+					if ($row->has_ordered) {
 				$nestedData[] = '<span class="cell-id cell-id-ordered" title="Has placed orders">' . $row->s_id . '</span>';
 					} else {
 				$nestedData[] = '<span class="cell-id cell-id-none" title="No orders yet">' . $row->s_id . '</span>';
 					}
-				
-				if(!empty($row->pangkat)) {
-					$pangkats = DB::table('pangkats')->where('id', '=', $row->pangkat)->first();
-					$nestedData[] = $pangkats->value;
-				}
-				else {
-					$nestedData[] = "";
-				}
+
+				$nestedData[] = $row->pangkat_name ?? "";
 				$nestedData[] = $row->name;
-				if(!empty($row->unit)) {
-					$units = DB::table('units')->where('id', '=', $row->unit)->first();
-					if ($units) {
-					$nestedData[] = $units->value;
-					} else {
-						$nestedData[] = "N/A";
-					}
-				}
-				else {
-					$nestedData[] = "";
-				}
+				$nestedData[] = $row->unit ? ($row->unit_name ?? "N/A") : "";
 				$nestedData[] = "<a href=".url('edit/basic_details/'.$userId)." class='btn btn-sm btn-primary'><span class='glyphicon glyphicon-pencil'></span></a>";
 				$nestedData[] = "<a href=".url('edit/personal_details/'.$userId)." class='btn btn-sm btn-primary'><span class='glyphicon glyphicon-pencil'></span></a>";
 				$nestedData[] = "<a href=".url('show/uniform_details/'.$userId)." class='btn btn-sm btn-info'><span class='glyphicon glyphicon-folder-open'></span> Show</a>";
@@ -214,7 +158,7 @@
 					$nestedData[] = "<td><a href='javascript:void(0)' class='block_unblock btn btn-sm btn-warning' data-url=".url('change-status/'.$userId)."><i class='fa fa-lock' aria-hidden='true'></i> Block</a></td>";
 				}
 				$nestedData[] = "<a href='javascript:void(0)' class='btn btn-sm btn-danger delete_user' data-url=".url('delete-user/'.$userId)."><span class='glyphicon glyphicon-trash'></span></a>";
-				
+
 $nestedData[] = $row->created_at;
 $nestedData[] = $row->updated_at;
 				if($row->activation_status == 0) {
@@ -227,9 +171,9 @@ $nestedData[] = $row->updated_at;
 			}
 
 			$json_data = array(
-						"draw"            => intval( $requestData['draw'] ),
-						"recordsTotal"    => intval( $totalData ),
-						"recordsFiltered" => intval( $totalFiltered ),
+						"draw"            => intval( $request->input('draw', 0) ),
+						"recordsTotal"    => intval( $result['recordsTotal'] ),
+						"recordsFiltered" => intval( $result['recordsFiltered'] ),
 						"data"            => $data
 						);
 
@@ -268,18 +212,18 @@ $nestedData[] = $row->updated_at;
 		
 		public function changeBasicDetails(Request $request) {
 
-		 	$genuser = Gen_user::find($request->input('id'));
-		 	if ($request->password !== $genuser->password) {
-		 		$genuser->password = PasswordHasher::make($request->password);
-		 	}
-		 	$genuser->s_id = $request->s_id;
-		 	$genuser->save();
-		 	$personalDetails = DB::table('personal_details')->where('user_id', '=', $request->input('id'))->first();
-			if(!empty($personalDetails)) {
-				$personal_detail = Personal_detail::find($personalDetails->id);
-				$personal_detail->s_id = $request->s_id;
-				$personal_detail->save();
-			}
+			// The field is pre-filled with the current hash by the edit form,
+			// so only an admin actually retyping it changes the password.
+			$genuser = DB::table('gen_users')->where('id', '=', $request->input('id'))->first();
+			$password = $request->input('password');
+			$password = ($genuser && $password === $genuser->password) ? null : $password;
+
+			app(\App\Services\AdminUserService::class)->updateBasicDetails(
+				(int) $request->input('id'),
+				(string) $request->input('s_id'),
+				$password
+			);
+
 		 	return redirect()->route('all.users');
 		}
 
@@ -313,57 +257,38 @@ $nestedData[] = $row->updated_at;
 
 		public function changePersonalDetails(Request $request) {
 
-			$address_array = [
-				0 => $request->address1,
-				1 => $request->address2,
-				2 => $request->address3,
-				3 => $request->address4,
-			];
-			$address = implode("|", $address_array);
-			if($request->ketukangans_type == 1) {
-				$ketukangans_type = 1;
-				$ketukangan = $request->ketukangans_officer;
-			}
-			else {
-				$ketukangans_type = 2;
-				$ketukangan = $request->ketukangans_recruit;
-			}
-			$detail = DB::table('personal_details')->where('user_id', '=', $request->input('user_id'))->first(); //getting id of the row, where user_id maches from personal_details table.
+			$result = app(\App\Services\AdminUserService::class)->updatePersonalDetails(
+				(int) $request->input('user_id'),
+				[
+					'sId' => $request->input('s_id'),
+					'name' => $request->input('name'),
+					'service' => $request->input('piliih_angkatan'),
+					'ketukanganType' => (int) $request->input('ketukangans_type'),
+					'tredOfficer' => $request->input('ketukangans_officer'),
+					'tredRecruit' => $request->input('ketukangans_recruit'),
+					'pangkat' => $request->input('pangkat'),
+					'unit' => $request->input('unit'),
+					'gender' => $request->input('jantina'),
+					'telephoneNumber' => $request->input('telephone_number'),
+					'addressLine1' => $request->input('address1'),
+					'addressLine2' => $request->input('address2'),
+					'addressLine3' => $request->input('address3'),
+					'addressLine4' => $request->input('address4'),
+					'namaWaris' => $request->input('nama_waris'),
+					'telephoneNumberWaris' => $request->input('tele_number_waris'),
+					'dutyStatus' => $request->input('status_penggunaan'),
+					'unitLama' => $request->input('unit_lama'),
+					'nameTag' => $request->input('name_tag'),
+					'religion' => $request->input('status_religion'),
+					'religionOther' => $request->input('status_religion_others'),
+					'kemLama' => $request->input('kem_lama'),
+					'splLama' => $request->input('spl_lama'),
+					'position' => $request->input('position'),
+				]
+			);
 
-			$personal_detail = Personal_detail::find($detail->id);
-
-			$personal_detail->user_id = $request->input('user_id');
-			$personal_detail->s_id = $request->s_id;
-			$personal_detail->name = $request->name;
-			$personal_detail->piliih_angkatan = $request->piliih_angkatan;
-			$personal_detail->pangkat = $request->pangkat;
-			$personal_detail->ketukangan_type = $ketukangans_type;
-			$personal_detail->ketukangan = $ketukangan;
-			$personal_detail->unit = $request->unit;
-			$personal_detail->jantina = $request->jantina;
-			$personal_detail->telephone_number = $request->telephone_number;
-			$personal_detail->address = $address;
-			$personal_detail->nama_waris = $request->nama_waris;
-			$personal_detail->telephone_number_waris = $request->tele_number_waris;
-			$personal_detail->status_penggunaan = $request->status_penggunaan;
-			$personal_detail->unit_lama = $request->unit_lama;
-			$personal_detail->name_tag = $request->name_tag;
-			$personal_detail->religion = $request->status_religion ? $request->status_religion : $request->status_religion_others;
-			
-			$personal_detail->kem_lama = $request->kem_lama;
-			$personal_detail->spl_lama = $request->spl_lama;
-			$personal_detail->save();
-
-			$position = trim((string) $request->input('position'));
-			$hasPositionCol = Schema::hasTable('gen_users') && Schema::hasColumn('gen_users', 'position');
-			if ($hasPositionCol) {
-				DB::table('gen_users')
-					->where('id', '=', (int) $request->input('user_id'))
-					->update(['position' => $position !== '' ? $position : null]);
-			}
-
-			\Session::flash('message', 'Personal Details successfully updated!');
-			\Session::flash('alert-class', 'alert-success');
+			\Session::flash('message', $result['message']);
+			\Session::flash('alert-class', $result['ok'] ? 'alert-success' : 'alert-danger');
 			return redirect()->route('all.users');
 		}
 
@@ -371,14 +296,7 @@ $nestedData[] = $row->updated_at;
 
 			$stringId = base64_decode($id);
 			$user_id = str_replace('DCS','',$stringId);
-			$user_details = DB::table('gen_users')->where('id', '=', $user_id)->first();
-			$time = date("Y-m-d H:i:s");
-			if($user_details->status == 1) {
-				DB::table('gen_users')->where('id', '=', $user_id)->update(['status' => 0]);
-			}
-			else {
-				DB::table('gen_users')->where('id', '=', $user_id)->update(['status' => 1]);
-			}
+			app(\App\Services\AdminUserService::class)->toggleAccessStatus((int) $user_id);
 			return redirect()->route('all.users');
 		}
 
@@ -398,17 +316,15 @@ $nestedData[] = $row->updated_at;
 		}
 
 		public function changeUserAccessBlockAll(Request $request) {
-			$time = date("Y-m-d H:i:s");
-			DB::table('gen_users')->where('status', '=', 1)->update(['status' => 0]);
-			\Session::flash('message', 'All active users are now blocked.'); 
+			app(\App\Services\AdminUserService::class)->blockAll();
+			\Session::flash('message', 'All active users are now blocked.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('all.users');
 		}
 
 		public function changeUserAccessUnblockAll(Request $request) {
-			$time = date("Y-m-d H:i:s");
-			DB::table('gen_users')->where('status', '=', 0)->update(['status' => 1]);
-			\Session::flash('message', 'All active users are now blocked.'); 
+			app(\App\Services\AdminUserService::class)->unblockAll();
+			\Session::flash('message', 'All blocked users are now unblocked.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('all.users');
 		}
@@ -818,18 +734,14 @@ $nestedData[] = $row->updated_at;
 		}
 		
 		public function deleteGeneralUser(Request $request, $id) {
-			
+
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
 			$stringId = base64_decode($id);
 			$user_id = str_replace('DCS','',$stringId);
-			
-			DB::table('gen_users')->where('id', '=', $user_id)->delete();
-			$personal_details = DB::table('personal_details')->where('user_id', '=', $user_id)->first();
-			if(!empty($personal_details)) {
-				DB::table('personal_details')->where('user_id', '=', $user_id)->delete();
-			}
+
+			app(\App\Services\AdminUserService::class)->delete((int) $user_id);
 			return redirect()->route('all.users');
 		}
 		
@@ -882,27 +794,15 @@ $nestedData[] = $row->updated_at;
 		}
 		
 		public function resendActivationMailToUser(Request $request) {
-			
+
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
 			$stringId = base64_decode($request->input('userId'));
 			$user_id = str_replace('DCS','',$stringId);
-			$user_details = DB::table('gen_users')->where('id', '=', $user_id)->first();
-			$auth_code = $user_details->auth_code;
-			$email = $user_details->email;
-			$subject = "Activation Code For e-Clothing";
-			$activationUrl = secure_url('/verify-account/'.$auth_code);
-			$body = 'Please Click On This link '.$activationUrl.' to activate your account.';
-			try {
-				Mail::raw('Hi, welcome user! '.$body.'',function ($message) use($subject, $email) {
-					$message->from(config('mail.from.address'), config('mail.from.name'));
-					$message->to($email)->subject($subject);
-				});
-				echo 'Mail is sent';
-			} catch (\Throwable $e) {
-				echo 'Mail could not be sent';
-			}
+
+			$result = app(\App\Services\AdminUserService::class)->resendActivationMail((int) $user_id);
+			echo $result['message'];
 		}
 
 		public function systemSettings(Request $request) {

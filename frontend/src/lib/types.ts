@@ -1,5 +1,68 @@
 export type DropdownOption = { id: string; value: string };
 
+export type AdminUserFilter =
+  | "incomplete_rank"
+  | "incomplete_name"
+  | "incomplete_unit"
+  | "incomplete_personal"
+  | "incomplete_uniform"
+  | "complete_all";
+
+export type AdminUserRow = {
+  id: string;
+  sId: string | null;
+  hasOrdered: boolean;
+  rankName: string | null;
+  name: string | null;
+  unitName: string | null;
+  blocked: boolean;
+  activated: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type AdminUsersResponse = {
+  users: AdminUserRow[];
+  recordsTotal: number;
+  recordsFiltered: number;
+  page: number;
+  perPage: number;
+  filter: AdminUserFilter | null;
+};
+
+export type AdminUserDetailResponse = {
+  user: { id: string; sId: string; email: string };
+  personalDetails: {
+    sId: string;
+    name: string;
+    service: string | null;
+    ketukanganType: number;
+    tred: string | null;
+    pangkat: string | null;
+    unit: string | null;
+    gender: string | null;
+    telephoneNumber: string;
+    dutyStatus: string | null;
+    religion: string | null;
+    address: string[];
+    namaWaris: string;
+    telephoneNumberWaris: string;
+    nameTag: string;
+    unitLama: string;
+    kemLama: string;
+    splLama: string;
+  } | null;
+  position: string;
+  dropdowns: {
+    services: DropdownOption[];
+    tredOfficer: DropdownOption[];
+    tredRecruit: DropdownOption[];
+    units: DropdownOption[];
+    genders: DropdownOption[];
+    dutyStatuses: DropdownOption[];
+  };
+};
+
 export type AdminBase = {
   id: string;
   base: string;

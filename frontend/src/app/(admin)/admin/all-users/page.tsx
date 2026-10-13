@@ -1,5 +1,34 @@
-import PagePlaceholder from "@/components/PagePlaceholder";
+import { redirect } from "next/navigation";
+import { LaravelApiError, laravelFetchAdminAuthed } from "@/lib/laravel";
+import type { AdminUsersResponse } from "@/lib/types";
+import UsersFilters from "./UsersFilters";
 
-export default function AdminAllUsersPage() {
-  return <PagePlaceholder title="Members" replaces="resources/views/admin/all_user_table.blade.php" />;
+export default async function AdminAllUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string; search?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+
+  const qs = new URLSearchParams();
+  if (params.filter) qs.set("filter", params.filter);
+  if (params.search) qs.set("search", params.search);
+  if (params.page) qs.set("page", params.page);
+
+  let data: AdminUsersResponse;
+  try {
+    data = await laravelFetchAdminAuthed<AdminUsersResponse>(`/admin/users?${qs}`);
+  } catch (err) {
+    if (err instanceof LaravelApiError && err.status === 401) {
+      redirect("/admin/login");
+    }
+    throw err;
+  }
+
+  return (
+    <div className="rounded-lg border border-black/10 bg-white p-6">
+      <h1 className="text-xl font-semibold">Members</h1>
+      <UsersFilters data={data} currentSearch={params.search ?? ""} />
+    </div>
+  );
 }

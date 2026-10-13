@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiDelete } from "@/lib/clientApi";
 import type { AdminBase } from "@/lib/types";
 
 export default function BasesPageClient({ initialBases }: { initialBases: AdminBase[] }) {
@@ -47,7 +48,7 @@ export default function BasesPageClient({ initialBases }: { initialBases: AdminB
     if (!confirm(`Delete base "${base.base}"? Its units will keep existing but lose this base.`)) {
       return;
     }
-    const res = await fetch(`/api/admin/bases/${base.id}`, { method: "DELETE" });
+    const res = await apiDelete(`/api/admin/bases/${base.id}`);
     if (res.ok) {
       setBases((prev) => prev.filter((b) => b.id !== base.id));
     }

@@ -90,5 +90,16 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 
 		Route::get('/announcements/audience-counts', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'audienceCounts']);
 		Route::post('/announcements/send', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'send']);
+
+		Route::get('/users', [\App\Http\Controllers\Api\Admin\UserController::class, 'index']);
+		Route::get('/users/ranks', [\App\Http\Controllers\Api\Admin\UserController::class, 'ranks']);
+		Route::get('/users/{id}', [\App\Http\Controllers\Api\Admin\UserController::class, 'show']);
+		Route::put('/users/{id}/basic', [\App\Http\Controllers\Api\Admin\UserController::class, 'updateBasic']);
+		Route::put('/users/{id}/personal', [\App\Http\Controllers\Api\Admin\UserController::class, 'updatePersonal']);
+		Route::post('/users/{id}/toggle-status', [\App\Http\Controllers\Api\Admin\UserController::class, 'toggleStatus']);
+		Route::post('/users/block-all', [\App\Http\Controllers\Api\Admin\UserController::class, 'blockAll']);
+		Route::post('/users/unblock-all', [\App\Http\Controllers\Api\Admin\UserController::class, 'unblockAll']);
+		Route::delete('/users/{id}', [\App\Http\Controllers\Api\Admin\UserController::class, 'destroy']);
+		Route::post('/users/{id}/resend-activation', [\App\Http\Controllers\Api\Admin\UserController::class, 'resendActivation']);
 	});
 });
