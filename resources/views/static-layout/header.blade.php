@@ -256,6 +256,15 @@
 			// Badge only, on load -- the full list (and marking read) waits
 			// for the admin/member to actually open the dropdown.
 			fetchNotifications(false);
+
+			// Poll so a notification that lands while this page is sitting
+			// open (an admin watching the queue, a member waiting on an
+			// update) still shows up without a manual reload. Skips the
+			// read-marking branch unless the dropdown is open, same as a
+			// manual click would.
+			setInterval(function () {
+				fetchNotifications(open);
+			}, 30000);
 		})();
 	</script>
 	@endif
