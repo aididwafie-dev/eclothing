@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party assets (Bootstrap/jQuery/etc.), served as-is --
+    // not our code, not meant to pass our lint rules.
+    "public/front_end/**",
   ]),
 ]);
 

@@ -1,10 +1,15 @@
-import AdminNav from "@/components/AdminNav";
+import AdminSidebar from "@/components/AdminSidebar";
+import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
+import BodyClass from "@/components/BodyClass";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-full flex-col bg-slate-50">
-      <AdminNav />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-    </div>
+    <>
+      <BodyClass name="flag" />
+      <AppShell header={<AppHeader notifContext="admin" />} sidebar={<AdminSidebar />}>
+        {children}
+      </AppShell>
+    </>
   );
 }

@@ -73,6 +73,7 @@ Route::post('/admin/auth/login', [\App\Http\Controllers\Api\Admin\AuthController
 
 Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 	Route::post('/auth/logout', [\App\Http\Controllers\Api\Admin\AuthController::class, 'logout']);
+	Route::get('/auth/me', [\App\Http\Controllers\Api\Admin\AuthController::class, 'me']);
 
 	Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
 	Route::get('/orders/{id}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);

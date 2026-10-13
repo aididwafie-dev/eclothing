@@ -58,4 +58,20 @@ class AuthController extends Controller
 
         return response()->noContent();
     }
+
+    /** The signed-in admin's own identity -- the sidebar needs the role to know which links to show. */
+    public function me(Request $request)
+    {
+        $admin = $request->attributes->get('admin');
+        $role = app(\App\Services\AdminRoleService::class)->roleFor($admin->id);
+
+        return response()->json([
+            'admin' => [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'username' => $admin->username,
+                'role' => $role,
+            ],
+        ]);
+    }
 }
