@@ -1,15 +1,34 @@
-import PagePlaceholder from "@/components/PagePlaceholder";
+import { redirect } from "next/navigation";
+import { LaravelApiError, laravelFetchAuthed } from "@/lib/laravel";
+import type { ClothingSizesResponse, ProfileResponse } from "@/lib/types";
+import PersonalDetailsForm from "./PersonalDetailsForm";
 
-export default function PersonalDetailsPage() {
+export default async function PersonalDetailsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+
+  let profile: ProfileResponse;
+  let clothingSizes: ClothingSizesResponse;
+  try {
+    [profile, clothingSizes] = await Promise.all([
+      laravelFetchAuthed<ProfileResponse>("/profile"),
+      laravelFetchAuthed<ClothingSizesResponse>("/profile/clothing-sizes"),
+    ]);
+  } catch (err) {
+    if (err instanceof LaravelApiError && err.status === 401) {
+      redirect("/login");
+    }
+    throw err;
+  }
+
   return (
-    <PagePlaceholder
-      title="Personal Details"
-      replaces="resources/views/personal_details.blade.php"
-    >
-      <p className="text-sm text-black/60">
-        Two tabs to port: Personal Details (service info, address, next of kin) and Clothing
-        Sizes (per-uniform size picker).
-      </p>
-    </PagePlaceholder>
+    <PersonalDetailsForm
+      initialTab={tab === "sizes" ? "sizes" : "details"}
+      profile={profile}
+      clothingSizes={clothingSizes}
+    />
   );
 }

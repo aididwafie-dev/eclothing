@@ -45,52 +45,14 @@
 			]];
 			$userDetails = $this->checkUserDetails($request); //this data is for the sidebar portion.
 
+			$clothingSizes = app(\App\Services\ClothingSizeService::class);
+
 			return view('personal_details', array(
 				"data"=>$data,
 				"userDetails"=>$userDetails,
-				"clothingUniforms"=>$this->clothingSizeUniforms(),
-				"clothingSizes"=>$this->savedClothingSizes($request->session()->get('user_id')),
+				"clothingUniforms"=>$clothingSizes->uniformGroups(),
+				"clothingSizes"=>$clothingSizes->savedSizesForUser((int) $request->session()->get('user_id')),
 			));
-		}
-
-		/**
-		 * Every uniform and its clothing items, for the "Saiz Pakaian" tab --
-		 * same catalog the order cart draws from, grouped the same way the
-		 * admin Skala Pakaian tab groups it (one section per uniform).
-		 *
-		 * @return array<int, array{uniform: object, items: \Illuminate\Support\Collection}>
-		 */
-		private function clothingSizeUniforms(): array {
-			$uniforms = DB::table('uniforms')->orderBy('uniform_type')->get();
-			$items = DB::table('uniform_clothes')->orderBy('accessory')->orderBy('clothes_type')->get();
-
-			$itemsByUniform = [];
-			foreach ($items as $item) {
-				$itemsByUniform[(int) $item->uniforms_id][] = $item;
-			}
-
-			$grouped = [];
-			foreach ($uniforms as $uniform) {
-				$uniformItems = $itemsByUniform[(int) $uniform->id] ?? [];
-				if (!$uniformItems) {
-					continue;
-				}
-				$grouped[] = ['uniform' => $uniform, 'items' => collect($uniformItems)];
-			}
-
-			return $grouped;
-		}
-
-		/** @return array<int, string> uniform_clothes_id => saved size */
-		private function savedClothingSizes($userId): array {
-			if (!$userId || !Schema::hasTable('personal_clothing_sizes')) {
-				return [];
-			}
-
-			return DB::table('personal_clothing_sizes')
-				->where('user_id', '=', $userId)
-				->pluck('size', 'uniform_clothes_id')
-				->all();
 		}
 
 		/**
@@ -111,37 +73,8 @@
 				return redirect()->to(url('/user/personal-details') . '?tab=sizes');
 			}
 
-			$sizes = (array) $request->input('sizes', []);
-			$validClothesIds = DB::table('uniform_clothes')->pluck('id')->all();
-			$now = now();
-			$saved = 0;
-
-			foreach ($sizes as $clothesId => $size) {
-				$clothesId = (int) $clothesId;
-				$size = trim((string) $size);
-				if ($size === '' || !in_array($clothesId, $validClothesIds, true)) {
-					continue;
-				}
-
-				$existingId = DB::table('personal_clothing_sizes')
-					->where('user_id', '=', $userId)
-					->where('uniform_clothes_id', '=', $clothesId)
-					->value('id');
-
-				if ($existingId) {
-					DB::table('personal_clothing_sizes')->where('id', '=', $existingId)
-						->update(['size' => mb_substr($size, 0, 255), 'updated_at' => $now]);
-				} else {
-					DB::table('personal_clothing_sizes')->insert([
-						'user_id' => $userId,
-						'uniform_clothes_id' => $clothesId,
-						'size' => mb_substr($size, 0, 255),
-						'created_at' => $now,
-						'updated_at' => $now,
-					]);
-				}
-				$saved++;
-			}
+			$saved = app(\App\Services\ClothingSizeService::class)
+				->saveSizesForUser((int) $userId, (array) $request->input('sizes', []));
 
 			\Session::flash('message', $saved > 0 ? 'Saiz pakaian berjaya disimpan.' : 'Tiada saiz baharu untuk disimpan.');
 			\Session::flash('alert-class', $saved > 0 ? 'alert-success' : 'alert-info');

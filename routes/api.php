@@ -42,6 +42,8 @@ Route::middleware('api.auth')->group(function (): void {
 	Route::get('/profile', [ProfileController::class, 'show']);
 	Route::put('/profile', [ProfileController::class, 'update']);
 	Route::get('/profile/ranks', [ProfileController::class, 'ranks']);
+	Route::get('/profile/clothing-sizes', [ProfileController::class, 'clothingSizes']);
+	Route::put('/profile/clothing-sizes', [ProfileController::class, 'updateClothingSizes']);
 
 	Route::get('/uniforms', [UniformController::class, 'index']);
 	Route::get('/uniforms/{id}/clothes', [UniformController::class, 'clothes']);

@@ -110,6 +110,68 @@ class ProfileController extends Controller
         ]);
     }
 
+    /**
+     * JSON counterpart to the web app's "Saiz Pakaian" tab
+     * (DashboardController::saveClothingSizes) -- same
+     * ClothingSizeService, so the Next.js UI and the Blade page save
+     * under the exact same rules.
+     */
+    public function clothingSizes(Request $request)
+    {
+        $genUser = $request->attributes->get('gen_user');
+        $service = app(\App\Services\ClothingSizeService::class);
+        $saved = $service->savedSizesForUser((int) $genUser->id);
+
+        $groups = array_map(fn ($group) => [
+            'uniform' => [
+                'id' => (string) $group['uniform']->id,
+                'uniformType' => $group['uniform']->uniform_type,
+                'uniformName' => $group['uniform']->uniform_name,
+            ],
+            'items' => $group['items']
+                ->map(function ($item) use ($saved) {
+                    $rawSize = trim((string) ($item->clothes_size ?? ''));
+                    if ($rawSize === '' || strtoupper($rawSize) === 'FIX') {
+                        return null;
+                    }
+
+                    $sizeCheck = str_replace(['-', ' '], '', $rawSize);
+                    $isFreeText = is_numeric($sizeCheck) || str_contains($rawSize, '-');
+
+                    return [
+                        'clothesId' => (string) $item->id,
+                        'clothesType' => $item->clothes_type,
+                        'sizeKind' => $isFreeText ? 'text' : 'select',
+                        'sizeOptions' => $isFreeText
+                            ? []
+                            : array_values(array_filter(
+                                array_map('trim', explode('|', $rawSize)),
+                                fn ($opt) => $opt !== '' && strtoupper($opt) !== 'NOT APPLICABLE'
+                            )),
+                        'placeholder' => $isFreeText ? $rawSize : null,
+                        'savedValue' => $saved[$item->id] ?? '',
+                    ];
+                })
+                ->filter()
+                ->values(),
+        ], $service->uniformGroups());
+
+        // A uniform whose items are all FIX/empty has nothing to show.
+        $groups = array_values(array_filter($groups, fn ($g) => $g['items']->isNotEmpty()));
+
+        return response()->json(['groups' => $groups]);
+    }
+
+    public function updateClothingSizes(Request $request)
+    {
+        $genUser = $request->attributes->get('gen_user');
+        $sizes = (array) $request->input('sizes', []);
+
+        $saved = app(\App\Services\ClothingSizeService::class)->saveSizesForUser((int) $genUser->id, $sizes);
+
+        return response()->json(['saved' => $saved]);
+    }
+
     public function ranks(Request $request)
     {
         $serviceId = $request->query('piliihAngkatan');
