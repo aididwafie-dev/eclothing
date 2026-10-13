@@ -63,6 +63,54 @@ export type AdminUserDetailResponse = {
   };
 };
 
+export type SiteSettingsResponse = {
+  siteTitle: string;
+};
+
+export type UniformItem = {
+  id: string;
+  clothesType: string;
+  clothesSize: string | null;
+  accessory: boolean;
+  photoUrl: string | null;
+};
+
+export type UniformGroup = {
+  uniform: { id: string; uniformType: string; uniformName: string | null; photoUrl: string | null };
+  items: UniformItem[];
+};
+
+export type UniformsSettingsResponse = {
+  groups: UniformGroup[];
+};
+
+export type ScaleItem = {
+  id: string;
+  clothesType: string;
+  maxQuantity: number | null;
+};
+
+export type ScaleUniformGroup = {
+  uniform: { id: string; label: string };
+  hidden: boolean;
+  items: ScaleItem[];
+};
+
+export type ScaleResponse = {
+  ranks: { officer: DropdownOption[]; nonOfficer: DropdownOption[] };
+  selectedRankId: string | null;
+  uniforms: ScaleUniformGroup[];
+  storageReady: boolean;
+  hiddenStorageReady: boolean;
+};
+
+export type NotificationSettingsResponse = {
+  pushEnabled: boolean;
+  fcmConfigured: boolean;
+  activeUserCount: number;
+  deviceCount: number;
+};
+
 export type AdminBase = {
   id: string;
   base: string;

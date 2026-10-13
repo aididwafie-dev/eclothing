@@ -1082,44 +1082,8 @@ $nestedData[] = $row->updated_at;
 				return response()->json(['ok' => false, 'message' => 'Permintaan tidak sah.'], 422);
 			}
 
-			$scaleService = app(\App\Services\UniformScaleService::class);
-			if (!$scaleService->hiddenTableExists()) {
-				return response()->json(['ok' => false, 'message' => 'Jadual belum wujud. Jalankan "php artisan migrate".'], 422);
-			}
-
-			// Only AIR FORCE ranks are configurable here (see saveUniformScales).
-			try {
-				$validRank = DB::table('pangkats')
-					->where('id', '=', $pangkatId)
-					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
-					->exists();
-				$validUniform = DB::table('uniforms')->where('id', '=', $uniformsId)->exists();
-			} catch (\Throwable $e) {
-				$validRank = false;
-				$validUniform = false;
-			}
-
-			if (!$validRank || !$validUniform) {
-				return response()->json(['ok' => false, 'message' => 'Pangkat atau uniform tidak sah.'], 422);
-			}
-
-			try {
-				if ($hidden) {
-					DB::table('uniform_rank_hidden')->updateOrInsert(
-						['pangkat_id' => $pangkatId, 'uniforms_id' => $uniformsId],
-						['updated_at' => now(), 'created_at' => now()]
-					);
-				} else {
-					DB::table('uniform_rank_hidden')
-						->where('pangkat_id', '=', $pangkatId)
-						->where('uniforms_id', '=', $uniformsId)
-						->delete();
-				}
-			} catch (\Throwable $e) {
-				return response()->json(['ok' => false, 'message' => 'Gagal menyimpan.'], 500);
-			}
-
-			return response()->json(['ok' => true, 'hidden' => $hidden]);
+			$result = app(\App\Services\AdminSystemSettingsService::class)->toggleUniformVisibility($pangkatId, $uniformsId, $hidden);
+			return response()->json($result, $result['ok'] ? 200 : 422);
 		}
 
 		/**
@@ -1134,118 +1098,13 @@ $nestedData[] = $row->updated_at;
 
 			$pangkatId = (int) $request->input('pangkat_id');
 			$clothesId = (int) $request->input('uniform_clothes_id');
-			$rawValue = $request->input('value');
 
 			if ($pangkatId <= 0 || $clothesId <= 0) {
 				return response()->json(['ok' => false, 'message' => 'Permintaan tidak sah.'], 422);
 			}
 
-			$scaleService = app(\App\Services\UniformScaleService::class);
-			if (!$scaleService->tableExists()) {
-				return response()->json(['ok' => false, 'message' => 'Jadual skala belum wujud. Jalankan "php artisan migrate".'], 422);
-			}
-
-			try {
-				$validRank = DB::table('pangkats')
-					->where('id', '=', $pangkatId)
-					->where('piliih_angkatan_id', '=', (string) $this->airForceAngkatanId())
-					->exists();
-				$validItem = DB::table('uniform_clothes')->where('id', '=', $clothesId)->exists();
-			} catch (\Throwable $e) {
-				$validRank = false;
-				$validItem = false;
-			}
-
-			if (!$validRank || !$validItem) {
-				return response()->json(['ok' => false, 'message' => 'Pangkat atau item tidak sah.'], 422);
-			}
-
-			$value = is_string($rawValue) ? trim($rawValue) : $rawValue;
-
-			try {
-				if ($value === '' || $value === null) {
-					DB::table('uniform_scales')
-						->where('pangkat_id', '=', $pangkatId)
-						->where('uniform_clothes_id', '=', $clothesId)
-						->delete();
-
-					return response()->json(['ok' => true, 'value' => null, 'state' => 'unset']);
-				}
-
-				if (!is_numeric($value)) {
-					return response()->json(['ok' => false, 'message' => 'Nilai mesti nombor.'], 422);
-				}
-
-				$quantity = (int) $value;
-				if ($quantity < 0) {
-					$quantity = 0;
-				}
-				if ($quantity > 999) {
-					$quantity = 999;
-				}
-
-				DB::table('uniform_scales')->updateOrInsert(
-					['pangkat_id' => $pangkatId, 'uniform_clothes_id' => $clothesId],
-					['max_quantity' => $quantity, 'updated_at' => now(), 'created_at' => now()]
-				);
-			} catch (\Throwable $e) {
-				return response()->json(['ok' => false, 'message' => 'Gagal menyimpan.'], 500);
-			}
-
-			return response()->json([
-				'ok' => true,
-				'value' => $quantity,
-				'state' => $quantity === 0 ? 'blocked' : 'set',
-			]);
-		}
-
-		/**
-		 * Moves an uploaded uniform / uniform-item image into public/uploads.
-		 *
-		 * Returns the stored relative path, or null. When null is returned with
-		 * $error set the caller must abort; null with $error still null simply
-		 * means no file was submitted.
-		 */
-		private function storeUniformImageUpload($file, $prefix, &$error) {
-			$error = null;
-
-			if (!($file instanceof \Symfony\Component\HttpFoundation\File\UploadedFile)) {
-				return null;
-			}
-
-			if (!$file->isValid()) {
-				$error = 'Gambar tidak berjaya dimuat naik.';
-				return null;
-			}
-
-			$ext = strtolower((string) $file->getClientOriginalExtension());
-			if ($ext === '') {
-				$ext = 'jpg';
-			}
-			if (!in_array($ext, ['jpg', 'jpeg', 'png'])) {
-				$error = 'Format gambar tidak disokong. Sila guna PNG atau JPG.';
-				return null;
-			}
-			if ((int) $file->getSize() > 5 * 1024 * 1024) {
-				$error = 'Saiz fail gambar terlalu besar. Maksimum 5MB.';
-				return null;
-			}
-
-			$uploadsPath = public_path('uploads');
-			if (!is_dir($uploadsPath) || !is_writable($uploadsPath)) {
-				$error = 'Folder public/uploads tidak boleh ditulis. Sila semak permission IIS (Modify).';
-				return null;
-			}
-
-			$filename = $prefix . '_' . time() . '.' . $ext;
-			try {
-				$file->move($uploadsPath, $filename);
-			} catch (\Throwable $e) {
-				$error = 'Gagal simpan fail gambar.';
-				return null;
-			}
-
-			return 'uploads/' . $filename;
+			$result = app(\App\Services\AdminSystemSettingsService::class)->saveScaleItem($pangkatId, $clothesId, $request->input('value'));
+			return response()->json($result, $result['ok'] ? 200 : 422);
 		}
 
 		/**
@@ -1266,69 +1125,21 @@ $nestedData[] = $row->updated_at;
 
 			$redirect = route('admin.system-settings') . '?tab=uniform';
 
-			$uniformType = strtoupper(trim((string) $request->input('uniform_type')));
-			$uniformName = trim((string) $request->input('uniform_name'));
-
-			$validator = Validator::make(
-				['uniform_type' => $uniformType, 'uniform_name' => $uniformName],
-				[
-					'uniform_type' => 'required|string|max:3',
-					'uniform_name' => 'nullable|string|max:255',
-				],
-				[
-					'uniform_type.required' => 'Kod jenis uniform tidak boleh kosong.',
-					'uniform_type.max' => 'Kod jenis uniform maksimum 3 aksara (contoh: 3A).',
-				]
+			$result = app(\App\Services\AdminSystemSettingsService::class)->createUniform(
+				(string) $request->input('uniform_type'),
+				$request->input('uniform_name'),
+				$request->files->get('uniform_photo')
 			);
-			if ($validator->fails()) {
-				return redirect()->to($redirect)->withErrors($validator)->withInput();
-			}
 
-			try {
-				$duplicate = DB::table('uniforms')->where('uniform_type', '=', $uniformType)->exists();
-			} catch (\Throwable $e) {
-				$duplicate = false;
-			}
-
-			if ($duplicate) {
-				\Session::flash('message', 'Kod jenis uniform "' . $uniformType . '" sudah wujud.');
+			if (!$result['ok']) {
+				\Session::flash('message', $result['message']);
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->to($redirect)->withInput();
 			}
 
-			$photoError = null;
-			$photoPath = null;
-			try {
-				$photoPath = $this->storeUniformImageUpload($request->files->get('uniform_photo'), 'uniform_new', $photoError);
-			} catch (\Throwable $e) {
-				$photoError = 'Gagal simpan fail gambar uniform.';
-			}
-			if ($photoError !== null) {
-				\Session::flash('message', $photoError);
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to($redirect)->withInput();
-			}
-
-			$time = date("Y-m-d H:i:s");
-
-			try {
-				$uniformId = DB::table('uniforms')->insertGetId([
-					'uniform_type' => $uniformType,
-					'uniform_name' => $uniformName !== '' ? $uniformName : null,
-					'uniform_photo' => $photoPath,
-					'active' => 1,
-					'created_at' => $time,
-					'updated_at' => $time,
-				]);
-			} catch (\Throwable $e) {
-				\Session::flash('message', 'Uniform baharu gagal disimpan.');
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to($redirect)->withInput();
-			}
-
-			\Session::flash('message', 'Uniform baharu berjaya ditambah. Sila tambah pakaian/aksesori untuk uniform ini.');
+			\Session::flash('message', $result['message']);
 			\Session::flash('alert-class', 'alert-success');
-			return redirect()->to($redirect . '&uniform_id=' . (int) $uniformId);
+			return redirect()->to($redirect . '&uniform_id=' . (int) $result['uniformId']);
 		}
 
 		/**
@@ -1348,93 +1159,21 @@ $nestedData[] = $row->updated_at;
 			$uniformId = (int) $request->input('uniforms_id');
 			$redirect = route('admin.system-settings') . '?tab=uniform' . ($uniformId > 0 ? '&uniform_id=' . $uniformId : '');
 
-			$clothesType = trim((string) $request->input('clothes_type'));
-			$clothesSize = strtoupper(trim((string) $request->input('clothes_size')));
-			$isAccessory = (string) $request->input('item_kind') === 'accessory';
-
-			$validator = Validator::make(
-				['uniforms_id' => $uniformId, 'clothes_type' => $clothesType, 'clothes_size' => $clothesSize],
-				[
-					'uniforms_id' => 'required|integer|min:1',
-					'clothes_type' => 'required|string|max:255',
-					'clothes_size' => 'nullable|string|max:255',
-				],
-				[
-					'uniforms_id.required' => 'Sila pilih uniform terlebih dahulu.',
-					'clothes_type.required' => 'Nama pakaian/aksesori tidak boleh kosong.',
-				]
+			$result = app(\App\Services\AdminSystemSettingsService::class)->createUniformItem(
+				$uniformId,
+				(string) $request->input('clothes_type'),
+				$request->input('clothes_size'),
+				(string) $request->input('item_kind') === 'accessory',
+				$request->files->get('clothes_photo')
 			);
-			if ($validator->fails()) {
-				return redirect()->to($redirect)->withErrors($validator)->withInput();
-			}
 
-			try {
-				$uniformExists = DB::table('uniforms')->where('id', '=', $uniformId)->exists();
-			} catch (\Throwable $e) {
-				$uniformExists = false;
-			}
-
-			if (!$uniformExists) {
-				\Session::flash('message', 'Uniform tidak dijumpai.');
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to(route('admin.system-settings') . '?tab=uniform')->withInput();
-			}
-
-			try {
-				$duplicate = DB::table('uniform_clothes')
-					->where('uniforms_id', '=', (string) $uniformId)
-					->whereRaw('LOWER(clothes_type) = ?', [strtolower($clothesType)])
-					->exists();
-			} catch (\Throwable $e) {
-				$duplicate = false;
-			}
-
-			if ($duplicate) {
-				\Session::flash('message', '"' . $clothesType . '" sudah wujud untuk uniform ini.');
+			if (!$result['ok']) {
+				\Session::flash('message', $result['message']);
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->to($redirect)->withInput();
 			}
 
-			$photoError = null;
-			$photoPath = null;
-			try {
-				$photoPath = $this->storeUniformImageUpload($request->files->get('clothes_photo'), 'uniform_clothes_new', $photoError);
-			} catch (\Throwable $e) {
-				$photoError = 'Gagal simpan fail gambar pakaian/aksesori.';
-			}
-			if ($photoError !== null) {
-				\Session::flash('message', $photoError);
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to($redirect)->withInput();
-			}
-
-			$slug = $this->uniqueClothesSlug($uniformId, $clothesType);
-			$time = date("Y-m-d H:i:s");
-
-			$row = [
-				'uniforms_id' => (string) $uniformId,
-				'clothes_type' => $clothesType,
-				'clothes_slug' => $slug,
-				'parent_uniform_id' => $uniformId,
-				'clothes_size' => $clothesSize !== '' ? $clothesSize : null,
-				'accessory' => $isAccessory ? 1 : 0,
-				'created_at' => $time,
-				'updated_at' => $time,
-			];
-
-			if ($photoPath !== null && $this->hasUniformClothesPhotoColumn()) {
-				$row['clothes_photo'] = $photoPath;
-			}
-
-			try {
-				DB::table('uniform_clothes')->insert($row);
-			} catch (\Throwable $e) {
-				\Session::flash('message', 'Pakaian/aksesori gagal disimpan.');
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to($redirect)->withInput();
-			}
-
-			\Session::flash('message', ($isAccessory ? 'Aksesori' : 'Pakaian') . ' "' . $clothesType . '" berjaya ditambah.');
+			\Session::flash('message', $result['message']);
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->to($redirect);
 		}
@@ -1451,21 +1190,9 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
-			$enabled = $request->input('push_notifications_enabled') === '1' ? '1' : '0';
-
-			try {
-				$exists = DB::table('site_settings')->where('setting_key', '=', 'push_notifications_enabled')->count();
-				if ($exists > 0) {
-					DB::table('site_settings')->where('setting_key', '=', 'push_notifications_enabled')->update(['setting_value' => $enabled]);
-				} else {
-					DB::table('site_settings')->insert(['setting_key' => 'push_notifications_enabled', 'setting_value' => $enabled]);
-				}
-				\Session::flash('message', $enabled === '1' ? 'Pemberitahuan push telah diaktifkan.' : 'Pemberitahuan push telah dimatikan.');
-				\Session::flash('alert-class', 'alert-success');
-			} catch (\Throwable $e) {
-				\Session::flash('message', 'Gagal simpan tetapan pemberitahuan.');
-				\Session::flash('alert-class', 'alert-danger');
-			}
+			$result = app(\App\Services\AdminSystemSettingsService::class)->savePushEnabled($request->input('push_notifications_enabled') === '1');
+			\Session::flash('message', $result['message']);
+			\Session::flash('alert-class', $result['ok'] ? 'alert-success' : 'alert-danger');
 
 			return redirect()->to(route('admin.system-settings') . '?tab=notifications');
 		}
@@ -1482,114 +1209,20 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
-			$title = trim((string) $request->input('title'));
-			$body = trim((string) $request->input('body'));
-
-			$validator = Validator::make(
-				['title' => $title, 'body' => $body],
-				['title' => 'required|string|max:255', 'body' => 'required|string|max:1000']
+			$result = app(\App\Services\AdminSystemSettingsService::class)->sendPushAnnouncement(
+				(string) $request->input('title'),
+				(string) $request->input('body')
 			);
-			if ($validator->fails()) {
-				return redirect()->to(route('admin.system-settings') . '?tab=notifications')->withErrors($validator)->withInput();
-			}
 
-			if (!Schema::hasTable('user_notifications')) {
-				\Session::flash('message', 'Jadual pemberitahuan tiada. Jalankan migrasi terlebih dahulu.');
+			if (!$result['ok']) {
+				\Session::flash('message', $result['message']);
 				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->to(route('admin.system-settings') . '?tab=notifications');
+				return redirect()->to(route('admin.system-settings') . '?tab=notifications')->withInput();
 			}
 
-			$userIds = DB::table('gen_users')
-				->where('status', '=', 1)
-				->where('activation_status', '=', 1)
-				->pluck('id')
-				->all();
-
-			$payload = ['type' => 'announcement'];
-			$now = now();
-			$sentToInbox = 0;
-
-			foreach (array_chunk($userIds, 500) as $chunk) {
-				$rows = array_map(fn ($userId) => [
-					'gen_user_id' => $userId,
-					'order_id' => null,
-					'type' => 'announcement',
-					'title' => $title,
-					'body' => $body,
-					'payload' => json_encode($payload),
-					'read_at' => null,
-					'created_at' => $now,
-					'updated_at' => $now,
-				], $chunk);
-
-				try {
-					DB::table('user_notifications')->insert($rows);
-					$sentToInbox += count($chunk);
-				} catch (\Throwable $e) {
-				}
-			}
-
-			$pushedTo = 0;
-			$pushSkipped = false;
-			try {
-				$fcm = app(\App\Services\FcmSender::class);
-
-				if (!$fcm->isConfigured() || !$fcm->isEnabled()) {
-					$pushSkipped = true;
-				} else {
-					$tokens = DB::table('device_tokens')
-						->whereIn('gen_user_id', $userIds)
-						->pluck('token')
-						->all();
-
-					if (!empty($tokens)) {
-						$deadTokens = $fcm->send($tokens, $title, $body, $payload);
-						$pushedTo = count($tokens) - count($deadTokens);
-
-						if (!empty($deadTokens)) {
-							DB::table('device_tokens')->whereIn('token', $deadTokens)->delete();
-						}
-					}
-				}
-			} catch (\Throwable $e) {
-			}
-
-			$pushSummary = $pushSkipped ? 'push dimatikan' : ('push ke ' . $pushedTo . ' peranti');
-			\Session::flash('message', 'Pengumuman dihantar ke inbox ' . $sentToInbox . ' pengguna, ' . $pushSummary . '.');
+			\Session::flash('message', $result['message']);
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->to(route('admin.system-settings') . '?tab=notifications');
-		}
-
-		/**
-		 * "<uniform id>_<lowercased item name>", with a numeric suffix appended
-		 * until no other uniform_clothes row holds the same slug.
-		 */
-		private function uniqueClothesSlug($uniformId, $clothesType) {
-			$base = (string) $uniformId;
-			foreach (explode(' ', strtolower(trim($clothesType))) as $word) {
-				if ($word !== '') {
-					$base .= '_' . $word;
-				}
-			}
-
-			$slug = $base;
-			$attempt = 2;
-			while ($attempt < 1000) {
-				try {
-					$taken = DB::table('uniform_clothes')->where('clothes_slug', '=', $slug)->exists();
-				} catch (\Throwable $e) {
-					break;
-				}
-
-				if (!$taken) {
-					break;
-				}
-
-				$slug = $base . '_' . $attempt;
-				$attempt++;
-			}
-
-			return $slug;
 		}
 
 		public function saveSystemSettings(Request $request) {

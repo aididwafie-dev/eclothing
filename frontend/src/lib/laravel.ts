@@ -60,12 +60,17 @@ export async function laravelFetch<T>(path: string, init?: RequestInit): Promise
   // still needs an explicit empty body.
   const needsBody = ["POST", "PUT", "PATCH", "DELETE"].includes(method) && init?.body === undefined;
 
+  // A FormData body (file uploads) needs fetch to set its own
+  // multipart/form-data Content-Type with the boundary -- setting it
+  // ourselves would drop the boundary and Laravel couldn't parse the body.
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
+
   const res = await fetch(`${LARAVEL_API_URL}${path}`, {
     ...init,
     body: needsBody ? "{}" : init?.body,
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...init?.headers,
     },
     cache: "no-store",

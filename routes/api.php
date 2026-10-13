@@ -101,5 +101,27 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::post('/users/unblock-all', [\App\Http\Controllers\Api\Admin\UserController::class, 'unblockAll']);
 		Route::delete('/users/{id}', [\App\Http\Controllers\Api\Admin\UserController::class, 'destroy']);
 		Route::post('/users/{id}/resend-activation', [\App\Http\Controllers\Api\Admin\UserController::class, 'resendActivation']);
+
+		Route::prefix('system-settings')->group(function (): void {
+			$c = \App\Http\Controllers\Api\Admin\SystemSettingsController::class;
+
+			Route::get('/site', [$c, 'siteSettings']);
+			Route::put('/site', [$c, 'saveSiteTitle']);
+			Route::post('/site/logo', [$c, 'saveLogo']);
+
+			Route::get('/uniforms', [$c, 'uniforms']);
+			Route::post('/uniforms', [$c, 'createUniform']);
+			Route::put('/uniforms/{id}', [$c, 'renameUniform']);
+			Route::post('/uniform-items', [$c, 'createUniformItem']);
+			Route::put('/uniform-items/{id}', [$c, 'renameUniformItem']);
+
+			Route::get('/scale', [$c, 'scale']);
+			Route::post('/scale/uniform-visibility', [$c, 'toggleUniformVisibility']);
+			Route::post('/scale/item', [$c, 'saveScaleItem']);
+
+			Route::get('/notifications', [$c, 'notificationSettings']);
+			Route::put('/notifications', [$c, 'savePushEnabled']);
+			Route::post('/notifications/announce', [$c, 'sendPushAnnouncement']);
+		});
 	});
 });
