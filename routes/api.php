@@ -77,4 +77,18 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 	Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
 	Route::get('/orders/{id}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
 	Route::put('/orders/{id}/status', [\App\Http\Controllers\Api\Admin\OrderController::class, 'updateStatus']);
+
+	Route::get('/personal-inventory', [\App\Http\Controllers\Api\Admin\PersonalInventoryController::class, 'index']);
+	Route::get('/personal-inventory/{sId}', [\App\Http\Controllers\Api\Admin\PersonalInventoryController::class, 'show']);
+
+	Route::middleware('admin.api.superadmin')->group(function (): void {
+		Route::get('/bases', [\App\Http\Controllers\Api\Admin\BaseController::class, 'index']);
+		Route::get('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'show']);
+		Route::post('/bases', [\App\Http\Controllers\Api\Admin\BaseController::class, 'store']);
+		Route::put('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'update']);
+		Route::delete('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'destroy']);
+
+		Route::get('/announcements/audience-counts', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'audienceCounts']);
+		Route::post('/announcements/send', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'send']);
+	});
 });

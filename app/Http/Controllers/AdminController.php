@@ -249,61 +249,21 @@ $nestedData[] = $row->updated_at;
 		}
 
 		public function sendAnnouncement(Request $request) {
-			
-			$subject = $request->input("subject");
-			
-			$body = $request->input("body");
 
-			if ($request->input("send_to") == "all") {
-				$emails = DB::table('gen_users')->where('status', '=', 1)->get();
-			} else if ($request->input("send_to") == "unconfirmed") {
-				$emails = DB::table('gen_users')->where('status', '=', 1)->where("activation_status", "=", 0)->get();
-			} else if ($request->input("send_to") == "confirmed") {
-				$emails = DB::table('gen_users')->where('status', '=', 1)->where("activation_status", "=", 1)->get();
-			} else if ($request->input("send_to") == "no_orders") {
-				$users = DB::table('gen_users')->leftJoin("personal_details", "gen_users.id", "=", "personal_details.user_id")->leftJoin("units", "units.id", "=", "personal_details.unit")->where('status', '=', 1);
-			
-				$users = $users->get();
+			$service = app(\App\Services\AdminAnnouncementService::class);
 
-				$users_result = [];
-
-				foreach ($users as $user) {
-					 $orders = DB::table('orders')->where('user_id', '=', $user->id)->first();
-
-					if (!$orders && $user && $user->s_id) {
-						$emails[] = $user;
-					}
-				}			
+			$validator = $service->validate($request->all());
+			if ($validator->fails()) {
+				return redirect()->back()->withErrors($validator)->withInput();
 			}
-			
-			//activation_status == 0
-			
-			$sent_to = 0;
-			
-			if ($emails && count($emails)) {
-				
-				foreach ($emails as $email) {
-			
-					$to = $email->email;
-					
-					$from = $request->input("from");
-					
-					try {
-						Mail::raw($body,function ($message) use($subject, $from, $to) {
-							$message->from($from, 'e-Clothing');
-							$message->to($to)->subject($subject);
-						});
-						$sent_to++;
-					} catch (\Throwable $e) {
-					}
-				}
-				
-			}
-			
-			\Session::flash('message', 'Email sent to ' . $sent_to . ' users.'); 
+
+			$validated = $validator->validated();
+			$sentTo = $service->send($validated['from'], $validated['subject'], $validated['body'], $validated['send_to']);
+
+			\Session::flash('message', 'Email sent to ' . $sentTo . ' users.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('admin.announcements');
-			
+
 		}
 		
 		public function changeBasicDetails(Request $request) {
@@ -903,9 +863,7 @@ $nestedData[] = $row->updated_at;
 			}
 			$stringId = base64_decode($id);
 			$base_id = str_replace('DCS','',$stringId);
-			// units.base_hq is ON DELETE SET NULL, so its units simply lose
-			// their base rather than being deleted.
-			DB::table('bases')->where('id', '=', $base_id)->delete();
+			app(\App\Services\AdminBaseService::class)->delete((int) $base_id);
 			\Session::flash('message', 'The base was successfully deleted.');
 			\Session::flash('alert-class', 'alert-success');
 			return redirect()->route('admin.base', ['id' => $base_id]);

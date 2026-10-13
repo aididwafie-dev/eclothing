@@ -4,15 +4,8 @@
 
 	use Illuminate\Http\Request;
 	use App\Http\Controllers\Controller;
-	use Illuminate\Support\Facades\Redirect;
-	use Illuminate\Support\Facades\Route;
-	use App\Http\Requests;
+	use App\Services\AdminBaseService;
 	use DB;
-	use App\Models\Admin;
-	use App\Models\Gen_user;
-	use App\Models\Personal_detail;
-	use App\Models\Order;
-	use App\Models\Base;
 	use Session;
 
 	class AdminBaseController extends Controller
@@ -22,12 +15,7 @@
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
-			$bases = DB::table('bases')
-				->leftJoin('units', 'units.base_hq', '=', 'bases.id')
-				->select('bases.*', DB::raw('COUNT(units.id) as unit_count'))
-				->groupBy('bases.id', 'bases.base', 'bases.org_name', 'bases.status', 'bases.created_at', 'bases.updated_at')
-				->orderBy('bases.base')
-				->get();
+			$bases = app(AdminBaseService::class)->listWithUnitCounts();
 			return view('admin/base/baseList', array("bases"=>$bases));
 		}
 
@@ -38,47 +26,37 @@
 			if($request->session()->get('admin_id') == '') {
 				return redirect()->route('site-admin.login');
 			}
-			$base = DB::table('bases')->where('id', '=', $base_id)->first();
-			$units = DB::table('units')->orderBy('value')->get();
+			$service = app(AdminBaseService::class);
+			$base = $service->find((int) $base_id);
+			$units = $service->allUnitsWithBase();
 			return view('admin/base/editBase', array("base"=>$base, "units"=>$units));
 		}
 
 		public function saveEditedBase(Request $request) {
 
-			$base = Base::find($request->input('id'));
-			$base->base = trim($request->input('base'));
-			$base->org_name = trim($request->input('org_name')) ?: null;
-			$base->status = $request->input('status');
+			$result = app(AdminBaseService::class)->update(
+				(int) $request->input('id'),
+				(string) $request->input('base'),
+				$request->input('org_name'),
+				$request->input('status'),
+				(array) $request->input('unit_ids', [])
+			);
 
-			if ($base->base) {
-				$base->save();
-				$this->syncUnits($base->id, $request->input('unit_ids', []));
-
-				\Session::flash('message', 'Base saved successfully');
-				\Session::flash('alert-class', 'alert-success');
-			} else {
-				\Session::flash('message', 'Base name was empty. Please try again');
-				\Session::flash('alert-class', 'alert-danger');
-			}
+			\Session::flash('message', $result['message']);
+			\Session::flash('alert-class', $result['ok'] ? 'alert-success' : 'alert-danger');
 			return redirect()->route('admin.base');
 		}
 
 		public function saveAddedBase(Request $request) {
 
-			$value = trim($request->input('base_name'));
+			$result = app(AdminBaseService::class)->create(
+				(string) $request->input('base_name'),
+				$request->input('org_name'),
+				$request->input('status', 1)
+			);
 
-			if ($value) {
-				$base = new Base;
-				$base->base = $value;
-				$base->org_name = trim($request->input('org_name')) ?: null;
-				$base->status = $request->input('status', 1);
-				$base->save();
-				\Session::flash('message', 'Base added successfully');
-				\Session::flash('alert-class', 'alert-success');
-			} else {
-				\Session::flash('message', 'Base name was empty. Please try again');
-				\Session::flash('alert-class', 'alert-danger');
-			}
+			\Session::flash('message', $result['message']);
+			\Session::flash('alert-class', $result['ok'] ? 'alert-success' : 'alert-danger');
 			return redirect()->route('admin.base');
 		}
 
@@ -88,20 +66,6 @@
 				return redirect()->route('site-admin.login');
 			}
 			return view('admin/base/addBase');
-		}
-
-		/**
-		 * The units admin ticked belong to this base; every other unit
-		 * currently pointing here is detached. Lets the base's own edit
-		 * screen be the one place that assigns its child units.
-		 */
-		private function syncUnits($baseId, $unitIds) {
-			$unitIds = array_filter(array_map('intval', (array) $unitIds));
-
-			DB::table('units')->where('base_hq', '=', $baseId)->update(['base_hq' => null]);
-			if (!empty($unitIds)) {
-				DB::table('units')->whereIn('id', $unitIds)->update(['base_hq' => $baseId]);
-			}
 		}
 
 	}

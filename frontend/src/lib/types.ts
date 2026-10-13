@@ -1,5 +1,94 @@
 export type DropdownOption = { id: string; value: string };
 
+export type AdminBase = {
+  id: string;
+  base: string;
+  orgName: string | null;
+  active: boolean;
+  unitCount: number;
+};
+
+export type AdminBasesResponse = {
+  bases: AdminBase[];
+};
+
+export type AdminBaseUnit = {
+  id: string;
+  value: string;
+  baseHq: string | null;
+  assignedHere: boolean;
+};
+
+export type AdminBaseDetailResponse = {
+  base: { id: string; base: string; orgName: string | null; active: boolean };
+  units: AdminBaseUnit[];
+};
+
+export type AnnouncementAudience = "all" | "unconfirmed" | "confirmed" | "no_orders";
+
+export type AudienceCountsResponse = {
+  audienceCounts: Record<AnnouncementAudience, number>;
+};
+
+export type PersonalInventoryUniformCount = {
+  uniformId: string;
+  label: string;
+  items: number;
+  orders: number;
+};
+
+export type PersonalInventoryRow = {
+  sId: string | null;
+  name: string | null;
+  unitName: string | null;
+  uniformCounts: PersonalInventoryUniformCount[];
+  orderCount: number;
+  itemCount: number;
+};
+
+export type PersonalInventoryResponse = {
+  rows: PersonalInventoryRow[];
+  recordsTotal: number;
+  recordsFiltered: number;
+  page: number;
+  perPage: number;
+  filters: {
+    uniform: string;
+    uniformOptions: { id: string; label: string }[];
+    month: string;
+    monthOptions: { value: string; label: string }[];
+    year: string;
+    yearOptions: number[];
+  };
+};
+
+export type PersonalInventoryDetailOrder = {
+  id: string;
+  status: string;
+  statusLabel: string;
+  createdAt: string | null;
+  collectionDate: string | null;
+  remarks: string | null;
+  itemCount: number;
+  items: { clothes: string; size: string; quantity: number }[];
+};
+
+export type PersonalInventoryDetailGroup = {
+  uniformId: string;
+  label: string;
+  orderCount: number;
+  itemCount: number;
+  orders: PersonalInventoryDetailOrder[];
+};
+
+export type PersonalInventoryDetailResponse = {
+  member: { sId: string; name: string | null; unitName: string | null; rankName: string | null };
+  groups: PersonalInventoryDetailGroup[];
+  orderTotal: number;
+  itemTotal: number;
+  filters: { month: string; year: string; yearOptions: number[] };
+};
+
 export type PersonalDetails = {
   s_id: string;
   name: string;
