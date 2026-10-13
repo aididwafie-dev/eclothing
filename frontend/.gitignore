@@ -30,6 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# NSSM service logs (PlasNextUI)
+service-stdout.log
+service-stderr.log
+
 # env files (can opt-in for committing if needed)
 .env*
 
