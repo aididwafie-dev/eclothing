@@ -90,6 +90,7 @@ Route::middleware('user.auth')->group(function (): void {
 	Route::get('/user/personal-details/', [DashboardController::class, 'index'])->name('user.personal');
 	Route::post('/ajax-load-rank-values', [DashboardController::class, 'ajaxLoadRankValues'])->name('/ajax-load.rank-values');
 	Route::post('/personal-details-save', [DashboardController::class, 'savePersonalDetails'])->name('personal.details.save');
+	Route::post('/personal-details/clothing-sizes-save', [DashboardController::class, 'saveClothingSizes'])->name('personal.details.clothing-sizes.save');
 	Route::get('/personal-details/restore', [DashboardController::class, 'restorePersonalDetails'])->name('personal-details.restore');
 	Route::get('/user/uniform-selection/', [DashboardController::class, 'userUniformSelection'])->name('user.uniform');
 	Route::get('/user/orders/new', [DashboardController::class, 'startNewOrder'])->name('user.order.new');

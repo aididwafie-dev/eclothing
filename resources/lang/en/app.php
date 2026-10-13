@@ -216,6 +216,9 @@ return [
     'profile' => [
         'title' => 'Personal Details',
         'subtitle' => 'Provide Personal Details:',
+        'clothing_sizes_tab' => 'Clothing Sizes',
+        'clothing_sizes_hint' => 'Set your own size for each clothing item. This is saved to your profile, separate from any specific order -- an item left blank is simply not saved.',
+        'clothing_sizes_empty' => 'No clothing items are set up yet.',
         'service_id' => 'SERVICE ID',
         'name' => 'NAME',
         'name_placeholder' => 'Enter your name....',

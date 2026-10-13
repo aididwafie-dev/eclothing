@@ -6,7 +6,16 @@
 <hr>
 <div class="containerMain">
 	<div class="content">
-		<div class="title"><i class="fa fa-address-book" aria-hidden="true"></i> {{ __('app.profile.subtitle') }}</div>
+		@php
+			$profileActiveTab = request()->query('tab') === 'sizes' ? 'sizes' : 'details';
+		@endphp
+		<ul class="nav nav-tabs" role="tablist">
+			<li role="presentation" class="{{ $profileActiveTab === 'details' ? 'active' : '' }}"><a href="#tab-personal-details" aria-controls="tab-personal-details" role="tab" data-toggle="tab">{{ __('app.profile.subtitle') }}</a></li>
+			<li role="presentation" class="{{ $profileActiveTab === 'sizes' ? 'active' : '' }}"><a href="#tab-clothing-sizes" aria-controls="tab-clothing-sizes" role="tab" data-toggle="tab">{{ __('app.profile.clothing_sizes_tab') }}</a></li>
+		</ul>
+
+		<div class="tab-content" style="padding-top: 16px;">
+		<div role="tabpanel" class="tab-pane {{ $profileActiveTab === 'details' ? 'active' : '' }}" id="tab-personal-details">
 		<hr>
 
 		<form autocomplete="off" method="post" action="{{ url('/personal-details-save') }}" name="save-details" id="save-details">
@@ -227,6 +236,60 @@
 				<a href="{{ url('/personal-details/restore') }}" class="btn btn-default"> {{ __('app.profile.restore') }}</a>
 			</div>
 		</form>
+		</div>
+
+		<div role="tabpanel" class="tab-pane {{ $profileActiveTab === 'sizes' ? 'active' : '' }}" id="tab-clothing-sizes">
+		<hr>
+		<div class="shop-subtitle">{{ __('app.profile.clothing_sizes_hint') }}</div>
+		<br>
+
+		<form autocomplete="off" method="post" action="{{ url('/personal-details/clothing-sizes-save') }}" name="save-clothing-sizes" id="save-clothing-sizes">
+			<input type="hidden" name="_token" value="<?php echo csrf_token(); ?>">
+
+			@forelse(($clothingUniforms ?? []) as $group)
+			<div class="clothing-size-uniform">
+				<div class="clothing-size-uniform-title">{{ $group['uniform']->uniform_type }}{{ $group['uniform']->uniform_name ? ' (' . $group['uniform']->uniform_name . ')' : '' }}</div>
+				<div class="clothing-size-items">
+					@foreach($group['items'] as $item)
+						@php
+							$rawSize = trim((string) ($item->clothes_size ?? ''));
+							$savedValue = ($clothingSizes ?? [])[$item->id] ?? '';
+						@endphp
+						@if($rawSize !== '' && strtoupper($rawSize) !== 'FIX')
+						<div class="form-group clothing-size-item">
+							<label class="label_">{{ $item->clothes_type }}</label>
+							@php
+								$sizeCheck = str_replace('-', '', str_replace(' ', '', $rawSize));
+							@endphp
+							@if(is_numeric($sizeCheck) || str_contains($rawSize, '-'))
+								<input class="form-control" type="text" name="sizes[{{ $item->id }}]" value="{{ $savedValue }}" placeholder="{{ $rawSize }}" />
+							@else
+								<select class="form-control" name="sizes[{{ $item->id }}]">
+									<option value="">{{ __('app.cart.choose_size') }}</option>
+									@foreach(explode('|', $rawSize) as $option)
+										@php $opt = trim($option); @endphp
+										@if($opt !== '' && strtoupper($opt) !== 'NOT APPLICABLE')
+										<option value="{{ $opt }}" {{ $savedValue === $opt ? 'selected' : '' }}>{{ $opt }}</option>
+										@endif
+									@endforeach
+								</select>
+							@endif
+						</div>
+						@endif
+					@endforeach
+				</div>
+			</div>
+			@empty
+			<div class="shop-subtitle">{{ __('app.profile.clothing_sizes_empty') }}</div>
+			@endforelse
+
+			<div class="clearfix"></div>
+			<div class="subBtn text-center">
+				<input class="btn btn-info" type="submit" value="{{ __('app.profile.save') }}" />
+			</div>
+		</form>
+		</div>
+		</div>
 	</div>
 </div>
 

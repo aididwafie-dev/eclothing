@@ -217,6 +217,9 @@ return [
     'profile' => [
         'title' => 'Butiran Peribadi',
         'subtitle' => 'Isikan Butiran Peribadi:',
+        'clothing_sizes_tab' => 'Saiz Pakaian',
+        'clothing_sizes_hint' => 'Tetapkan saiz anda sendiri bagi setiap item pakaian. Ini disimpan pada profil anda, berasingan daripada mana-mana pesanan tertentu -- item yang dibiarkan kosong tidak disimpan.',
+        'clothing_sizes_empty' => 'Tiada item pakaian ditetapkan lagi.',
         'service_id' => 'NO. TENTERA',
         'name' => 'NAMA',
         'name_placeholder' => 'Masukkan nama anda....',

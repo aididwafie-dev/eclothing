@@ -3247,3 +3247,25 @@ label {
 .ms-drop input[type="radio"], .ms-drop input[type="checkbox"] {
 	margin-left: -1.5rem !important;
 }
+.clothing-size-uniform {
+	margin-bottom: 24px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #e5e5e5;
+}
+.clothing-size-uniform:last-of-type {
+	border-bottom: none;
+}
+.clothing-size-uniform-title {
+	font-weight: bold;
+	margin-bottom: 10px;
+	text-transform: uppercase;
+}
+.clothing-size-items {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 16px;
+}
+.clothing-size-item {
+	flex: 1 1 220px;
+	min-width: 220px;
+}
