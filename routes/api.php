@@ -67,3 +67,14 @@ Route::middleware('api.auth')->group(function (): void {
 	Route::put('/account/email', [AccountController::class, 'updateEmail']);
 	Route::put('/account/password', [AccountController::class, 'updatePassword']);
 });
+
+/************	Admin side of the Next.js UI	************/
+Route::post('/admin/auth/login', [\App\Http\Controllers\Api\Admin\AuthController::class, 'login']);
+
+Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
+	Route::post('/auth/logout', [\App\Http\Controllers\Api\Admin\AuthController::class, 'logout']);
+
+	Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
+	Route::get('/orders/{id}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
+	Route::put('/orders/{id}/status', [\App\Http\Controllers\Api\Admin\OrderController::class, 'updateStatus']);
+});

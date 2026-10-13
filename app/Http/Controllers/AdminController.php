@@ -107,47 +107,6 @@
 			return $hasUniformClothesPhotoColumn;
 		}
 
-		private function uniformOrdersListQuery() {
-			$itemCounts = DB::table('ordered_clothes')
-				->select('order_id', DB::raw('COUNT(*) as items_count'))
-				->groupBy('order_id');
-
-			$selectColumns = [
-				'orders.id',
-				'orders.user_id',
-				'orders.uniforms_id',
-				'orders.created_at',
-				'orders.updated_at',
-				'gen_users.s_id',
-				'personal_details.name',
-				'units.value as unit_name',
-				'uniforms.uniform_type',
-				'uniforms.uniform_name',
-				DB::raw('COALESCE(order_items.items_count, 0) as items_count'),
-			];
-
-			if ($this->orderStatus()->hasOrderLifecycleColumns()) {
-				$selectColumns[] = 'orders.status';
-				$selectColumns[] = 'orders.remarks';
-				$selectColumns[] = 'orders.collection_date';
-			} else {
-				$selectColumns[] = DB::raw("'1' as status");
-				$selectColumns[] = DB::raw('NULL as remarks');
-				$selectColumns[] = DB::raw('NULL as collection_date');
-			}
-
-			return DB::table('orders')
-				->leftJoin('gen_users', 'orders.user_id', '=', 'gen_users.id')
-				->leftJoin('personal_details', 'orders.user_id', '=', 'personal_details.user_id')
-				->leftJoin('units', 'personal_details.unit', '=', 'units.id')
-				->leftJoin('uniforms', 'orders.uniforms_id', '=', 'uniforms.id')
-				->leftJoinSub($itemCounts, 'order_items', function ($join) {
-					$join->on('order_items.order_id', '=', 'orders.id');
-				})
-				->select($selectColumns)
-				->where('orders.deleted', '=', 0);
-		}
-
 		public function ajaxDatatableUsersDetails(Request $request) {
 
 			$requestData= $_REQUEST;
@@ -557,8 +516,10 @@ $nestedData[] = $row->updated_at;
 
 			// The rows are loaded by DataTables from uniformOrdersData; this
 			// only renders the page with the filter the list opens on.
-			[$statusOptions, , $status] = $this->uniformOrdersStatusFilter($request, $request->query('status'));
-			[$unitOptions, $unit] = $this->uniformOrdersUnitFilter($request, $request->query('unit'));
+			$adminOrders = app(\App\Services\AdminOrderService::class);
+			$role = $this->currentAdminRole($request);
+			[$statusOptions, , $status] = $adminOrders->statusFilter($role, $request->query('status'));
+			[$unitOptions, $unit] = $adminOrders->unitFilter($adminOrders->adminBaseId((int) $request->session()->get('admin_id')), $request->query('unit'));
 
 			return view('admin/uniform_orders_list', array(
 				'search' => trim((string) $request->query('search', '')),
@@ -570,75 +531,17 @@ $nestedData[] = $row->updated_at;
 		}
 
 		/**
-		 * Units an admin's filter dropdown may choose from: every unit under
-		 * their own base if one is assigned, otherwise every unit -- same as
-		 * before this base scoping existed. Mirrors uniformOrdersStatusFilter,
-		 * but a mistyped/foreign unit id is simply ignored rather than falling
-		 * back to a default, since "no unit chosen" already means "every
-		 * order the status filter allows".
-		 *
-		 * @return array{0: \Illuminate\Support\Collection, 1: int}
-		 */
-		private function uniformOrdersUnitFilter(Request $request, $requested): array {
-			$baseId = 0;
-			try {
-				$baseId = (int) DB::table('admins')->where('id', '=', (int) $request->session()->get('admin_id'))->value('base_id');
-			} catch (\Throwable $e) {
-				$baseId = 0;
-			}
-
-			$query = DB::table('units')->orderBy('value');
-			if ($baseId > 0) {
-				$query->where('base_hq', '=', $baseId);
-			}
-			$unitOptions = $query->get();
-
-			$unit = (int) $requested;
-			if ($unit > 0 && !$unitOptions->contains(fn ($u) => (int) $u->id === $unit)) {
-				$unit = 0;
-			}
-
-			return [$unitOptions, $unit];
-		}
-
-		/**
-		 * The status filter an admin may use: the options their role can see,
-		 * those statuses as keys, and the requested status -- or the role's
-		 * default when the request names none or one it may not use.
-		 *
-		 * @return array{0: array<string, string>, 1: array<int, string>, 2: string}
-		 */
-		private function uniformOrdersStatusFilter(Request $request, $requested): array {
-			// The list is a work queue, so it opens on the orders still waiting
-			// on the store. 'all' is the explicit opt-out; anything unrecognized
-			// falls back to the default rather than showing an empty list.
-			$role = $this->currentAdminRole($request);
-			$statusOptions = $this->orderStatus()->filterableStatuses();
-
-			// An orders admin works the approved end of the queue, so the filter
-			// only offers those statuses and opens on the first of them.
-			$visibleStatusKeys = $this->adminRoles()->visibleOrderStatusKeys($role, array_keys($statusOptions));
-			$statusOptions = array_intersect_key($statusOptions, array_flip($visibleStatusKeys));
-			$defaultStatus = $this->adminRoles()->defaultOrderStatusKey($role);
-
-			$status = strtolower(trim((string) ($requested ?? $defaultStatus)));
-			if ($status !== 'all' && !isset($statusOptions[$status])) {
-				$status = $defaultStatus;
-			}
-
-			return [$statusOptions, $visibleStatusKeys, $status];
-		}
-
-		/**
 		 * Server-side DataTables feed for the Uniform Orders list. Everything
 		 * the client sends -- search, sort, paging -- is bound or matched
 		 * against a fixed list, never pasted into SQL.
 		 */
 		public function uniformOrdersData(Request $request) {
-			[, $visibleStatusKeys, $status] = $this->uniformOrdersStatusFilter($request, $request->input('status'));
-			[, $unit] = $this->uniformOrdersUnitFilter($request, $request->input('unit'));
+			$adminOrders = app(\App\Services\AdminOrderService::class);
+			$role = $this->currentAdminRole($request);
+			[, $visibleStatusKeys, $status] = $adminOrders->statusFilter($role, $request->input('status'));
+			[, $unit] = $adminOrders->unitFilter($adminOrders->adminBaseId((int) $request->session()->get('admin_id')), $request->input('unit'));
 
-			$query = $this->uniformOrdersListQuery();
+			$query = $adminOrders->listQuery();
 
 			// The role's own limit, applied whatever the request asks for --
 			// including a search, which otherwise looks past the status filter.
@@ -799,71 +702,10 @@ $nestedData[] = $row->updated_at;
 				'orderKey' => $this->encodeProtectedId($order->id),
 				'orderReference' => $this->kewPs8OrderReference($order),
 				'allowedStatuses' => $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request)),
-				'canApproveQuantities' => $this->canApproveQuantities($request),
-				'isOwnOrder' => $this->isOwnOrder($request, $order),
-				'canRecordIssueVouchers' => $this->canRecordIssueVouchers($request),
+				'canApproveQuantities' => app(\App\Services\AdminOrderService::class)->canApproveQuantities($this->currentAdminRole($request)),
+				'isOwnOrder' => app(\App\Services\AdminOrderService::class)->isOwnOrder((int) $request->session()->get('admin_id'), $order),
+				'canRecordIssueVouchers' => app(\App\Services\AdminOrderService::class)->canRecordIssueVouchers($this->currentAdminRole($request)),
 			));
-		}
-
-		/**
-		 * Only a superadmin approves orders, so only they set how many of each
-		 * item is granted.
-		 */
-		/**
-		 * Collection date for an order approved at $approvedAt. The store is
-		 * open Monday to Friday: approved on a weekday up to 17:00, it can be
-		 * collected at once; approved after 17:00 or at the weekend, it is
-		 * collected at 09:00 on the next weekday.
-		 */
-		private function collectionDateForApproval(int $approvedAt): string {
-			$isWeekday = (int) date('N', $approvedAt) <= 5;
-			if ($isWeekday && date('H:i:s', $approvedAt) <= '17:00:00') {
-				return date('Y-m-d H:i:s', $approvedAt);
-			}
-
-			$next = strtotime('+1 day', $approvedAt);
-			while ((int) date('N', $next) > 5) {
-				$next = strtotime('+1 day', $next);
-			}
-
-			return date('Y-m-d', $next) . ' 09:00:00';
-		}
-
-		/**
-		 * Whether the order was placed by the signed-in admin's own member
-		 * account. Admin and member accounts are separate, so they are matched
-		 * on Service ID -- the admin's s_id, or their username, which is their
-		 * Service ID -- or on email.
-		 */
-		private function isOwnOrder(Request $request, $order): bool {
-			$admin = DB::table('admins')->where('id', '=', (int) $request->session()->get('admin_id'))->first();
-			$member = DB::table('gen_users')->where('id', '=', (int) ($order->user_id ?? 0))->first();
-			if (!$admin || !$member) {
-				return false;
-			}
-
-			$adminServiceId = trim((string) ($admin->s_id ?? '')) ?: trim((string) ($admin->username ?? ''));
-			$memberServiceId = trim((string) ($member->s_id ?? ''));
-			if ($adminServiceId !== '' && strcasecmp($adminServiceId, $memberServiceId) === 0) {
-				return true;
-			}
-
-			$adminEmail = strtolower(trim((string) ($admin->email ?? '')));
-			return $adminEmail !== '' && $adminEmail === strtolower(trim((string) ($member->email ?? '')));
-		}
-
-		/**
-		 * The Uniform Orders admin hands the items over, so they record the
-		 * issue voucher for each one.
-		 */
-		private function canRecordIssueVouchers(Request $request): bool {
-			return $this->adminRoles()->isOrdersOnly($request->session()->get('admin_id'))
-				&& Schema::hasColumn('ordered_clothes', 'issue_voucher');
-		}
-
-		private function canApproveQuantities(Request $request): bool {
-			return $this->currentAdminRole($request) === \App\Services\AdminRoleService::SUPERADMIN
-				&& Schema::hasColumn('ordered_clothes', 'approved_quantity');
 		}
 
 		/**
@@ -932,277 +774,44 @@ $nestedData[] = $row->updated_at;
 				return redirect()->route('site-admin.login');
 			}
 
+			$adminOrders = app(\App\Services\AdminOrderService::class);
+			$role = $this->currentAdminRole($request);
+			$adminId = (int) $request->session()->get('admin_id', 0);
+
 			if (!$this->orderStatus()->hasOrderLifecycleColumns()) {
 				\Session::flash('message', 'Please run the latest migration before updating order status.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->back();
 			}
 
-			$allowedStatuses = $this->adminRoles()->allowedOrderStatusCodes($this->currentAdminRole($request));
+			$allowedStatuses = $this->adminRoles()->allowedOrderStatusCodes($role);
 
-			$rules = [
-				'order_id' => 'required|integer',
-				// The role decides which statuses are on offer. Checked here as
-				// well as in the view: hiding a button is not a restriction.
-				'status' => 'required|in:' . implode(',', $allowedStatuses),
-				'remarks' => 'nullable|string|max:1000',
-				'collection_date' => 'nullable|date',
-				'collection_time' => 'nullable|date_format:H:i',
-				'approved_quantity' => 'nullable|array',
-				'approved_quantity.*' => 'nullable|integer|min:0|max:999',
-				'issue_voucher' => 'nullable|array',
-				'issue_voucher.*' => 'nullable|string|max:100',
-			];
-
-			// A rejection reaches the member with the remarks as the reason, so
-			// it cannot be blank. The browser asks for it first; this is the
-			// rule, for the same reason the status list is checked here too.
-			if ((string) $request->input('status') === '2') {
-				$rules['remarks'] = 'required|string|max:1000';
-			}
-
-			$validator = Validator::make($request->all(), $rules, [
-				'remarks.required' => 'Please key in the remarks. A rejected order must tell the member why.',
-			]);
-
+			// The role decides which statuses are on offer. Checked here as
+			// well as in the view: hiding a button is not a restriction.
+			$validator = $adminOrders->validate($request->all(), $allowedStatuses);
 			if ($validator->fails()) {
 				return redirect()->back()->withErrors($validator)->withInput();
 			}
 
-			$order = DB::table('orders')
-				->where('deleted', '=', 0)
-				->where('id', '=', $request->input('order_id'))
-				->first();
-
+			$order = $adminOrders->findOrder((int) $request->input('order_id'));
 			if (empty($order)) {
 				\Session::flash('message', 'Order not found.');
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('admin.uniform-orders');
 			}
 
-			// The role decides which orders it may act on, not just which
-			// statuses it may set: an order it cannot see, it cannot change.
-			$currentStatusKey = $this->orderStatus()->orderStatusMeta($order->status ?? null)['key'];
-			if (!$this->adminRoles()->canSeeOrderStatus($this->currentAdminRole($request), $currentStatusKey)) {
-				\Session::flash('message', 'This order is not in your queue yet.');
-				\Session::flash('alert-class', 'alert-danger');
-				return redirect()->route('admin.uniform-orders');
-			}
-
-			// No one approves their own order: the approving officer's name goes
-			// on the KEW.PS-8 as Pegawai Pelulus, so it has to be someone else.
-			if ((string) $request->input('status') === '3' && $this->isOwnOrder($request, $order)) {
-				\Session::flash('message', 'You cannot approve your own order. Another admin must approve it.');
+			try {
+				$adminOrders->updateStatus($order, $role, $adminId, $validator->validated());
+			} catch (\App\Exceptions\AdminOrderActionRefusedException $e) {
+				\Session::flash('message', $e->getMessage());
 				\Session::flash('alert-class', 'alert-danger');
 				return redirect()->route('admin.uniform-orders.show', ['id' => $this->encodeProtectedId($order->id)]);
-			}
-
-			$status = trim((string) $request->input('status'));
-			$remarks = trim((string) $request->input('remarks'));
-			$collectionDate = $request->input('collection_date');
-			// A date with no time is booked for 09:00, the start of the day's collection.
-			$collectionTime = trim((string) $request->input('collection_time')) ?: '09:00';
-
-			$updateData = [
-				'status' => $status,
-				'remarks' => $remarks !== '' ? $remarks : null,
-				'collection_date' => $collectionDate ? date('Y-m-d', strtotime($collectionDate)) . ' ' . $collectionTime . ':00' : null,
-				'updated_at' => date("Y-m-d H:i:s"),
-			];
-
-			if ($status === '2') {
-				$updateData['collection_date'] = null;
-			}
-
-			// Approving with no collection date set books one: the order can be
-			// collected as soon as it is approved, unless that is after 17:00,
-			// when collection moves to 09:00 the next day. A date the admin
-			// keys in is kept as it is.
-			if ($status === '3' && empty($collectionDate)) {
-				$updateData['collection_date'] = $this->collectionDateForApproval(time());
-			}
-
-			$prevStatus = trim((string) ($order->status ?? ''));
-
-			// Dates the Perakuan Penerimaan block on the KEW.PS-8, the way
-			// approved_at dates the Pegawai Pelulus block. Cleared if the order
-			// is moved back out of Completed, so a stale receipt date cannot
-			// survive on the form.
-			if (Schema::hasTable('orders') && Schema::hasColumn('orders', 'completed_at')) {
-				if ($status === '6') {
-					if ($prevStatus !== '6') {
-						$updateData['completed_at'] = date("Y-m-d H:i:s");
-					}
-				} else {
-					$updateData['completed_at'] = null;
-				}
-			}
-
-			// Dates the start of the 14-day collection window the scheduled
-			// orders:process-collection-timeouts command measures against.
-			// Only stamped on the way in, like approved_at/completed_at -- an
-			// unrelated edit (remarks, collection_date) while still Processing
-			// must not reset the clock.
-			if (Schema::hasTable('orders') && Schema::hasColumn('orders', 'processing_at')) {
-				if ($status === '5' && $prevStatus !== '5') {
-					$updateData['processing_at'] = date("Y-m-d H:i:s");
-				}
-			}
-
-			$hasApproverColumns = Schema::hasTable('orders')
-				&& Schema::hasColumn('orders', 'approved_by_admin_id')
-				&& Schema::hasColumn('orders', 'approved_at');
-			// The approving officer's name and jawatan are kept with the order,
-			// not looked up later: the KEW.PS-8 records what was certified, so
-			// editing or deleting the account afterwards must not rewrite a form
-			// that has already been issued.
-			$hasApproverSnapshot = Schema::hasTable('orders')
-				&& Schema::hasColumn('orders', 'approved_by_name')
-				&& Schema::hasColumn('orders', 'approved_by_position');
-
-			if ($hasApproverColumns) {
-				$transitioningToApproved = $status === '3' && $prevStatus !== '3';
-				if ($transitioningToApproved) {
-					$adminId = (int) $request->session()->get('admin_id', 0);
-					if ($adminId > 0) {
-						$updateData['approved_by_admin_id'] = $adminId;
-						$updateData['approved_at'] = date("Y-m-d H:i:s");
-
-						if ($hasApproverSnapshot) {
-							$approver = DB::table('admins')->where('id', '=', $adminId)->first();
-							// Same naming convention as the applicant's block.
-							$updateData['approved_by_name'] = $approver ? $this->kewPs8SignatoryNameForAdmin($approver) : null;
-							$updateData['approved_by_position'] = $approver ? (trim((string) ($approver->jawatan ?? '')) ?: null) : null;
-						}
-					}
-				} elseif (!in_array($status, ['3', '5', '6'], true)) {
-					// Processing and Completed both follow approval, so they
-					// keep the approver -- clearing it would blank the Pegawai
-					// Pelulus block on the order's KEW.PS-8 part-way through
-					// the very sequence the store works to. Pending and
-					// Rejected mean the order is not approved any more, so the
-					// record is dropped.
-					$updateData['approved_by_admin_id'] = null;
-					$updateData['approved_at'] = null;
-					if ($hasApproverSnapshot) {
-						$updateData['approved_by_name'] = null;
-						$updateData['approved_by_position'] = null;
-					}
-				}
-			}
-
-			DB::table('orders')->where('id', '=', $order->id)->update($updateData);
-
-			$this->notifyAdminsOfStatusChange($request, (int) $order->id, $prevStatus, $status);
-
-			// Approving records how many of each item is granted -- the
-			// Kuantiti Diluluskan on the KEW.PS-8. Keyed by ordered_clothes id and
-			// limited to this order's own lines. An item left blank is granted
-			// in full, and no more than was asked for can be granted.
-			// Issue vouchers, saved with whichever status the Uniform Orders admin
-			// sets. Keyed by ordered_clothes id and limited to this order's own
-			// lines; a cleared field clears the voucher.
-			if ($this->canRecordIssueVouchers($request) && is_array($request->input('issue_voucher'))) {
-				$vouchers = $request->input('issue_voucher');
-				foreach (DB::table('ordered_clothes')->where('order_id', '=', $order->id)->pluck('id') as $lineId) {
-					if (!array_key_exists($lineId, $vouchers)) {
-						continue;
-					}
-					$voucher = mb_substr(trim((string) $vouchers[$lineId]), 0, 100);
-					DB::table('ordered_clothes')->where('id', '=', $lineId)->update(['issue_voucher' => $voucher !== '' ? $voucher : null]);
-				}
-			}
-
-			if ($status === '3' && $this->canApproveQuantities($request)) {
-				$approvedQuantities = (array) $request->input('approved_quantity', []);
-				foreach (DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get() as $line) {
-					$requested = max(1, (int) ($line->quantity ?? 1));
-					$value = $approvedQuantities[$line->id] ?? null;
-					$approved = ($value === null || $value === '') ? $requested : min((int) $value, $requested);
-					DB::table('ordered_clothes')->where('id', '=', $line->id)->update(['approved_quantity' => $approved]);
-				}
-			}
-
-			// Tell the member what changed. Best-effort: a notification or push
-			// failure must not cost the admin the save they just made.
-			try {
-				$updatedOrder = DB::table('orders')->where('id', '=', $order->id)->first();
-				if ($updatedOrder) {
-					app(\App\Services\OrderNotificationService::class)->orderUpdated($order, $updatedOrder);
-				}
-			} catch (\Throwable $e) {
-				\Log::warning('Order update notification failed: ' . $e->getMessage());
 			}
 
 			\Session::flash('message', 'Order status updated successfully.');
 			\Session::flash('alert-class', 'alert-success');
 
 			return redirect()->route('admin.uniform-orders.show', ['id' => $this->encodeProtectedId($order->id)]);
-		}
-
-		/**
-		 * Tells the admins whose queue actually just changed, not every admin --
-		 * an "orders" admin's work is Approved/Processing/Completed
-		 * (AdminRoleService::ORDERS_VISIBLE_STATUSES), so they only need to
-		 * hear about an order entering that set. Every other transition is a
-		 * superadmin concern, since "orders" cannot see Pending/Rejected
-		 * anyway. The admin who just did this already knows, so they are
-		 * excluded. Mirrors the status coverage of the member-facing
-		 * OrderNotificationService::diff(), just for the other audience.
-		 */
-		private function notifyAdminsOfStatusChange(Request $request, int $orderId, string $prevStatus, string $newStatus): void {
-			if ($prevStatus === $newStatus) {
-				return;
-			}
-
-			$actingAdminId = (int) $request->session()->get('admin_id', 0);
-			$service = app(\App\Services\AdminNotificationService::class);
-
-			try {
-				if ($newStatus === '3') {
-					$service->notifyOrdersAdmins(
-						$actingAdminId ?: null,
-						$orderId,
-						\App\Services\AdminNotificationService::TYPE_ORDER_APPROVED,
-						'Pesanan Diluluskan',
-						'Pesanan #' . $orderId . ' telah diluluskan dan kini dalam baris gilir pemprosesan.'
-					);
-				} elseif ($newStatus === '1') {
-					$service->notifySuperadmins(
-						$actingAdminId ?: null,
-						$orderId,
-						\App\Services\AdminNotificationService::TYPE_ORDER_REVERTED,
-						'Pesanan Dikembalikan ke Menunggu',
-						'Pesanan #' . $orderId . ' telah dikembalikan ke status Menunggu.'
-					);
-				} elseif ($newStatus === '2') {
-					$service->notifySuperadmins(
-						$actingAdminId ?: null,
-						$orderId,
-						\App\Services\AdminNotificationService::TYPE_ORDER_REJECTED,
-						'Pesanan Ditolak',
-						'Pesanan #' . $orderId . ' telah ditolak.'
-					);
-				} elseif ($newStatus === '5') {
-					$service->notifySuperadmins(
-						$actingAdminId ?: null,
-						$orderId,
-						\App\Services\AdminNotificationService::TYPE_ORDER_PROCESSING,
-						'Pesanan Sedang Diproses',
-						'Pesanan #' . $orderId . ' kini sedang diproses di stor.'
-					);
-				} elseif ($newStatus === '6') {
-					$service->notifySuperadmins(
-						$actingAdminId ?: null,
-						$orderId,
-						\App\Services\AdminNotificationService::TYPE_ORDER_COMPLETED,
-						'Pesanan Selesai',
-						'Pesanan #' . $orderId . ' telah selesai.'
-					);
-				}
-			} catch (\Throwable $e) {
-				\Log::warning('Admin notification failed: ' . $e->getMessage());
-			}
 		}
 
 		public function fromEditUserUniformDetails(Request $request, $id) {

@@ -3,6 +3,7 @@
 use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\EnsureAdminIsAuthenticated;
 use App\Http\Middleware\EnsureAdminRoleAllowsRoute;
+use App\Http\Middleware\EnsureAdminTokenIsAuthenticated;
 use App\Http\Middleware\EnsureMobileTokenIsAuthenticated;
 use App\Http\Middleware\EnsureUserIsAuthenticated;
 use App\Http\Middleware\LogTransaction;
@@ -71,6 +72,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin.scope' => EnsureAdminRoleAllowsRoute::class,
             'user.auth' => EnsureUserIsAuthenticated::class,
             'api.auth' => EnsureMobileTokenIsAuthenticated::class,
+            'admin.api.auth' => EnsureAdminTokenIsAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
