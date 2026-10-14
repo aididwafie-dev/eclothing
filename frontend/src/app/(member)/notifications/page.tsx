@@ -15,9 +15,16 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Notifications</h1>
-      <NotificationsList initialData={data} />
-    </div>
+    <>
+      <div className="title">
+        <i className="fa fa-bell-o" aria-hidden="true"></i> Notifications
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <NotificationsList initialData={data} />
+        </div>
+      </div>
+    </>
   );
 }

@@ -27,9 +27,20 @@ export default async function AdminOrdersPage({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Uniform Orders</h1>
-      <OrdersFilters data={data} currentSearch={params.search ?? ""} />
-    </div>
+    <>
+      <div className="title">
+        <i className="fa fa-clipboard" aria-hidden="true"></i> Uniform Orders
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content full">
+          <div className="shop-subtitle">
+            Review all submitted uniform orders and open a detail page to approve or reject them.
+          </div>
+          <br />
+          <OrdersFilters data={data} currentSearch={params.search ?? ""} />
+        </div>
+      </div>
+    </>
   );
 }

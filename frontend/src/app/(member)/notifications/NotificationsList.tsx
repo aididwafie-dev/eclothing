@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiPost } from "@/lib/clientApi";
 import type { NotificationsResponse } from "@/lib/types";
 
 export default function NotificationsList({ initialData }: { initialData: NotificationsResponse }) {
@@ -11,11 +12,7 @@ export default function NotificationsList({ initialData }: { initialData: Notifi
   async function markAllRead() {
     setMarking(true);
     try {
-      const res = await fetch("/api/notifications/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
+      const res = await apiPost("/api/notifications/read");
       const data = await res.json();
       setUnreadCount(data.unread_count ?? 0);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -25,36 +22,30 @@ export default function NotificationsList({ initialData }: { initialData: Notifi
   }
 
   return (
-    <div className="mt-4">
-      <div className="mb-4 flex items-center justify-between">
-        <span className="text-sm text-black/50">{unreadCount} unread</span>
+    <>
+      <div className="shop-subtitle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span>{unreadCount} unread</span>
         {unreadCount > 0 && (
-          <button
-            onClick={markAllRead}
-            disabled={marking}
-            className="rounded-md border border-black/15 px-3 py-1.5 text-sm hover:bg-black/5 disabled:opacity-50"
-          >
+          <button type="button" className="btn btn-default btn-sm" onClick={markAllRead} disabled={marking}>
             {marking ? "Marking..." : "Mark all as read"}
           </button>
         )}
       </div>
+      <br />
 
       {notifications.length === 0 ? (
-        <p className="text-sm text-black/50">No notifications.</p>
+        <div className="notif-empty">No notifications.</div>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <div className="notif-dropdown-list" style={{ maxHeight: "none" }}>
           {notifications.map((n) => (
-            <li
-              key={n.id}
-              className={`rounded-md border p-3 ${n.read ? "border-black/10" : "border-black/30 bg-black/5"}`}
-            >
-              <div className="font-medium">{n.title}</div>
-              <div className="text-sm text-black/70">{n.body}</div>
-              <div className="mt-1 text-xs text-black/40">{n.created_at}</div>
-            </li>
+            <div key={n.id} className={`notif-item${n.read ? "" : " notif-unread"}`}>
+              <div className="notif-item-title">{n.title}</div>
+              <div className="notif-item-body">{n.body}</div>
+              <div className="notif-item-time">{n.created_at}</div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </div>
+    </>
   );
 }

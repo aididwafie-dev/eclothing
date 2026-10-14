@@ -8,6 +8,7 @@ use App\Services\AdminOrderService;
 use App\Services\AdminRoleService;
 use App\Services\OrderStatusService;
 use App\Services\OrderUniformService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -175,6 +176,46 @@ class OrderController extends Controller
             'canRecordIssueVouchers' => $this->adminOrders->canRecordIssueVouchers($role),
             'isOwnOrder' => $this->adminOrders->isOwnOrder((int) $admin->id, $order),
         ]);
+    }
+
+    /**
+     * JSON counterpart to AdminController::downloadUniformOrderKewPs8 -- any
+     * admin who can see this order's queue can download its KEW.PS-8, same
+     * as the Blade page.
+     */
+    public function kewPs8(Request $request, string $id)
+    {
+        $role = $this->role($request);
+
+        $order = $this->adminOrders->findOrder((int) $id);
+        if (!$order) {
+            abort(404);
+        }
+
+        if (!$this->adminRoles->canSeeOrderStatus($role, $this->orderStatus->orderStatusMeta($order->status ?? null)['key'])) {
+            abort(403);
+        }
+
+        $personalDetail = DB::table('personal_details')->where('user_id', '=', $order->user_id)->first();
+        $uniform = DB::table('uniforms')->where('id', '=', $order->uniforms_id)->first();
+        $items = DB::table('ordered_clothes')->where('order_id', '=', $order->id)->get();
+
+        $pdf = Pdf::loadView('reports.kew_ps8', [
+            'order' => $order,
+            'uniform' => $uniform,
+            'applicantName' => $this->kewPs8SignatoryName($personalDetail),
+            'applicantPosition' => $this->kewPs8ApplicantPosition($order->user_id),
+            'printedAt' => $this->kewPs8PrintedAt(),
+            'orderReference' => $this->kewPs8OrderReference($order),
+            'scafReference' => $this->kewPs8ScafReference($order),
+            'uniformName' => $this->kewPs8UniformName($uniform),
+            'approver' => $this->kewPs8Approver($order),
+            'receipt' => $this->kewPs8Receipt($order, $personalDetail),
+            'reportForms' => $this->chunkKewPs8Rows($items),
+            'forPdf' => true,
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('KEW-PS8-' . $this->kewPs8OrderReference($order) . '.pdf');
     }
 
     public function updateStatus(Request $request, string $id)

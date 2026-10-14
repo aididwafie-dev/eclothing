@@ -77,6 +77,7 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 
 	Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
 	Route::get('/orders/{id}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
+	Route::get('/orders/{id}/kew-ps8', [\App\Http\Controllers\Api\Admin\OrderController::class, 'kewPs8']);
 	Route::put('/orders/{id}/status', [\App\Http\Controllers\Api\Admin\OrderController::class, 'updateStatus']);
 
 	Route::get('/personal-inventory', [\App\Http\Controllers\Api\Admin\PersonalInventoryController::class, 'index']);

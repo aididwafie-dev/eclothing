@@ -131,3 +131,17 @@ export async function laravelFetchAdminAuthed<T>(path: string, init?: RequestIni
     },
   });
 }
+
+/** Admin counterpart to laravelFetchAuthedRaw -- a binary response (the KEW.PS-8 PDF). */
+export async function laravelFetchAdminAuthedRaw(path: string, init?: RequestInit): Promise<Response> {
+  const token = await getAdminToken();
+  if (!token) {
+    throw new LaravelApiError(401, { message: "Not signed in." });
+  }
+
+  return fetch(`${LARAVEL_API_URL}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, ...init?.headers },
+    cache: "no-store",
+  });
+}
