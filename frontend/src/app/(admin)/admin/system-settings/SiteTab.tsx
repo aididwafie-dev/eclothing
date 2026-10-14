@@ -1,84 +1,99 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { apiPut } from "@/lib/clientApi";
 
-export default function SiteTab({ initialSiteTitle }: { initialSiteTitle: string }) {
+export default function SiteTab({
+  initialSiteTitle,
+  initialLogoUrl,
+}: {
+  initialSiteTitle: string;
+  initialLogoUrl: string;
+}) {
   const [siteTitle, setSiteTitle] = useState(initialSiteTitle);
+  const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
-  async function handleSaveTitle(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
     try {
-      const res = await apiPut("/api/admin/system-settings/site", { siteTitle });
-      const data = await res.json();
-      setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
-    } finally {
-      setSaving(false);
-    }
-  }
+      const titleRes = await apiPut("/api/admin/system-settings/site", { siteTitle });
+      const titleData = await titleRes.json();
+      if (!titleRes.ok) {
+        setMessage({ kind: "error", text: titleData.message ?? "Could not save." });
+        return;
+      }
 
-  async function handleUploadLogo(e: React.FormEvent) {
-    e.preventDefault();
-    if (!logoFile) return;
-    setSaving(true);
-    setMessage(null);
-    try {
-      const formData = new FormData();
-      formData.append("logo", logoFile);
-      const res = await fetch("/api/admin/system-settings/site/logo", { method: "POST", body: formData });
-      const data = await res.json();
-      setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
+      if (logoFile) {
+        const formData = new FormData();
+        formData.append("logo", logoFile);
+        const logoRes = await fetch("/api/admin/system-settings/site/logo", { method: "POST", body: formData });
+        const logoData = await logoRes.json();
+        if (!logoRes.ok) {
+          setMessage({ kind: "error", text: logoData.message ?? "Could not save." });
+          return;
+        }
+        setLogoUrl(`${logoUrl.split("?")[0]}?v=${Date.now()}`);
+        setLogoFile(null);
+      }
+
+      setMessage({ kind: "ok", text: titleData.message });
+    } catch {
+      setMessage({ kind: "error", text: "Could not reach the server." });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <form onSubmit={handleSaveTitle} className="flex items-end gap-3">
-        <div>
-          <label className="block text-sm font-medium">Site Title</label>
+    <>
+      <div className="shop-subtitle">System settings (title and logo).</div>
+      <br />
+
+      <form onSubmit={handleSubmit} autoComplete="off">
+        <div className="form-group">
+          <label className="label_">Tajuk Sistem</label>
           <input
+            className="form-control"
             type="text"
             required
-            maxLength={255}
             value={siteTitle}
             onChange={(e) => setSiteTitle(e.target.value)}
-            className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
           />
         </div>
-        <button type="submit" disabled={saving} className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50">
-          Save
-        </button>
-      </form>
 
-      <form onSubmit={handleUploadLogo} className="flex items-end gap-3">
-        <div>
-          <label className="block text-sm font-medium">Site Logo (PNG/JPG, max 5MB)</label>
+        <div className="form-group">
+          <label className="label_">Logo Sistem (PNG/JPG)</label>
           <input
+            className="form-control"
             type="file"
-            accept=".png,.jpg,.jpeg"
+            accept="image/png,image/jpeg"
             onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-            className="mt-1 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={saving || !logoFile}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-        >
-          Upload
-        </button>
-      </form>
 
-      {message && (
-        <p className={message.kind === "ok" ? "text-sm text-green-700" : "text-sm text-red-600"}>{message.text}</p>
-      )}
-    </div>
+        <div className="form-group">
+          <label className="label_">Logo Semasa</label>
+          <br />
+          <img src={logoUrl} className="img-responsive" alt="logo" style={{ maxHeight: 140 }} />
+        </div>
+
+        {message && (
+          <p className={message.kind === "ok" ? "text-success" : "text-danger"}>{message.text}</p>
+        )}
+
+        <div className="subBtn">
+          <input className="btn btn-default text-uppercase" type="submit" value={saving ? "Menyimpan..." : "Simpan"} disabled={saving} />
+          <Link href="/admin/orders" className="btn btn-default">
+            Kembali
+          </Link>
+        </div>
+      </form>
+    </>
   );
 }

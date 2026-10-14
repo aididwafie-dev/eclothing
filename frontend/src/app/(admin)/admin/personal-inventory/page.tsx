@@ -28,9 +28,21 @@ export default async function AdminPersonalInventoryPage({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Personal Inventory</h1>
-      <PersonalInventoryFilters data={data} currentSearch={params.search ?? ""} />
-    </div>
+    <>
+      <div className="title">
+        <i className="fa fa-archive" aria-hidden="true"></i> Personal Inventory
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content full">
+          <div className="shop-subtitle">
+            Uniform items on order for each member. Every member is listed &mdash; nothing on order reads
+            0.
+          </div>
+          <br />
+          <PersonalInventoryFilters data={data} currentSearch={params.search ?? ""} />
+        </div>
+      </div>
+    </>
   );
 }

@@ -57,14 +57,17 @@ export type AdminUserDetailResponse = {
     services: DropdownOption[];
     tredOfficer: DropdownOption[];
     tredRecruit: DropdownOption[];
+    tredBoth: DropdownOption[];
     units: DropdownOption[];
     genders: DropdownOption[];
     dutyStatuses: DropdownOption[];
+    states: DropdownOption[];
   };
 };
 
 export type SiteSettingsResponse = {
   siteTitle: string;
+  logoUrl: string;
 };
 
 export type UniformItem = {
@@ -87,6 +90,7 @@ export type UniformsSettingsResponse = {
 export type ScaleItem = {
   id: string;
   clothesType: string;
+  accessory: boolean;
   maxQuantity: number | null;
 };
 

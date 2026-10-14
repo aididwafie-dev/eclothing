@@ -7,13 +7,13 @@ import { apiDelete, apiPost } from "@/lib/clientApi";
 import type { AdminUserFilter, AdminUsersResponse } from "@/lib/types";
 
 const FILTERS: { value: AdminUserFilter | ""; label: string }[] = [
-  { value: "", label: "All Members" },
-  { value: "incomplete_rank", label: "Missing Rank" },
-  { value: "incomplete_name", label: "Missing Name" },
-  { value: "incomplete_unit", label: "Missing Unit" },
-  { value: "incomplete_personal", label: "Personal Details Incomplete" },
-  { value: "incomplete_uniform", label: "No Orders Yet" },
-  { value: "complete_all", label: "Fully Complete" },
+  { value: "", label: "All" },
+  { value: "incomplete_rank", label: "Incomplete: Rank" },
+  { value: "incomplete_name", label: "Incomplete: Name" },
+  { value: "incomplete_unit", label: "Incomplete: Unit" },
+  { value: "incomplete_personal", label: "Incomplete: Personal Detail" },
+  { value: "incomplete_uniform", label: "Incomplete: Uniform Detail" },
+  { value: "complete_all", label: "Complete: All Details" },
 ];
 
 export default function UsersFilters({
@@ -42,7 +42,7 @@ export default function UsersFilters({
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    updateParam("search", search);
+    updateParam("search", search.trim());
   }
 
   async function toggleBlock(id: string) {
@@ -55,8 +55,8 @@ export default function UsersFilters({
     }
   }
 
-  async function deleteUser(id: string, label: string) {
-    if (!confirm(`Permanently delete member "${label}"? This cannot be undone.`)) return;
+  async function deleteUser(id: string) {
+    if (!confirm("Are you sure you want to remove this user from the site permanently?")) return;
     setBusy(id);
     try {
       const res = await apiDelete(`/api/admin/users/${id}`);
@@ -72,21 +72,31 @@ export default function UsersFilters({
     setBusy(id);
     try {
       const res = await apiPost(`/api/admin/users/${id}/resend-activation`);
-      const data = await res.json();
-      alert(data.message);
+      const result = await res.json();
+      alert(result.message);
     } finally {
       setBusy(null);
     }
   }
 
   async function blockAll() {
-    if (!confirm("Block every currently active user? You will lose record of who was blocked before this.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to block all users from the site permanently? Do note, you will lose records of which users actually were unblocked before this.",
+      )
+    )
+      return;
     await apiPost("/api/admin/users/block-all");
     router.refresh();
   }
 
   async function unblockAll() {
-    if (!confirm("Unblock every currently blocked user? You will lose record of who was unblocked before this.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to unblock all users from the site permanently? Do note, you will lose records of which users actually were blocked before this.",
+      )
+    )
+      return;
     await apiPost("/api/admin/users/unblock-all");
     router.refresh();
   }
@@ -94,131 +104,157 @@ export default function UsersFilters({
   const totalPages = Math.max(1, Math.ceil(data.recordsFiltered / data.perPage));
 
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-sm font-medium">Filter</label>
-          <select
-            value={data.filter ?? ""}
-            onChange={(e) => updateParam("filter", e.target.value)}
-            className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
-          >
-            {FILTERS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <form onSubmit={handleSearchSubmit} className="flex items-end gap-2">
-          <div>
-            <label className="block text-sm font-medium">Search</label>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Service ID, name, unit, rank..."
-              className="mt-1 w-64 rounded-md border border-black/15 px-3 py-2 text-sm"
-            />
-          </div>
-          <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">
-            Search
-          </button>
-        </form>
-        <div className="ml-auto flex gap-2">
-          <button onClick={blockAll} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-            Block All
-          </button>
-          <button onClick={unblockAll} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-            Unblock All
-          </button>
-        </div>
+    <>
+      <div className="form-group" style={{ maxWidth: 320 }}>
+        <select className="form-control" value={data.filter ?? ""} onChange={(e) => updateParam("filter", e.target.value)}>
+          {FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <form onSubmit={handleSearchSubmit} className="orders-search" role="search">
+        <div className="orders-search-field">
+          <i className="fa fa-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Service ID, name, unit, rank...."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        {currentSearch.trim() !== "" && (
+          <button
+            type="button"
+            className="btn btn-default"
+            onClick={() => {
+              setSearch("");
+              updateParam("search", "");
+            }}
+          >
+            <i className="fa fa-times" aria-hidden="true"></i> Clear
+          </button>
+        )}
+      </form>
+
+      <div className="content full table-responsive">
+        <table className="display table" style={{ width: "100%" }}>
           <thead>
-            <tr className="border-b border-black/10 text-black/50">
-              <th className="py-2">Service ID</th>
-              <th className="py-2">Rank</th>
-              <th className="py-2">Name</th>
-              <th className="py-2">Unit</th>
-              <th className="py-2"></th>
+            <tr>
+              <th>#</th>
+              <th>Service ID</th>
+              <th>Rank</th>
+              <th>Name</th>
+              <th>Unit</th>
+              <th>Basic Details</th>
+              <th>Personal Details</th>
+              <th>Uniform Details</th>
+              <th>Status</th>
+              <th>Delete</th>
+              <th>Created</th>
+              <th>Updated</th>
+              <th>Re-send mail</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-6 text-center text-black/50">
+                <td colSpan={13} className="text-center">
                   No members match this filter.
                 </td>
               </tr>
             )}
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-black/5">
-                <td className="py-2" title={user.hasOrdered ? "Has placed orders" : "No orders yet"}>
-                  {user.sId ?? "-"}
+            {users.map((user, i) => (
+              <tr key={user.id}>
+                <td data-label="#">{(data.page - 1) * data.perPage + i + 1}</td>
+                <td data-label="Service ID">
+                  <span className={`cell-id ${user.hasOrdered ? "cell-id-ordered" : "cell-id-none"}`} title={user.hasOrdered ? "Has placed orders" : "No orders yet"}>
+                    {user.sId ?? "-"}
+                  </span>
                 </td>
-                <td className="py-2">{user.rankName ?? "-"}</td>
-                <td className="py-2">{user.name ?? "-"}</td>
-                <td className="py-2">{user.unitName ?? "-"}</td>
-                <td className="py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link href={`/admin/all-users/${user.id}/basic`} className="text-blue-600 hover:underline">
-                      Basic
-                    </Link>
-                    <Link href={`/admin/all-users/${user.id}/personal`} className="text-blue-600 hover:underline">
-                      Personal
-                    </Link>
-                    {user.sId && (
-                      <Link href={`/admin/orders?search=${encodeURIComponent(user.sId)}&status=all`} className="text-blue-600 hover:underline">
-                        Orders
-                      </Link>
-                    )}
+                <td data-label="Rank">{user.rankName ?? ""}</td>
+                <td data-label="Name">{user.name}</td>
+                <td data-label="Unit">{user.unitName ?? ""}</td>
+                <td data-label="Basic Details">
+                  <Link href={`/admin/all-users/${user.id}/basic`} className="btn btn-sm btn-primary">
+                    <span className="glyphicon glyphicon-pencil"></span>
+                  </Link>
+                </td>
+                <td data-label="Personal Details">
+                  <Link href={`/admin/all-users/${user.id}/personal`} className="btn btn-sm btn-primary">
+                    <span className="glyphicon glyphicon-pencil"></span>
+                  </Link>
+                </td>
+                <td data-label="Uniform Details">
+                  <Link href={`/admin/all-users/${user.id}/uniform`} className="btn btn-sm btn-info">
+                    <span className="glyphicon glyphicon-folder-open"></span> Show
+                  </Link>
+                </td>
+                <td data-label="Status">
+                  <button
+                    type="button"
+                    disabled={busy === user.id}
+                    onClick={() => toggleBlock(user.id)}
+                    className="btn btn-sm btn-warning"
+                  >
+                    <i className={`fa ${user.blocked ? "fa-unlock-alt" : "fa-lock"}`} aria-hidden="true"></i>{" "}
+                    {user.blocked ? "Unblock" : "Block"}
+                  </button>
+                </td>
+                <td data-label="Delete">
+                  <button
+                    type="button"
+                    disabled={busy === user.id}
+                    onClick={() => deleteUser(user.id)}
+                    className="btn btn-sm btn-danger"
+                  >
+                    <span className="glyphicon glyphicon-trash"></span>
+                  </button>
+                </td>
+                <td data-label="Created">{user.createdAt ?? "-"}</td>
+                <td data-label="Updated">{user.updatedAt ?? "-"}</td>
+                <td data-label="Re-send mail">
+                  {user.activated ? (
+                    "Already active"
+                  ) : (
                     <button
+                      type="button"
                       disabled={busy === user.id}
-                      onClick={() => toggleBlock(user.id)}
-                      className="text-amber-600 hover:underline disabled:opacity-50"
+                      onClick={() => resendActivation(user.id)}
+                      className="btn btn-sm btn-success"
                     >
-                      {user.blocked ? "Unblock" : "Block"}
+                      <i className="fa fa-share" aria-hidden="true"></i>
                     </button>
-                    <button
-                      disabled={busy === user.id}
-                      onClick={() => deleteUser(user.id, user.name ?? user.sId ?? user.id)}
-                      className="text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                    {!user.activated && (
-                      <button
-                        disabled={busy === user.id}
-                        onClick={() => resendActivation(user.id)}
-                        className="text-green-700 hover:underline disabled:opacity-50"
-                      >
-                        Resend Activation
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <a onClick={blockAll} className="block_all btn btn-sm btn-warning" style={{ cursor: "pointer" }}>
+          <i className="fa fa-lock" aria-hidden="true"></i> Block all users
+        </a>{" "}
+        <a onClick={unblockAll} className="unblock_all btn btn-sm btn-success" style={{ cursor: "pointer" }}>
+          <i className="fa fa-lock" aria-hidden="true"></i> Unblock all users
+        </a>
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center gap-2 text-sm">
+        <ul className="pagination">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => updateParam("page", String(p))}
-              className={`rounded px-2 py-1 ${p === data.page ? "bg-slate-900 text-white" : "hover:bg-black/5"}`}
-            >
-              {p}
-            </button>
+            <li key={p} className={p === data.page ? "active" : ""}>
+              <a onClick={() => updateParam("page", String(p))} style={{ cursor: "pointer" }}>
+                {p}
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </>
   );
 }

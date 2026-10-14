@@ -29,7 +29,7 @@ export default function PersonalInventoryFilters({
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    updateParam("search", search);
+    updateParam("search", search.trim());
   }
 
   const totalPages = Math.max(1, Math.ceil(data.recordsFiltered / data.perPage));
@@ -38,17 +38,48 @@ export default function PersonalInventoryFilters({
       ? data.filters.uniformOptions
       : data.filters.uniformOptions.filter((u) => u.id === data.filters.uniform);
 
+  const hasActiveFilter =
+    currentSearch.trim() !== "" || data.filters.uniform !== "all" || data.filters.month !== "all" || data.filters.year !== "all";
+
+  const uniformLabel =
+    data.filters.uniform === "all"
+      ? "all uniform types"
+      : `uniform ${data.filters.uniformOptions.find((u) => u.id === data.filters.uniform)?.label ?? ""}`;
+  const periodLabel =
+    data.filters.month === "all" && data.filters.year === "all"
+      ? "all dates"
+      : [
+          data.filters.month === "all"
+            ? ""
+            : data.filters.monthOptions.find((m) => m.value === data.filters.month)?.label ?? "",
+          data.filters.year === "all" ? "every year" : data.filters.year,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <label className="block text-sm font-medium">Uniform</label>
+    <>
+      <form className="orders-search" role="search" onSubmit={handleSearchSubmit}>
+        <div className="orders-search-field">
+          <i className="fa fa-search" aria-hidden="true"></i>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Service ID, name or unit"
+            aria-label="Search members"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <div className="orders-filter-field">
+          <label className="orders-filter-label">Uniform</label>
           <select
+            className="form-control"
             value={data.filters.uniform}
             onChange={(e) => updateParam("uniform", e.target.value)}
-            className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
           >
-            <option value="all">All Uniforms</option>
+            <option value="all">All uniform types</option>
             {data.filters.uniformOptions.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.label}
@@ -56,14 +87,14 @@ export default function PersonalInventoryFilters({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium">Month</label>
+        <div className="orders-filter-field">
+          <label className="orders-filter-label">Month</label>
           <select
+            className="form-control"
             value={data.filters.month}
             onChange={(e) => updateParam("month", e.target.value)}
-            className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
           >
-            <option value="all">All Months</option>
+            <option value="all">All months</option>
             {data.filters.monthOptions.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
@@ -71,14 +102,14 @@ export default function PersonalInventoryFilters({
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium">Year</label>
+        <div className="orders-filter-field">
+          <label className="orders-filter-label">Year</label>
           <select
+            className="form-control"
             value={data.filters.year}
             onChange={(e) => updateParam("year", e.target.value)}
-            className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
           >
-            <option value="all">All Years</option>
+            <option value="all">All years</option>
             {data.filters.yearOptions.map((y) => (
               <option key={y} value={y}>
                 {y}
@@ -86,70 +117,87 @@ export default function PersonalInventoryFilters({
             ))}
           </select>
         </div>
-        <form onSubmit={handleSearchSubmit} className="flex items-end gap-2">
-          <div>
-            <label className="block text-sm font-medium">Search</label>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Service ID, name, unit..."
-              className="mt-1 w-56 rounded-md border border-black/15 px-3 py-2 text-sm"
-            />
-          </div>
-          <button type="submit" className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white">
-            Search
-          </button>
-        </form>
+        {hasActiveFilter && (
+          <Link href="/admin/personal-inventory" className="btn btn-default">
+            <i className="fa fa-times" aria-hidden="true"></i> Clear
+          </Link>
+        )}
+      </form>
+
+      <div className="orders-search-result">
+        Showing <strong>{data.recordsFiltered}</strong> member(s), {uniformLabel}, {periodLabel}
+        {currentSearch.trim() !== "" ? (
+          <>
+            , matching <strong>{currentSearch}</strong>
+          </>
+        ) : null}
+        .
       </div>
 
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
+      <div className="table-responsive">
+        <table className="table table-orders table-inventory" style={{ width: "100%" }}>
           <thead>
-            <tr className="border-b border-black/10 text-black/50">
-              <th className="py-2">Service ID</th>
-              <th className="py-2">Name</th>
-              <th className="py-2">Unit</th>
+            <tr>
+              <th>Service ID</th>
+              <th>Name</th>
+              <th>Unit</th>
               {uniformColumns.map((u) => (
-                <th key={u.id} className="py-2">
+                <th key={u.id} className="inventory-head" title={u.label}>
                   {u.label}
                 </th>
               ))}
-              <th className="py-2">Orders</th>
-              <th className="py-2">Total</th>
+              <th className="inventory-head">Orders</th>
+              <th className="inventory-head">Total</th>
             </tr>
           </thead>
           <tbody>
             {data.rows.length === 0 && (
               <tr>
-                <td colSpan={5 + uniformColumns.length} className="py-6 text-center text-black/50">
-                  No members match this filter.
+                <td colSpan={5 + uniformColumns.length} className="text-center">
+                  No member matches.
                 </td>
               </tr>
             )}
             {data.rows.map((row, i) => (
-              <tr key={row.sId ?? i} className="border-b border-black/5">
-                <td className="py-2">
+              <tr
+                key={row.sId ?? i}
+                className="inventory-row"
+                style={{ cursor: row.sId ? "pointer" : undefined }}
+                onClick={() => {
+                  if (row.sId) window.open(`/admin/personal-inventory/${row.sId}`, "_blank", "noopener");
+                }}
+              >
+                <td data-label="Service ID">
                   {row.sId ? (
-                    <Link href={`/admin/personal-inventory/${row.sId}`} className="text-blue-600 hover:underline">
+                    <Link href={`/admin/personal-inventory/${row.sId}`} onClick={(e) => e.stopPropagation()}>
                       {row.sId}
                     </Link>
                   ) : (
                     "-"
                   )}
                 </td>
-                <td className="py-2">{row.name ?? "N/A"}</td>
-                <td className="py-2">{row.unitName ?? "N/A"}</td>
+                <td data-label="Name">{row.name ?? "N/A"}</td>
+                <td data-label="Unit">{row.unitName ?? "N/A"}</td>
                 {uniformColumns.map((col) => {
                   const match = row.uniformCounts.find((c) => c.uniformId === col.id);
+                  const items = match?.items ?? 0;
                   return (
-                    <td key={col.id} className="py-2" title={`${match?.items ?? 0} item(s) across ${match?.orders ?? 0} order(s)`}>
-                      {match?.items ?? 0}
+                    <td
+                      key={col.id}
+                      data-label={col.label}
+                      className={`inventory-cell${items === 0 ? " is-zero" : ""}`}
+                      title={`${items} item(s) across ${match?.orders ?? 0} order(s)`}
+                    >
+                      {items}
                     </td>
                   );
                 })}
-                <td className="py-2">{row.orderCount}</td>
-                <td className="py-2">{row.itemCount}</td>
+                <td data-label="Orders" className="inventory-cell">
+                  {row.orderCount}
+                </td>
+                <td data-label="Total" className="inventory-cell inventory-total">
+                  {row.itemCount}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -157,18 +205,16 @@ export default function PersonalInventoryFilters({
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center gap-2 text-sm">
+        <ul className="pagination">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => updateParam("page", String(p))}
-              className={`rounded px-2 py-1 ${p === data.page ? "bg-slate-900 text-white" : "hover:bg-black/5"}`}
-            >
-              {p}
-            </button>
+            <li key={p} className={p === data.page ? "active" : ""}>
+              <a onClick={() => updateParam("page", String(p))} style={{ cursor: "pointer" }}>
+                {p}
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </>
   );
 }

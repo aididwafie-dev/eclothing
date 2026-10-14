@@ -20,5 +20,21 @@ export default async function AdminUserBasicDetailsPage({
     throw err;
   }
 
-  return <BasicDetailsForm userId={id} user={data.user} />;
+  return (
+    <>
+      <div className="title">
+        <i className="fa fa-address-card" aria-hidden="true"></i> Users Basic Details
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <div className="title">
+            <i className="fa fa-pencil" aria-hidden="true"></i> Edit Basic Details:
+          </div>
+          <hr />
+          <BasicDetailsForm userId={id} user={data.user} />
+        </div>
+      </div>
+    </>
+  );
 }

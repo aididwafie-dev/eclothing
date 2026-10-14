@@ -26,9 +26,12 @@ export default async function AdminAllUsersPage({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Members</h1>
+    <>
+      <div className="title">
+        <i className="fa fa-users" aria-hidden="true"></i> All Users
+      </div>
+      <hr />
       <UsersFilters data={data} currentSearch={params.search ?? ""} />
-    </div>
+    </>
   );
 }

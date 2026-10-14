@@ -13,13 +13,13 @@ import ScaleTab from "./ScaleTab";
 import SiteTab from "./SiteTab";
 import UniformTab from "./UniformTab";
 
-type Tab = "site" | "uniform" | "scale" | "notifications";
+type Tab = "system" | "uniform" | "scale" | "notifications";
 
 const TABS: { value: Tab; label: string }[] = [
-  { value: "site", label: "System" },
-  { value: "uniform", label: "Uniforms" },
-  { value: "scale", label: "Entitlement Scale" },
-  { value: "notifications", label: "Notifications" },
+  { value: "system", label: "Tetapan Sistem" },
+  { value: "uniform", label: "Tetapan Pakaian" },
+  { value: "scale", label: "Skala Pakaian & Kelayakan" },
+  { value: "notifications", label: "Pemberitahuan" },
 ];
 
 export default function SystemSettingsTabs({
@@ -44,27 +44,39 @@ export default function SystemSettingsTabs({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white">
-      <div className="flex border-b border-black/10">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => switchTab(t.value)}
-            className={`px-4 py-3 text-sm font-medium ${
-              tab === t.value ? "border-b-2 border-slate-900" : "text-black/50"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+    <>
+      <div className="title">
+        <i className="fa fa-cog" aria-hidden="true"></i> Tetapan Sistem
       </div>
-      <div className="p-6">
-        {tab === "site" && <SiteTab initialSiteTitle={site.siteTitle} />}
-        {tab === "uniform" && <UniformTab initialGroups={uniforms.groups} />}
-        {tab === "scale" && <ScaleTab initialData={scale} />}
-        {tab === "notifications" && <NotificationsTab initialData={notifications} />}
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <ul className="nav nav-tabs" role="tablist">
+            {TABS.map((t) => (
+              <li key={t.value} role="presentation" className={tab === t.value ? "active" : ""}>
+                <a onClick={() => switchTab(t.value)} role="tab" style={{ cursor: "pointer" }}>
+                  {t.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <div className="tab-content" style={{ paddingTop: 16 }}>
+            <div className={`tab-pane ${tab === "system" ? "active" : ""}`}>
+              {tab === "system" && <SiteTab initialSiteTitle={site.siteTitle} initialLogoUrl={site.logoUrl} />}
+            </div>
+            <div className={`tab-pane ${tab === "uniform" ? "active" : ""}`}>
+              {tab === "uniform" && <UniformTab initialGroups={uniforms.groups} />}
+            </div>
+            <div className={`tab-pane ${tab === "scale" ? "active" : ""}`}>
+              {tab === "scale" && <ScaleTab initialData={scale} />}
+            </div>
+            <div className={`tab-pane ${tab === "notifications" ? "active" : ""}`}>
+              {tab === "notifications" && <NotificationsTab initialData={notifications} />}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

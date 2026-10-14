@@ -35,7 +35,7 @@ export default async function AdminSystemSettingsPage({
 
   return (
     <SystemSettingsTabs
-      initialTab={tab === "uniform" || tab === "scale" || tab === "notifications" ? tab : "site"}
+      initialTab={tab === "uniform" || tab === "scale" || tab === "notifications" ? tab : "system"}
       site={site}
       uniforms={uniforms}
       scale={scale}

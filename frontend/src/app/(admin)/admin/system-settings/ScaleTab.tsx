@@ -8,13 +8,16 @@ export default function ScaleTab({ initialData }: { initialData: ScaleResponse }
   const [data, setData] = useState(initialData);
   const [rankId, setRankId] = useState(initialData.selectedRankId ?? "");
   const [loading, setLoading] = useState(false);
+  const [activeUniformId, setActiveUniformId] = useState(initialData.uniforms[0]?.uniform.id ?? "");
 
   async function changeRank(id: string) {
     setRankId(id);
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/system-settings/scale?pangkatId=${id}`);
-      setData(await res.json());
+      const next: ScaleResponse = await res.json();
+      setData(next);
+      setActiveUniformId(next.uniforms[0]?.uniform.id ?? "");
     } finally {
       setLoading(false);
     }
@@ -42,79 +45,192 @@ export default function ScaleTab({ initialData }: { initialData: ScaleResponse }
     }
   }
 
-  if (!data.storageReady) {
-    return <p className="text-sm text-red-600">Scale table does not exist yet. Run &quot;php artisan migrate&quot;.</p>;
-  }
+  const hasRanks = data.ranks.officer.length > 0 || data.ranks.nonOfficer.length > 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <label className="block text-sm font-medium">Rank (Air Force only)</label>
-        <select
-          value={rankId}
-          onChange={(e) => changeRank(e.target.value)}
-          className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
-        >
-          <optgroup label="Officer">
-            {data.ranks.officer.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.value}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Non-Officer">
-            {data.ranks.nonOfficer.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.value}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+    <>
+      <div className="shop-subtitle">
+        Tetapkan bilangan helai/pasang yang dibenarkan bagi setiap pangkat <strong>AIR FORCE</strong>. Pilih
+        pangkat, isi bilangan untuk setiap pakaian dan aksesori, kemudian simpan.
       </div>
+      <br />
 
-      {loading ? (
-        <p className="text-sm text-black/50">Loading...</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {data.uniforms.map((group) => (
-            <div key={group.uniform.id} className="rounded-md border border-black/10 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{group.uniform.label}</h3>
-                {data.hiddenStorageReady && (
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={group.hidden}
-                      onChange={(e) => toggleHidden(group.uniform.id, e.target.checked)}
-                    />
-                    Hide entire uniform for this rank
-                  </label>
-                )}
-              </div>
-              <table className="mt-3 w-full text-left text-sm">
-                <thead>
-                  <tr className="text-black/50">
-                    <th className="py-1">Item</th>
-                    <th className="py-1">Max Quantity (blank = no cap, 0 = blocked)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.items.map((item) => (
-                    <tr key={item.id} className="border-t border-black/5">
-                      <td className="py-1">{item.clothesType}</td>
-                      <td className="py-1">
-                        <ScaleInput disabled={group.hidden} item={item} onSave={saveItem} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+      {!data.storageReady && (
+        <div className="alert alert-warning">
+          Jadual <code>uniform_scales</code> belum wujud. Jalankan <code>php artisan migrate</code> untuk
+          mengaktifkan tetapan ini.
         </div>
       )}
-    </div>
+
+      {!hasRanks ? (
+        <div className="alert alert-info">Tiada pangkat AIR FORCE dijumpai.</div>
+      ) : (
+        <>
+          <div className="scale-legend">
+            <span className="scale-legend-item">
+              <span className="scale-chip scale-chip-unset">Kosong</span> Tiada had &mdash; ahli boleh memilih
+              item ini seperti biasa.
+            </span>
+            <span className="scale-legend-item">
+              <span className="scale-chip scale-chip-blocked">0</span> Tidak layak &mdash; item disembunyikan
+              semasa membuat pesanan.
+            </span>
+            <span className="scale-legend-item">
+              <span className="scale-chip scale-chip-set">1+</span> Had maksimum bilangan helai/pasang.
+            </span>
+          </div>
+
+          <div className="scale-autosave">
+            <div className="form-group">
+              <label className="label_">Pilih Pangkat (AIR FORCE)</label>
+              <select className="form-control" value={rankId} onChange={(e) => changeRank(e.target.value)}>
+                {data.ranks.officer.length > 0 && (
+                  <optgroup label="Pegawai (Officer)">
+                    {data.ranks.officer.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.value}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {data.ranks.nonOfficer.length > 0 && (
+                  <optgroup label="Bukan Pegawai (Non-Officer)">
+                    {data.ranks.nonOfficer.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.value}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <p className="help-block">Menukar pangkat akan memuat semula skala bagi pangkat tersebut.</p>
+            </div>
+
+            {!data.hiddenStorageReady && (
+              <div className="alert alert-warning">
+                Jadual <code>uniform_rank_hidden</code> belum wujud. Jalankan{" "}
+                <code>php artisan migrate</code> untuk mengaktifkan sembunyi uniform.
+              </div>
+            )}
+
+            {loading ? (
+              <p className="text-muted">Loading...</p>
+            ) : data.uniforms.length > 0 ? (
+              <>
+                <div className="scale-visibility">
+                  <div className="scale-visibility-head">
+                    <div className="scale-visibility-title">
+                      <i className="fa fa-eye-slash" aria-hidden="true"></i> Sembunyikan Uniform dari Troli
+                      Pesanan
+                    </div>
+                    <div className="scale-visibility-hint">
+                      Tanda = uniform tidak dipaparkan semasa ahli pangkat ini membuat pesanan. Perubahan
+                      disimpan automatik.
+                    </div>
+                  </div>
+                  <div className="scale-visibility-grid">
+                    {data.uniforms.map((group) => (
+                      <label key={group.uniform.id} className={`scale-visibility-item${group.hidden ? " is-hidden" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={group.hidden}
+                          onChange={(e) => toggleHidden(group.uniform.id, e.target.checked)}
+                        />
+                        <span className="scale-visibility-name">{group.uniform.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <ul className="nav nav-pills scale-uniform-tabs" role="tablist" style={{ marginBottom: 16 }}>
+                  {data.uniforms.map((group) => (
+                    <li key={group.uniform.id} role="presentation" className={group.uniform.id === activeUniformId ? "active" : ""}>
+                      <a onClick={() => setActiveUniformId(group.uniform.id)} role="tab" style={{ cursor: "pointer" }}>
+                        <i
+                          className="fa fa-eye-slash"
+                          aria-hidden="true"
+                          title="Disembunyikan dari troli"
+                          style={{ visibility: group.hidden ? "visible" : "hidden" }}
+                        ></i>{" "}
+                        {group.uniform.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="tab-content">
+                  {data.uniforms.map((group) => (
+                    <div key={group.uniform.id} role="tabpanel" className={`tab-pane${group.uniform.id === activeUniformId ? " active" : ""}`}>
+                      <div className={`scale-group${group.hidden ? " is-uniform-hidden" : ""}`}>
+                        <div className="scale-group-title">
+                          <i className="fa fa-shirtsinbulk" aria-hidden="true"></i> {group.uniform.label}{" "}
+                          {group.hidden && <span className="scale-group-hidden-tag">Disembunyikan dari troli</span>}
+                        </div>
+                        <div className="table-responsive">
+                          <table className="table table-orders">
+                            <thead>
+                              <tr>
+                                <th>Item</th>
+                                <th>Jenis</th>
+                                <th style={{ width: 190 }}>Bilangan Dibenarkan</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.items.map((item) => (
+                                <tr key={item.id}>
+                                  <td data-label="Item">
+                                    <span
+                                      title={item.accessory ? "Aksesori" : "Pakaian"}
+                                      aria-label={item.accessory ? "Aksesori" : "Pakaian"}
+                                      className={`item-icon ${item.accessory ? "item-icon-accessory" : "item-icon-clothes"}`}
+                                    >
+                                      <i className={`fa ${item.accessory ? "fa-diamond" : "fa-shopping-bag"}`} aria-hidden="true"></i>
+                                    </span>{" "}
+                                    {item.clothesType}
+                                  </td>
+                                  <td data-label="Jenis">{item.accessory ? "Aksesori" : "Pakaian"}</td>
+                                  <td data-label="Bilangan Dibenarkan">
+                                    <ScaleInput disabled={group.hidden} item={item} onSave={saveItem} />
+                                  </td>
+                                </tr>
+                              ))}
+                              {group.items.length === 0 && (
+                                <tr>
+                                  <td colSpan={3} className="text-muted">
+                                    Tiada pakaian atau aksesori lagi. Tambah item di tab{" "}
+                                    <strong>Tetapan Pakaian</strong>, kemudian tetapkan skala di sini.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="alert alert-info">Tiada uniform dijumpai.</div>
+            )}
+
+            <div className="scale-autosave-note">
+              <i className="fa fa-check-circle" aria-hidden="true"></i> Semua perubahan disimpan secara
+              automatik &mdash; tiada butang Simpan diperlukan.
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
+}
+
+type ScaleKind = "unset" | "blocked" | "set";
+
+function scaleKind(value: string): ScaleKind {
+  const trimmed = value.trim();
+  if (trimmed === "") return "unset";
+  return parseInt(trimmed, 10) === 0 ? "blocked" : "set";
 }
 
 function ScaleInput({
@@ -127,17 +243,21 @@ function ScaleInput({
   onSave: (id: string, value: string) => void;
 }) {
   const [value, setValue] = useState(item.maxQuantity === null ? "" : String(item.maxQuantity));
+  const kind = scaleKind(value);
 
   return (
     <input
       type="number"
       min={0}
       max={999}
+      step={1}
       disabled={disabled}
       value={value}
+      placeholder="Tiada had"
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => onSave(item.id, value)}
-      className="w-24 rounded-md border border-black/15 px-2 py-1 text-sm disabled:opacity-50"
+      className={`form-control scale-input is-scale-${kind}`}
+      aria-label={`Bilangan dibenarkan`}
     />
   );
 }

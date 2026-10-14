@@ -43,6 +43,33 @@ class AdminSystemSettingsService
         return 'e-Clothing';
     }
 
+    /** Mirrors AppServiceProvider's $siteLogoUrl computation, shared with every Blade view. */
+    public function logoUrl(): string
+    {
+        $path = 'front_end/images/logo.png';
+        $version = null;
+
+        try {
+            $logoValue = DB::table('site_settings')->where('setting_key', '=', 'site_logo')->value('setting_value');
+            if (is_string($logoValue) && trim($logoValue) !== '') {
+                $path = ltrim($logoValue, '/');
+            }
+
+            $versionValue = DB::table('site_settings')->where('setting_key', '=', 'site_logo_version')->value('setting_value');
+            if (is_string($versionValue) && trim($versionValue) !== '') {
+                $version = trim($versionValue);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $url = asset($path);
+        if ($version !== null) {
+            $url .= '?v=' . rawurlencode($version);
+        }
+
+        return $url;
+    }
+
     /** @return array{ok: bool, message: string} */
     public function saveSiteTitle(string $title): array
     {
@@ -68,6 +95,7 @@ class AdminSystemSettingsService
             return ['ok' => false, 'message' => $error];
         }
 
+        DB::table('site_settings')->updateOrInsert(['setting_key' => 'site_logo'], ['setting_value' => $path]);
         DB::table('site_settings')->updateOrInsert(['setting_key' => 'site_logo_version'], ['setting_value' => (string) time()]);
 
         return ['ok' => true, 'message' => 'Logo updated.', 'path' => $path];
@@ -137,7 +165,7 @@ class AdminSystemSettingsService
     }
 
     /** @return array{ok: bool, message: string} */
-    public function renameUniform(int $id, string $uniformType, ?string $uniformName): array
+    public function renameUniform(int $id, string $uniformType, ?string $uniformName, ?UploadedFile $photo = null): array
     {
         $uniformType = strtoupper(trim($uniformType));
         $uniformName = trim((string) $uniformName);
@@ -154,11 +182,21 @@ class AdminSystemSettingsService
             return ['ok' => false, 'message' => 'Uniform type code "' . $uniformType . '" already exists.'];
         }
 
-        DB::table('uniforms')->where('id', '=', $id)->update([
+        $update = [
             'uniform_type' => $uniformType,
             'uniform_name' => $uniformName !== '' ? $uniformName : null,
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($photo) {
+            [$photoPath, $error] = $this->storeImageUpload($photo, 'uniform_' . $id);
+            if ($error !== null) {
+                return ['ok' => false, 'message' => $error];
+            }
+            $update['uniform_photo'] = $photoPath;
+        }
+
+        DB::table('uniforms')->where('id', '=', $id)->update($update);
 
         return ['ok' => true, 'message' => 'Uniform updated.'];
     }
@@ -214,7 +252,7 @@ class AdminSystemSettingsService
     }
 
     /** @return array{ok: bool, message: string} */
-    public function renameUniformItem(int $id, string $clothesType, ?string $clothesSize): array
+    public function renameUniformItem(int $id, string $clothesType, ?string $clothesSize, ?UploadedFile $photo = null): array
     {
         $clothesType = trim($clothesType);
         $clothesSize = strtoupper(trim((string) $clothesSize));
@@ -223,11 +261,23 @@ class AdminSystemSettingsService
             return ['ok' => false, 'message' => 'Name cannot be empty.'];
         }
 
-        DB::table('uniform_clothes')->where('id', '=', $id)->update([
+        $update = [
             'clothes_type' => $clothesType,
             'clothes_size' => $clothesSize !== '' ? $clothesSize : null,
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($photo) {
+            [$photoPath, $error] = $this->storeImageUpload($photo, 'uniform_clothes_' . $id);
+            if ($error !== null) {
+                return ['ok' => false, 'message' => $error];
+            }
+            if ($this->hasClothesPhotoColumn()) {
+                $update['clothes_photo'] = $photoPath;
+            }
+        }
+
+        DB::table('uniform_clothes')->where('id', '=', $id)->update($update);
 
         return ['ok' => true, 'message' => 'Item updated.'];
     }

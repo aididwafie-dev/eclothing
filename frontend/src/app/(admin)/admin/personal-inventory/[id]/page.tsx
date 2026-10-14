@@ -3,6 +3,20 @@ import { LaravelApiError, laravelFetchAdminAuthed } from "@/lib/laravel";
 import type { PersonalInventoryDetailResponse } from "@/lib/types";
 import InventoryDetailFilters from "./InventoryDetailFilters";
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function formatDate(value: string | null): string {
+  if (!value) return "-";
+  const d = new Date(value.replace(" ", "T"));
+  if (isNaN(d.getTime())) return value;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  return `${day} ${month} ${d.getFullYear()}`;
+}
+
 export default async function AdminPersonalInventoryDetailPage({
   params,
   searchParams,
@@ -29,79 +43,116 @@ export default async function AdminPersonalInventoryDetailPage({
     throw err;
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-lg border border-black/10 bg-white p-6">
-        <h1 className="text-xl font-semibold">{data.member.name ?? data.member.sId}</h1>
-        <dl className="mt-3 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <div>
-            <dt className="text-black/50">Service ID</dt>
-            <dd>{data.member.sId}</dd>
-          </div>
-          <div>
-            <dt className="text-black/50">Rank</dt>
-            <dd>{data.member.rankName ?? "-"}</dd>
-          </div>
-          <div>
-            <dt className="text-black/50">Unit</dt>
-            <dd>{data.member.unitName ?? "N/A"}</dd>
-          </div>
-          <div>
-            <dt className="text-black/50">Totals</dt>
-            <dd>
-              {data.orderTotal} order(s), {data.itemTotal} item(s)
-            </dd>
-          </div>
-        </dl>
-        <InventoryDetailFilters filters={data.filters} />
-      </div>
+  const periodLabel =
+    data.filters.month === "all" && data.filters.year === "all"
+      ? "all dates"
+      : [
+          data.filters.month === "all" ? "" : MONTHS[Number(data.filters.month) - 1],
+          data.filters.year === "all" ? "every year" : data.filters.year,
+        ]
+          .filter(Boolean)
+          .join(" ");
 
-      {data.groups.length === 0 ? (
-        <div className="rounded-lg border border-black/10 bg-white p-6 text-sm text-black/50">
-          No uniform ordered by this member for this period. Counted as 0.
-        </div>
-      ) : (
-        data.groups.map((group) => (
-          <div key={group.uniformId} className="rounded-lg border border-black/10 bg-white p-6">
-            <h2 className="font-semibold">
-              {group.label} &mdash; {group.itemCount} item(s) across {group.orderCount} order(s)
-            </h2>
-            <div className="mt-3 flex flex-col gap-4">
-              {group.orders.map((order) => (
-                <div key={order.id} className="rounded-md border border-black/10 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Order #{order.id}</span>
-                    <span className="rounded bg-black/5 px-2 py-0.5 text-sm">{order.statusLabel}</span>
-                  </div>
-                  <div className="mt-1 text-sm text-black/50">
-                    {order.createdAt}
-                    {order.collectionDate ? ` · Collection: ${order.collectionDate}` : ""}
-                  </div>
-                  {order.remarks && <div className="mt-1 text-sm">{order.remarks}</div>}
-                  <table className="mt-2 w-full text-left text-sm">
-                    <thead>
-                      <tr className="text-black/50">
-                        <th className="py-1">Item</th>
-                        <th className="py-1">Size</th>
-                        <th className="py-1">Qty</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {order.items.map((item, i) => (
-                        <tr key={i}>
-                          <td className="py-1">{item.clothes}</td>
-                          <td className="py-1">{item.size}</td>
-                          <td className="py-1">{item.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+  return (
+    <>
+      <div className="title">
+        <i className="fa fa-archive" aria-hidden="true"></i> Personal Inventory &mdash; {data.member.sId}
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content full">
+          <div className="inventory-identity">
+            <div>
+              <div className="report-card-title">{data.member.name ?? "N/A"}</div>
+              <div className="order-card-meta">
+                Service ID {data.member.sId}
+                {data.member.rankName ? <> &middot; {data.member.rankName}</> : null}
+                {data.member.unitName ? <> &middot; {data.member.unitName}</> : null}
+              </div>
+            </div>
+            <div className="inventory-identity-totals">
+              <div className="shop-board-badge">
+                <i className="fa fa-cubes" aria-hidden="true"></i> {data.itemTotal} item(s)
+              </div>
+              <div className="shop-board-badge">
+                <i className="fa fa-clipboard" aria-hidden="true"></i> {data.orderTotal} order(s)
+              </div>
             </div>
           </div>
-        ))
-      )}
-    </div>
+
+          <InventoryDetailFilters filters={data.filters} />
+
+          <div className="orders-search-result">
+            Showing <strong>{periodLabel}</strong>.
+          </div>
+
+          {data.groups.length === 0 ? (
+            <div className="alert alert-info">
+              No uniform ordered by this member for <strong>{periodLabel}</strong>. Counted as 0.
+            </div>
+          ) : (
+            data.groups.map((group) => (
+              <div key={group.uniformId} className="order-card">
+                <div className="order-card-header">
+                  <div>
+                    <div className="report-card-title">{group.label}</div>
+                    <div className="order-card-meta">
+                      {group.itemCount} item(s) across {group.orderCount} order(s)
+                    </div>
+                  </div>
+                </div>
+
+                {group.orders.map((order) => (
+                  <div key={order.id} className="inventory-order">
+                    <div className="inventory-order-head">
+                      <span className="inventory-order-ref">Order #{order.id}</span>
+                      <span className={`status-badge status-${order.status}`}>{order.statusLabel}</span>
+                      <span className="order-card-meta">
+                        Ordered {formatDate(order.createdAt)}
+                        {order.collectionDate ? <> &middot; Collection {formatDate(order.collectionDate)}</> : null}
+                        {" "}&middot; {order.itemCount} item(s)
+                      </span>
+                    </div>
+
+                    {order.remarks && order.remarks.trim() !== "" && (
+                      <div className="order-card-meta">Remarks: {order.remarks}</div>
+                    )}
+
+                    <div className="table-responsive">
+                      <table className="table table-orders">
+                        <thead>
+                          <tr>
+                            <th>Clothing Item</th>
+                            <th>Size</th>
+                            <th>Quantity</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.items.length > 0 ? (
+                            order.items.map((item, i) => (
+                              <tr key={i}>
+                                <td data-label="Clothing Item">{item.clothes}</td>
+                                <td data-label="Size">{item.size || "-"}</td>
+                                <td data-label="Quantity">{Math.max(1, item.quantity)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td data-label="Clothing Item" colSpan={3}>
+                                No clothing lines recorded on this order.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
   );
 }

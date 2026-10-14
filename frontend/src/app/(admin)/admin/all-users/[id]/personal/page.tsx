@@ -20,14 +20,25 @@ export default async function AdminUserPersonalDetailsPage({
     throw err;
   }
 
-  if (!data.personalDetails) {
-    return (
-      <div className="rounded-lg border border-black/10 bg-white p-6">
-        <h1 className="text-xl font-semibold">Edit Personal Details</h1>
-        <p className="mt-4 text-sm text-black/50">This user has not filled in their personal details yet.</p>
+  return (
+    <>
+      <div className="title">
+        <i className="fa fa-address-card" aria-hidden="true"></i> Users Personal Details
       </div>
-    );
-  }
-
-  return <PersonalDetailsEditForm userId={id} data={data} />;
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <div className="title">
+            <i className="fa fa-pencil" aria-hidden="true"></i> Edit Users Personal Details:
+          </div>
+          <hr />
+          {data.personalDetails ? (
+            <PersonalDetailsEditForm userId={id} data={data} />
+          ) : (
+            "This User have not filled his personal details yet."
+          )}
+        </div>
+      </div>
+    </>
+  );
 }

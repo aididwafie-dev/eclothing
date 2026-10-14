@@ -108,9 +108,15 @@ class UserController extends Controller
             'services' => $toOptions($raw['piliih_angkatans']),
             'tredOfficer' => $toOptions($raw['ketukangans_officer']),
             'tredRecruit' => $toOptions($raw['ketukangans_recruit']),
+            'tredBoth' => $toOptions($raw['ketukangans_both']),
             'units' => $toOptions($raw['units']),
             'genders' => $toOptions($raw['jantinas']),
             'dutyStatuses' => $toOptions($raw['status_penggunaans']),
+            'states' => array_map(fn ($s) => ['id' => $s, 'value' => $s], [
+                'JOHOR', 'W.P. KUALA LUMPUR', 'W.P. LABUAN', 'W.P. PUTRAJAYA', 'KEDAH', 'KELANTAN',
+                'MELAKA', 'NEGERI SEMBILAN', 'PAHANG', 'PERAK', 'PERLIS', 'PULAU PINANG', 'SABAH',
+                'SARAWAK', 'SELANGOR', 'TERENGGANU', 'OTHERS',
+            ]),
         ];
     }
 

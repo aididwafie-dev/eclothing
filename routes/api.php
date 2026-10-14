@@ -113,9 +113,11 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 
 			Route::get('/uniforms', [$c, 'uniforms']);
 			Route::post('/uniforms', [$c, 'createUniform']);
-			Route::put('/uniforms/{id}', [$c, 'renameUniform']);
+			// POST, not PUT -- PHP never populates $_FILES for a PUT body, multipart
+			// or not, so a photo re-upload needs the same method file creation uses.
+			Route::post('/uniforms/{id}', [$c, 'renameUniform']);
 			Route::post('/uniform-items', [$c, 'createUniformItem']);
-			Route::put('/uniform-items/{id}', [$c, 'renameUniformItem']);
+			Route::post('/uniform-items/{id}', [$c, 'renameUniformItem']);
 
 			Route::get('/scale', [$c, 'scale']);
 			Route::post('/scale/uniform-visibility', [$c, 'toggleUniformVisibility']);

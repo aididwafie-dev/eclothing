@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LaravelApiError, laravelFetchAdminAuthed } from "@/lib/laravel";
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await request.json();
+  const formData = await request.formData();
   try {
     const data = await laravelFetchAdminAuthed(`/admin/system-settings/uniform-items/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(body),
+      method: "POST",
+      body: formData,
     });
     return NextResponse.json(data);
   } catch (err) {

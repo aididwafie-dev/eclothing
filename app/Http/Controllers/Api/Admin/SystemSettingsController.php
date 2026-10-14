@@ -20,7 +20,10 @@ class SystemSettingsController extends Controller
 
     public function siteSettings()
     {
-        return response()->json(['siteTitle' => $this->settings->siteTitle()]);
+        return response()->json([
+            'siteTitle' => $this->settings->siteTitle(),
+            'logoUrl' => $this->settings->logoUrl(),
+        ]);
     }
 
     public function saveSiteTitle(Request $request)
@@ -70,7 +73,12 @@ class SystemSettingsController extends Controller
 
     public function renameUniform(Request $request, string $id)
     {
-        $result = $this->settings->renameUniform((int) $id, (string) $request->input('uniformType'), $request->input('uniformName'));
+        $result = $this->settings->renameUniform(
+            (int) $id,
+            (string) $request->input('uniformType'),
+            $request->input('uniformName'),
+            $request->file('photo')
+        );
         return response()->json(['message' => $result['message']], $result['ok'] ? 200 : 422);
     }
 
@@ -88,7 +96,12 @@ class SystemSettingsController extends Controller
 
     public function renameUniformItem(Request $request, string $id)
     {
-        $result = $this->settings->renameUniformItem((int) $id, (string) $request->input('clothesType'), $request->input('clothesSize'));
+        $result = $this->settings->renameUniformItem(
+            (int) $id,
+            (string) $request->input('clothesType'),
+            $request->input('clothesSize'),
+            $request->file('photo')
+        );
         return response()->json(['message' => $result['message']], $result['ok'] ? 200 : 422);
     }
 
@@ -117,6 +130,7 @@ class SystemSettingsController extends Controller
                 'items' => $g['items']->map(fn ($i) => [
                     'id' => (string) $i->id,
                     'clothesType' => $i->clothes_type,
+                    'accessory' => (bool) $i->accessory,
                     'maxQuantity' => $rankId ? $scales->maxFor($rankId, (int) $i->id) : null,
                 ])->values(),
             ])->values(),

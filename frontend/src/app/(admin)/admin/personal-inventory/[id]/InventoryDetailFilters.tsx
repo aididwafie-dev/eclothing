@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -13,6 +14,7 @@ export default function InventoryDetailFilters({
   filters: { month: string; year: string; yearOptions: number[] };
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   function updateParam(name: string, value: string) {
@@ -25,16 +27,14 @@ export default function InventoryDetailFilters({
     router.push(`?${next}`);
   }
 
+  const hasActiveFilter = filters.month !== "all" || filters.year !== "all";
+
   return (
-    <div className="mt-4 flex gap-4">
-      <div>
-        <label className="block text-sm font-medium">Month</label>
-        <select
-          value={filters.month}
-          onChange={(e) => updateParam("month", e.target.value)}
-          className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
-        >
-          <option value="all">All Months</option>
+    <form className="orders-search">
+      <div className="orders-filter-field">
+        <label className="orders-filter-label">Month</label>
+        <select className="form-control" value={filters.month} onChange={(e) => updateParam("month", e.target.value)}>
+          <option value="all">All months</option>
           {MONTHS.map((m, i) => (
             <option key={i + 1} value={i + 1}>
               {m}
@@ -42,14 +42,10 @@ export default function InventoryDetailFilters({
           ))}
         </select>
       </div>
-      <div>
-        <label className="block text-sm font-medium">Year</label>
-        <select
-          value={filters.year}
-          onChange={(e) => updateParam("year", e.target.value)}
-          className="mt-1 rounded-md border border-black/15 px-3 py-2 text-sm"
-        >
-          <option value="all">All Years</option>
+      <div className="orders-filter-field">
+        <label className="orders-filter-label">Year</label>
+        <select className="form-control" value={filters.year} onChange={(e) => updateParam("year", e.target.value)}>
+          <option value="all">All years</option>
           {filters.yearOptions.map((y) => (
             <option key={y} value={y}>
               {y}
@@ -57,6 +53,14 @@ export default function InventoryDetailFilters({
           ))}
         </select>
       </div>
-    </div>
+      {hasActiveFilter && (
+        <Link href={pathname} className="btn btn-default">
+          <i className="fa fa-times" aria-hidden="true"></i> Clear
+        </Link>
+      )}
+      <Link href="/admin/personal-inventory" className="btn btn-default">
+        <i className="fa fa-list" aria-hidden="true"></i> Back to list
+      </Link>
+    </form>
   );
 }
