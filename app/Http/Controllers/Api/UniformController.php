@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AssignedUniformService;
+use App\Services\UniformScaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -86,20 +87,30 @@ class UniformController extends Controller
             ->get()
             ->keyBy('clothes_slug');
 
-        $result = $uniformClothes->map(function ($cloth) use ($orderedSizes, $cartRows) {
+        $scaleService = app(UniformScaleService::class);
+        $rankId = $scaleService->rankForUser($genUser->id);
+
+        $result = $uniformClothes->map(function ($cloth) use ($orderedSizes, $cartRows, $scaleService, $rankId) {
             $cartRow = $cartRows->get($cloth->clothes_slug);
             $orderedSize = $orderedSizes->get($cloth->clothes_slug)?->size;
 
             $isMultiple = strtolower($cloth->clothes_type) === 'accessories';
             $shape = $this->sizeShape($cloth->clothes_size);
+            $maxQuantity = $scaleService->maxFor($rankId, (int) $cloth->id);
+            $cartQuantity = $cartRow ? (int) $cartRow->quantity : 1;
 
             return [
                 'clothesSlug' => $cloth->clothes_slug,
                 'clothesType' => $cloth->clothes_type,
+                'clothesSize' => $cloth->clothes_size,
+                'accessory' => (bool) $cloth->accessory,
                 'sizeKind' => $shape['kind'] === 'select' && $isMultiple ? 'multiselect' : $shape['kind'],
                 'sizeOptions' => $shape['options'],
                 'inCart' => (bool) $cartRow,
                 'cartValue' => $cartRow ? $this->decodeSize($cartRow->size) : $orderedSize,
+                'orderedSize' => $orderedSize,
+                'quantity' => $maxQuantity !== null ? min($cartQuantity, max($maxQuantity, 0)) : $cartQuantity,
+                'maxQuantity' => $maxQuantity,
                 'imageUrl' => AssetController::urlFor($cloth->clothes_photo ?? null),
             ];
         });

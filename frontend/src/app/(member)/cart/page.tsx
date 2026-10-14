@@ -1,15 +1,23 @@
 import { redirect } from "next/navigation";
 import { LaravelApiError, laravelFetchAuthed } from "@/lib/laravel";
-import type { CartResponse, UniformsResponse } from "@/lib/types";
+import type { CartResponse, OrdersResponse, UniformsResponse } from "@/lib/types";
 import CartPageClient from "./CartPageClient";
 
-export default async function CartPage() {
+export default async function CartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ uniform?: string }>;
+}) {
+  const { uniform } = await searchParams;
+
   let uniforms: UniformsResponse;
   let cart: CartResponse;
+  let orders: OrdersResponse;
   try {
-    [uniforms, cart] = await Promise.all([
+    [uniforms, cart, orders] = await Promise.all([
       laravelFetchAuthed<UniformsResponse>("/uniforms"),
       laravelFetchAuthed<CartResponse>("/cart"),
+      laravelFetchAuthed<OrdersResponse>("/orders"),
     ]);
   } catch (err) {
     if (err instanceof LaravelApiError) {
@@ -18,17 +26,41 @@ export default async function CartPage() {
       }
       // 422: personal details not complete yet -- surfaced in the page below.
       return (
-        <div className="rounded-lg border border-black/10 bg-white p-6">
-          <h1 className="text-xl font-semibold">Order Uniform</h1>
-          <p className="mt-4 text-sm text-red-600">
-            {(err.body as { message?: string } | null)?.message ??
-              "Please complete your personal details first, before ordering uniform."}
-          </p>
-        </div>
+        <>
+          <div className="title">
+            <i className="fa fa-shirtsinbulk" aria-hidden="true"></i> Order Uniform
+          </div>
+          <hr />
+          <div className="containerMain">
+            <div className="content">
+              <p className="text-danger">
+                {(err.body as { message?: string } | null)?.message ??
+                  "Please complete your personal details first, before ordering uniform."}
+              </p>
+            </div>
+          </div>
+        </>
       );
     }
     throw err;
   }
 
-  return <CartPageClient initialUniforms={uniforms.uniforms} initialCart={cart} />;
+  // Uniform id -> order id, for every order the member can still edit --
+  // mirrors uniform_selection.blade.php's $editOrders, sourced from the
+  // orders list rather than a session value since the API has no session.
+  const editOrders: Record<string, string> = {};
+  for (const order of orders.orders) {
+    if (order.editable) {
+      editOrders[order.uniformsId] = order.id;
+    }
+  }
+
+  return (
+    <CartPageClient
+      initialUniforms={uniforms.uniforms}
+      initialCart={cart}
+      editOrders={editOrders}
+      requestedUniformId={uniform ?? null}
+    />
+  );
 }

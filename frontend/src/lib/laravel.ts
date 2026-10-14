@@ -99,6 +99,23 @@ export async function laravelFetchAuthed<T>(path: string, init?: RequestInit): P
   });
 }
 
+/**
+ * Authenticated call that returns the raw Response instead of parsing JSON --
+ * for endpoints that return a binary body (the KEW.PS-8 PDF download).
+ */
+export async function laravelFetchAuthedRaw(path: string, init?: RequestInit): Promise<Response> {
+  const token = await getToken();
+  if (!token) {
+    throw new LaravelApiError(401, { message: "Not signed in." });
+  }
+
+  return fetch(`${LARAVEL_API_URL}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, ...init?.headers },
+    cache: "no-store",
+  });
+}
+
 /** Authenticated call -- attaches the admin's bearer token from the cookie. */
 export async function laravelFetchAdminAuthed<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAdminToken();

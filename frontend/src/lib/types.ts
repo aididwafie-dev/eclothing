@@ -307,10 +307,15 @@ export type UniformsResponse = {
 export type ClothesItem = {
   clothesSlug: string;
   clothesType: string;
+  clothesSize: string | null;
+  accessory: boolean;
   sizeKind: "toggle" | "fixed" | "text" | "select" | "multiselect";
   sizeOptions: string[];
   inCart: boolean;
   cartValue: unknown;
+  orderedSize: string | null;
+  quantity: number;
+  maxQuantity: number | null;
   imageUrl: string | null;
 };
 
@@ -352,6 +357,7 @@ export type MemberOrder = {
   uniformPhotoUrl: string | null;
   collectionDate: string | null;
   remarks: string | null;
+  createdAt: string | null;
   updatedAt: string | null;
   items: OrderItem[];
 };

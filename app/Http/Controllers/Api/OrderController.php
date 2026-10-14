@@ -58,6 +58,7 @@ class OrderController extends Controller
                 'uniformPhotoUrl' => AssetController::urlFor($uniform->uniform_photo ?? null),
                 'collectionDate' => $order->collection_date,
                 'remarks' => $order->remarks,
+                'createdAt' => $order->created_at,
                 'updatedAt' => $order->updated_at,
                 'items' => $items->map(fn ($i) => ['clothes' => $i->clothes, 'size' => $i->size, 'uniformsId' => (string) ($i->uniforms_id ?? $order->uniforms_id)])->values(),
             ];

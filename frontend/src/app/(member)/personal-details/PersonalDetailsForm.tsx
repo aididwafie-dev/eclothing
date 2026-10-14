@@ -28,6 +28,28 @@ const EMPTY_DETAILS: PersonalDetails = {
   spl_lama: "",
 };
 
+const STATES = [
+  "JOHOR",
+  "W.P. KUALA LUMPUR",
+  "W.P. LABUAN",
+  "W.P. PUTRAJAYA",
+  "KEDAH",
+  "KELANTAN",
+  "MELAKA",
+  "NEGERI SEMBILAN",
+  "PAHANG",
+  "PERAK",
+  "PERLIS",
+  "PULAU PINANG",
+  "SABAH",
+  "SARAWAK",
+  "SELANGOR",
+  "TERENGGANU",
+  "OTHERS",
+];
+
+const KNOWN_RELIGIONS = ["ISLAM", "BUDDHISM", "HINDU", "CHRISTIANITY"];
+
 export default function PersonalDetailsForm({
   initialTab,
   profile,
@@ -46,48 +68,67 @@ export default function PersonalDetailsForm({
   }
 
   return (
-    <div className="rounded-lg border border-black/10 bg-white">
-      <div className="flex border-b border-black/10">
-        <button
-          type="button"
-          onClick={() => switchTab("details")}
-          className={`px-4 py-3 text-sm font-medium ${
-            tab === "details" ? "border-b-2 border-black" : "text-black/50"
-          }`}
-        >
-          Personal Details
-        </button>
-        <button
-          type="button"
-          onClick={() => switchTab("sizes")}
-          className={`px-4 py-3 text-sm font-medium ${
-            tab === "sizes" ? "border-b-2 border-black" : "text-black/50"
-          }`}
-        >
-          Clothing Sizes
-        </button>
+    <>
+      <div className="title">
+        <i className="fa fa-address-card" aria-hidden="true"></i> Personal Details
       </div>
-      <div className="p-6">
-        {tab === "details" ? (
-          <DetailsTab profile={profile} />
-        ) : (
-          <SizesTab groups={clothingSizes.groups} />
-        )}
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <ul className="nav nav-tabs" role="tablist">
+            <li role="presentation" className={tab === "details" ? "active" : ""}>
+              <a onClick={() => switchTab("details")} role="tab" style={{ cursor: "pointer" }}>
+                Personal Details
+              </a>
+            </li>
+            <li role="presentation" className={tab === "sizes" ? "active" : ""}>
+              <a onClick={() => switchTab("sizes")} role="tab" style={{ cursor: "pointer" }}>
+                Clothing Sizes
+              </a>
+            </li>
+          </ul>
+
+          <div className="tab-content" style={{ paddingTop: 16 }}>
+            <div className={`tab-pane ${tab === "details" ? "active" : ""}`}>
+              <hr />
+              <DetailsTab profile={profile} />
+            </div>
+            <div className={`tab-pane ${tab === "sizes" ? "active" : ""}`}>
+              <hr />
+              <div className="shop-subtitle">
+                Set your own size for each clothing item. This is saved to your profile, separate from
+                any specific order.
+              </div>
+              <br />
+              <SizesTab groups={clothingSizes.groups} />
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 function DetailsTab({ profile }: { profile: ProfileResponse }) {
   const [form, setForm] = useState<PersonalDetails>(profile.personalDetails ?? EMPTY_DETAILS);
   const [position, setPosition] = useState(profile.position);
+  const [otherReligion, setOtherReligion] = useState(
+    profile.personalDetails?.religion && !KNOWN_RELIGIONS.includes(profile.personalDetails.religion)
+      ? profile.personalDetails.religion
+      : "",
+  );
   const [status, setStatus] = useState<{ kind: "idle" | "ok" | "error"; message?: string }>({
     kind: "idle",
   });
   const [saving, setSaving] = useState(false);
 
+  const religionIsOther = form.religion != null && !KNOWN_RELIGIONS.includes(form.religion) && form.religion !== "";
+  const religionSelectValue = religionIsOther ? "" : form.religion ?? "ISLAM";
+
   const tredOptions =
-    Number(form.ketukangan_type) === 2 ? profile.dropdowns.tredRecruit : profile.dropdowns.tredOfficer;
+    Number(form.ketukangan_type) === 2
+      ? [...profile.dropdowns.tredRecruit, ...profile.dropdowns.tredBoth]
+      : [...profile.dropdowns.tredOfficer, ...profile.dropdowns.tredBoth];
 
   const [fetchedRankOptions, setFetchedRankOptions] = useState<DropdownOption[]>([]);
   const rankOptions = form.service ? fetchedRankOptions : [];
@@ -110,6 +151,17 @@ function DetailsTab({ profile }: { profile: ProfileResponse }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function restore() {
+    setForm(profile.personalDetails ?? EMPTY_DETAILS);
+    setPosition(profile.position);
+    setOtherReligion(
+      profile.personalDetails?.religion && !KNOWN_RELIGIONS.includes(profile.personalDetails.religion)
+        ? profile.personalDetails.religion
+        : "",
+    );
+    setStatus({ kind: "ok", message: "Details restored." });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -129,7 +181,7 @@ function DetailsTab({ profile }: { profile: ProfileResponse }) {
           gender: form.gender,
           telephone_number: form.telephone_number,
           duty_status: form.duty_status,
-          religion: form.religion,
+          religion: religionIsOther ? otherReligion : form.religion,
           position,
           address_line1: form.address_line1,
           address_city: form.address_city,
@@ -161,125 +213,302 @@ function DetailsTab({ profile }: { profile: ProfileResponse }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <TextField label="Service ID" value={form.s_id} readOnly />
-      <TextField label="Full Name" value={form.name} onChange={(v) => field("name", v)} required />
-      <SelectField
-        label="Service"
-        value={form.service ?? ""}
-        onChange={(v) => field("service", v)}
-        options={profile.dropdowns.services}
-        required
-      />
-      <SelectField
-        label="Officer / Recruit"
-        value={String(form.ketukangan_type)}
-        onChange={(v) => field("ketukangan_type", v)}
-        options={[
-          { id: "1", value: "Officer" },
-          { id: "2", value: "Recruit" },
-        ]}
-        required
-      />
-      <SelectField
-        label="Tred"
-        value={form.tred ?? ""}
-        onChange={(v) => field("tred", v)}
-        options={tredOptions}
-        required
-      />
-      <SelectField
-        label="Rank"
-        value={form.pangkat ?? ""}
-        onChange={(v) => field("pangkat", v)}
-        options={rankOptions}
-        required
-      />
-      <SelectField
-        label="Unit"
-        value={form.unit ?? ""}
-        onChange={(v) => field("unit", v)}
-        options={profile.dropdowns.units}
-        required
-      />
-      <SelectField
-        label="Gender"
-        value={form.gender ?? ""}
-        onChange={(v) => field("gender", v)}
-        options={profile.dropdowns.genders}
-        required
-      />
-      <TextField
-        label="Telephone Number"
-        value={form.telephone_number}
-        onChange={(v) => field("telephone_number", v)}
-        required
-      />
-      <SelectField
-        label="Duty Status"
-        value={form.duty_status ?? ""}
-        onChange={(v) => field("duty_status", v)}
-        options={profile.dropdowns.dutyStatuses}
-        required
-      />
-      <TextField label="Religion" value={form.religion ?? ""} onChange={(v) => field("religion", v)} />
-      <TextField label="Position" value={position} onChange={setPosition} />
-      <TextField
-        label="Address Line 1"
-        value={form.address_line1}
-        onChange={(v) => field("address_line1", v)}
-      />
-      <TextField label="City" value={form.address_city} onChange={(v) => field("address_city", v)} />
-      <SelectField
-        label="State"
-        value={form.address_state}
-        onChange={(v) => field("address_state", v)}
-        options={profile.dropdowns.states}
-      />
-      <TextField
-        label="Postcode"
-        value={form.address_postcode}
-        onChange={(v) => field("address_postcode", v)}
-      />
-      <TextField
-        label="Next of Kin Name"
-        value={form.nama_waris}
-        onChange={(v) => field("nama_waris", v)}
-      />
-      <TextField
-        label="Next of Kin Contact"
-        value={form.telephone_number_waris}
-        onChange={(v) => field("telephone_number_waris", v)}
-      />
-      <TextField
-        label="Name on Uniform Tag"
-        value={form.name_tag}
-        onChange={(v) => field("name_tag", v)}
-        maxLength={8}
-      />
-      <TextField label="Old Unit" value={form.unit_lama} onChange={(v) => field("unit_lama", v)} />
-      <TextField
-        label="Posting Authority"
-        value={form.kem_lama}
-        onChange={(v) => field("kem_lama", v)}
-      />
-      <TextField
-        label="Special Authority"
-        value={form.spl_lama}
-        onChange={(v) => field("spl_lama", v)}
-      />
-
-      <div className="col-span-full flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/80 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-        {status.kind === "ok" && <span className="text-sm text-green-700">{status.message}</span>}
-        {status.kind === "error" && <span className="text-sm text-red-600">{status.message}</span>}
+    <form onSubmit={handleSubmit} autoComplete="off">
+      <div className="form-group col-sm-6">
+        <label className="label_">Service ID</label>
+        <input className="form-control" type="text" value={form.s_id} readOnly />
       </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Name</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.name}
+          onChange={(e) => field("name", e.target.value.toUpperCase())}
+          placeholder="Enter your name"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Service</label>
+        <select className="form-control" value={form.service ?? ""} onChange={(e) => field("service", e.target.value)}>
+          <option value="">Choose your service....</option>
+          {profile.dropdowns.services.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="radio-inline">
+          <input
+            type="radio"
+            checked={Number(form.ketukangan_type) === 1}
+            onChange={() => field("ketukangan_type", "1")}
+          />
+          <label className="label_ text-uppercase">Officer</label>
+        </label>
+        <label className="radio-inline">
+          <input
+            type="radio"
+            checked={Number(form.ketukangan_type) === 2}
+            onChange={() => field("ketukangan_type", "2")}
+          />
+          <label className="label_ text-uppercase">Other Rank</label>
+        </label>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Position</label>
+        <input
+          className="form-control"
+          type="text"
+          value={position}
+          onChange={(e) => setPosition(e.target.value)}
+          placeholder="Enter your position"
+          maxLength={255}
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Tred</label>
+        <select className="form-control" value={form.tred ?? ""} onChange={(e) => field("tred", e.target.value)}>
+          <option value="">Choose your tred....</option>
+          {tredOptions.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Unit</label>
+        <select className="form-control" value={form.unit ?? ""} onChange={(e) => field("unit", e.target.value)}>
+          <option value="">Choose your unit....</option>
+          {profile.dropdowns.units.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Rank</label>
+        <select className="form-control" value={form.pangkat ?? ""} onChange={(e) => field("pangkat", e.target.value)}>
+          <option value="">Choose your rank....</option>
+          {rankOptions.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Gender</label>
+        <select className="form-control" value={form.gender ?? ""} onChange={(e) => field("gender", e.target.value)}>
+          <option value="">Choose your gender....</option>
+          {profile.dropdowns.genders.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Telephone Number</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.telephone_number}
+          onChange={(e) => field("telephone_number", e.target.value)}
+          placeholder="Enter your telephone number"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Duty Status</label>
+        <select
+          className="form-control"
+          value={form.duty_status ?? ""}
+          onChange={(e) => field("duty_status", e.target.value)}
+        >
+          <option value="">Choose your duty status....</option>
+          {profile.dropdowns.dutyStatuses.map((opt) => (
+            <option key={opt.id} value={opt.id}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-3">
+        <label className="label_">Religion</label>
+        <select
+          className="form-control"
+          value={religionSelectValue}
+          onChange={(e) => {
+            if (e.target.value) {
+              field("religion", e.target.value);
+              setOtherReligion("");
+            } else {
+              field("religion", "");
+            }
+          }}
+        >
+          <option value="ISLAM">Islam</option>
+          <option value="BUDDHISM">Buddhism</option>
+          <option value="HINDU">Hindu</option>
+          <option value="CHRISTIANITY">Christianity</option>
+          <option value="">Others</option>
+        </select>
+      </div>
+      <div className="form-group col-sm-3">
+        <label className="label_">&nbsp;</label>
+        <input
+          className={`form-control${religionIsOther ? "" : " hide"}`}
+          value={otherReligion}
+          onChange={(e) => setOtherReligion(e.target.value.toUpperCase())}
+          placeholder="Specify your religion"
+        />
+      </div>
+
+      <div className="form-group col-sm-12">
+        <label className="label_">Address</label>
+        <input
+          className="form-control"
+          value={form.address_line1}
+          onChange={(e) => field("address_line1", e.target.value.toUpperCase())}
+          placeholder="Address line 1"
+        />
+      </div>
+      <div className="form-group col-sm-12">
+        <input
+          className="form-control"
+          value={form.address_city}
+          onChange={(e) => field("address_city", e.target.value.toUpperCase())}
+          placeholder="City"
+        />
+      </div>
+      <div className="form-group col-sm-6">
+        <select
+          className="form-control"
+          value={form.address_state}
+          onChange={(e) => field("address_state", e.target.value)}
+        >
+          <option value="">Select state....</option>
+          {STATES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="form-group col-sm-6">
+        <input
+          className="form-control"
+          value={form.address_postcode}
+          onChange={(e) => field("address_postcode", e.target.value)}
+          placeholder="Postcode"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Next of Kin Name</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.nama_waris}
+          onChange={(e) => field("nama_waris", e.target.value.toUpperCase())}
+          placeholder="Enter next of kin's name"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Next of Kin Contact Number</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.telephone_number_waris}
+          onChange={(e) => field("telephone_number_waris", e.target.value)}
+          placeholder="Enter next of kin's contact number"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Name on Tag</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.name_tag}
+          onChange={(e) => field("name_tag", e.target.value.toUpperCase())}
+          placeholder="Enter name for uniform tag"
+          required
+          maxLength={8}
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Old Unit</label>
+        <select
+          className="form-control"
+          value={form.unit_lama}
+          onChange={(e) => field("unit_lama", e.target.value)}
+        >
+          <option value="">Choose your old unit....</option>
+          {profile.dropdowns.units.map((opt) => (
+            <option key={opt.id} value={opt.value}>
+              {opt.value}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Posting Authority</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.kem_lama}
+          onChange={(e) => field("kem_lama", e.target.value)}
+          placeholder="Enter posting authority"
+        />
+      </div>
+
+      <div className="form-group col-sm-6">
+        <label className="label_">Special Authority</label>
+        <input
+          className="form-control"
+          type="text"
+          value={form.spl_lama}
+          onChange={(e) => field("spl_lama", e.target.value)}
+          placeholder="Enter special authority"
+        />
+      </div>
+
+      <div className="clearfix"></div>
+      <div className="subBtn text-center">
+        <input className="btn btn-info" type="submit" value={saving ? "Saving..." : "Save"} disabled={saving} />
+        <button type="button" className="btn btn-default" onClick={restore}>
+          Restore
+        </button>
+      </div>
+      {status.kind === "ok" && (
+        <div className="form-group col-sm-12 text-center">
+          <span className="text-success">{status.message}</span>
+        </div>
+      )}
+      {status.kind === "error" && (
+        <div className="form-group col-sm-12 text-center">
+          <span className="text-danger">{status.message}</span>
+        </div>
+      )}
     </form>
   );
 }
@@ -328,44 +557,40 @@ function SizesTab({ groups }: { groups: ClothingSizesResponse["groups"] }) {
   }
 
   if (groups.length === 0) {
-    return <p className="text-sm text-black/50">No clothing items are set up yet.</p>;
+    return <div className="shop-subtitle">No clothing items have been set up yet.</div>;
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <p className="mb-6 text-sm text-black/50">
-        Set your own size for each clothing item. This is saved to your profile, separate from any
-        specific order -- an item left blank is simply not saved.
-      </p>
+    <form onSubmit={handleSubmit} autoComplete="off">
       {groups.map((group) => (
-        <div key={group.uniform.id} className="mb-6 border-b border-black/10 pb-4 last:border-b-0">
-          <div className="mb-3 font-semibold uppercase">
+        <div key={group.uniform.id} className="clothing-size-uniform">
+          <div className="clothing-size-uniform-title">
             {group.uniform.uniformType}
             {group.uniform.uniformName ? ` (${group.uniform.uniformName})` : ""}
           </div>
-          <div className="flex flex-wrap gap-4">
+          <div className="clothing-size-items">
             {group.items.map((item) => (
-              <div key={item.clothesId} className="min-w-[220px] flex-1">
-                <label className="block text-sm font-medium">{item.clothesType}</label>
+              <div key={item.clothesId} className="form-group clothing-size-item">
+                <label className="label_">{item.clothesType}</label>
                 {item.sizeKind === "text" ? (
                   <input
+                    className="form-control"
                     type="text"
-                    placeholder={item.placeholder ?? ""}
                     value={values[item.clothesId] ?? ""}
+                    placeholder={item.placeholder ?? ""}
                     onChange={(e) =>
                       setValues((prev) => ({ ...prev, [item.clothesId]: e.target.value }))
                     }
-                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
                   />
                 ) : (
                   <select
+                    className="form-control"
                     value={values[item.clothesId] ?? ""}
                     onChange={(e) =>
                       setValues((prev) => ({ ...prev, [item.clothesId]: e.target.value }))
                     }
-                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
                   >
-                    <option value="">Choose your size....</option>
+                    <option value="">Choose size....</option>
                     {item.sizeOptions.map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
@@ -378,81 +603,21 @@ function SizesTab({ groups }: { groups: ClothingSizesResponse["groups"] }) {
           </div>
         </div>
       ))}
-      <div className="flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/80 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-        {status.kind === "ok" && <span className="text-sm text-green-700">{status.message}</span>}
-        {status.kind === "error" && <span className="text-sm text-red-600">{status.message}</span>}
+
+      <div className="clearfix"></div>
+      <div className="subBtn text-center">
+        <input className="btn btn-info" type="submit" value={saving ? "Saving..." : "Save"} disabled={saving} />
       </div>
+      {status.kind === "ok" && (
+        <div className="form-group col-sm-12 text-center">
+          <span className="text-success">{status.message}</span>
+        </div>
+      )}
+      {status.kind === "error" && (
+        <div className="form-group col-sm-12 text-center">
+          <span className="text-danger">{status.message}</span>
+        </div>
+      )}
     </form>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  onChange,
-  readOnly,
-  required,
-  maxLength,
-}: {
-  label: string;
-  value: string;
-  onChange?: (value: string) => void;
-  readOnly?: boolean;
-  required?: boolean;
-  maxLength?: number;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium">{label}</label>
-      <input
-        type="text"
-        value={value ?? ""}
-        onChange={(e) => onChange?.(e.target.value)}
-        readOnly={readOnly}
-        required={required}
-        maxLength={maxLength}
-        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm read-only:bg-black/5"
-      />
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { id: string; value: string }[];
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium">{label}</label>
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-      >
-        <option value="">-- Select --</option>
-        {options.map((opt) => (
-          <option key={opt.id} value={opt.id}>
-            {opt.value}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }
