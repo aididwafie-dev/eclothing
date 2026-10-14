@@ -1,6 +1,12 @@
+import { redirect } from "next/navigation";
+import { getAdminToken } from "@/lib/laravel";
 import AddBaseForm from "./AddBaseForm";
 
-export default function AddBasePage() {
+export default async function AddBasePage() {
+  if (!(await getAdminToken())) {
+    redirect("/admin/login");
+  }
+
   return (
     <>
       <div className="title">
