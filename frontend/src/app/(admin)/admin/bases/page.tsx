@@ -14,5 +14,13 @@ export default async function AdminBasesPage() {
     throw err;
   }
 
-  return <BasesPageClient initialBases={data.bases} />;
+  return (
+    <>
+      <div className="title">
+        <i className="fa fa-building" aria-hidden="true"></i> All Bases
+      </div>
+      <hr />
+      <BasesPageClient initialBases={data.bases} />
+    </>
+  );
 }

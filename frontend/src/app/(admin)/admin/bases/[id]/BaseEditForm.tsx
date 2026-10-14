@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { AdminBaseDetailResponse } from "@/lib/types";
@@ -34,73 +35,97 @@ export default function BaseEditForm({ data }: { data: AdminBaseDetailResponse }
       }
       setMessage({ kind: "ok", text: result.message });
       router.refresh();
+    } catch {
+      setMessage({ kind: "error", text: "Could not reach the server." });
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Edit Base</h1>
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium">Base name</label>
-          <input
-            type="text"
-            required
-            maxLength={255}
-            value={baseName}
-            onChange={(e) => setBaseName(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Org name</label>
-          <input
-            type="text"
-            maxLength={255}
-            value={orgName}
-            onChange={(e) => setOrgName(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-          Active
-        </label>
+    <>
+      <div className="title">
+        <i className="fa fa-pencil-square" aria-hidden="true"></i> Edit Base
       </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <b>Edit base details - {data.base.base}</b>
+          <hr />
+          <form onSubmit={handleSubmit} autoComplete="off">
+            <label className="label_">Base name</label>
+            <input
+              type="text"
+              className="form-control"
+              maxLength={255}
+              required
+              value={baseName}
+              onChange={(e) => setBaseName(e.target.value)}
+            />
+            <br />
+            <label className="label_">Org name</label>
+            <input
+              type="text"
+              className="form-control"
+              maxLength={255}
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+            />
+            <br />
+            <label className="label_">Status</label>
+            <select
+              className="form-control"
+              value={active ? "1" : "0"}
+              onChange={(e) => setActive(e.target.value === "1")}
+            >
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+            <br />
 
-      <h2 className="mt-6 font-semibold">Units</h2>
-      <p className="text-sm text-black/50">
-        Units ticked here are assigned to this base. Unticking a unit detaches it; saving also detaches
-        any unit not ticked that currently belongs here.
-      </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {data.units.map((unit) => (
-          <label key={unit.id} className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={unitIds.includes(unit.id)} onChange={() => toggleUnit(unit.id)} />
-            {unit.value}
-            {unit.baseHq && !unit.assignedHere && (
-              <span className="text-xs text-amber-600">(currently under another base)</span>
+            <label className="label_">Units under this base</label>
+            <div className="shop-subtitle">
+              Tick every unit that belongs to this base. Unticking one detaches it (it stays a unit, just
+              without a base).
+            </div>
+            <div
+              className="table-responsive"
+              style={{ maxHeight: 320, overflowY: "auto", border: "1px solid #e5e5e5", padding: 8 }}
+            >
+              {data.units.map((unit) => (
+                <div key={unit.id} className="checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={unitIds.includes(unit.id)}
+                      onChange={() => toggleUnit(unit.id)}
+                    />{" "}
+                    {unit.value}
+                    {unit.baseHq && !unit.assignedHere && (
+                      <span className="text-muted"> (currently under another base)</span>
+                    )}
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            {message && (
+              <p className={message.kind === "ok" ? "text-success" : "text-danger"}>{message.text}</p>
             )}
-          </label>
-        ))}
-      </div>
 
-      <div className="mt-6 flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save"}
-        </button>
-        {message && (
-          <span className={message.kind === "ok" ? "text-sm text-green-700" : "text-sm text-red-600"}>
-            {message.text}
-          </span>
-        )}
+            <div className="subBtn text-center">
+              <br />
+              <button className="btn btn-primary" type="submit" disabled={saving}>
+                {saving ? "Saving..." : "SAVE CHANGES"}
+              </button>
+              <Link href="/admin/bases" className="btn btn-default">
+                {" "}
+                CANCEL
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
-    </form>
+    </>
   );
 }

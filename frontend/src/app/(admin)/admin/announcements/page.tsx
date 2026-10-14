@@ -14,5 +14,21 @@ export default async function AdminAnnouncementsPage() {
     throw err;
   }
 
-  return <AnnouncementsForm audienceCounts={data.audienceCounts} />;
+  return (
+    <>
+      <div className="title">
+        <i className="fa fa-envelope-o" aria-hidden="true"></i> Send announcement to user(s)
+      </div>
+      <hr />
+      <div className="containerMain">
+        <div className="content">
+          <div className="title">
+            <i className="fa fa-envelope" aria-hidden="true"></i> Send announcement:
+          </div>
+          <hr />
+          <AnnouncementsForm audienceCounts={data.audienceCounts} />
+        </div>
+      </div>
+    </>
+  );
 }

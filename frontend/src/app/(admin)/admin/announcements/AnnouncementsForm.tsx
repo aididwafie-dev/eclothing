@@ -1,13 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { AnnouncementAudience } from "@/lib/types";
 
 const AUDIENCES: { value: AnnouncementAudience; label: string }[] = [
-  { value: "all", label: "All active members" },
-  { value: "unconfirmed", label: "Unconfirmed email" },
-  { value: "confirmed", label: "Confirmed email" },
-  { value: "no_orders", label: "No orders placed" },
+  { value: "unconfirmed", label: "Unconfirmed users" },
+  { value: "confirmed", label: "Confirmed users" },
+  { value: "all", label: "All users" },
+  { value: "no_orders", label: "Users without orders" },
 ];
 
 export default function AnnouncementsForm({
@@ -18,12 +19,13 @@ export default function AnnouncementsForm({
   const [from, setFrom] = useState("no-reply@rmafplas.com");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [sendTo, setSendTo] = useState<AnnouncementAudience>("all");
+  const [sendTo, setSendTo] = useState<AnnouncementAudience | "">("");
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!sendTo) return;
     const count = audienceCounts[sendTo] ?? 0;
     if (!confirm(`Send this email to ${count} member(s) now? This cannot be undone.`)) {
       return;
@@ -53,73 +55,83 @@ export default function AnnouncementsForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border border-black/10 bg-white p-6">
-      <h1 className="text-xl font-semibold">Announcements</h1>
-      <p className="mt-1 text-sm text-red-600">
-        Sends immediately by email, synchronously, to every matching member. There is no undo.
-      </p>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium">From</label>
-          <input
-            type="email"
-            required
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Send to</label>
-          <select
-            value={sendTo}
-            onChange={(e) => setSendTo(e.target.value as AnnouncementAudience)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          >
-            {AUDIENCES.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label} ({audienceCounts[a.value] ?? 0})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col-span-full">
-          <label className="block text-sm font-medium">Subject</label>
-          <input
-            type="text"
-            required
-            maxLength={255}
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-        </div>
-        <div className="col-span-full">
-          <label className="block text-sm font-medium">Body</label>
-          <textarea
-            required
-            rows={8}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-        </div>
+    <form onSubmit={handleSubmit} autoComplete="off">
+      <div className="form-group">
+        <label className="label_">From:</label>
+        <input
+          className="form-control"
+          type="email"
+          placeholder="Announcement from email"
+          required
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+        />
       </div>
 
-      <div className="mt-4 flex items-center gap-4">
-        <button
+      <div className="form-group">
+        <label className="label_">Subject:</label>
+        <input
+          className="form-control"
+          type="text"
+          placeholder="Announcement email subject"
+          required
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+        />
+      </div>
+
+      <div className="form-group">
+        <label className="label_">Message:</label>
+        <textarea
+          className="form-control"
+          rows={10}
+          placeholder="Announcement email body"
+          required
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+        />
+      </div>
+
+      {AUDIENCES.map((a) => (
+        <label key={a.value} className="radio-inline">
+          <input
+            type="radio"
+            name="send_to"
+            value={a.value}
+            required
+            checked={sendTo === a.value}
+            onChange={() => setSendTo(a.value)}
+          />
+          <label className="label_ text-uppercase">
+            {a.label} ({audienceCounts[a.value] ?? 0})
+            {a.value === "no_orders" && (
+              <Link href="/admin/users-report">
+                {" "}
+                <i className="fa fa-question-circle"></i>
+              </Link>
+            )}
+          </label>
+        </label>
+      ))}
+
+      <div className="subBtn">
+        <input
+          className="btn btn-default text-uppercase"
           type="submit"
+          value={sending ? "Sending..." : "Send announcement"}
           disabled={sending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {sending ? "Sending..." : "Send"}
-        </button>
-        {message && (
-          <span className={message.kind === "ok" ? "text-sm text-green-700" : "text-sm text-red-600"}>
-            {message.text}
-          </span>
-        )}
+        />
+        <Link href="/admin/orders" className="btn btn-default">
+          CANCEL
+        </Link>
+      </div>
+      <br />
+      {message && (
+        <p className={message.kind === "ok" ? "text-success" : "text-danger"}>{message.text}</p>
+      )}
+      <div className="alert alert-danger top-20">
+        <strong>ATTENTION!</strong> Please be careful and double check before you click the &apos;Send
+        announcement&apos; button. The emails will be sent out instantly.
       </div>
     </form>
   );
