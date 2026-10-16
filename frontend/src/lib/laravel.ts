@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 /**
  * Server-only. Calls the Laravel JSON API (the same bearer-token API the
@@ -27,12 +27,27 @@ async function getCookieToken(name: string): Promise<string | undefined> {
   return store.get(name)?.value;
 }
 
+/**
+ * Marking the cookie Secure is only safe when the browser actually reached
+ * us over HTTPS -- otherwise the browser silently drops the cookie
+ * (Set-Cookie succeeds, nothing is ever stored) and login looks like it
+ * worked but never persists. IIS/ARR terminates TLS before this process
+ * ever sees the request, so `NODE_ENV === "production"` can't tell the two
+ * apart; the forwarded proto header can. The site's own Laravel session
+ * cookie has never set Secure for the same reason -- this mirrors that,
+ * rather than requiring HTTPS end-to-end when nothing upstream guarantees it.
+ */
+async function requestIsHttps(): Promise<boolean> {
+  const h = await headers();
+  return h.get("x-forwarded-proto")?.toLowerCase() === "https";
+}
+
 async function setCookieToken(name: string, token: string): Promise<void> {
   const store = await cookies();
   store.set(name, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await requestIsHttps(),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
