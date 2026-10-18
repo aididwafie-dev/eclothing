@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { CartResponse, ClothesItem, UniformOption } from "@/lib/types";
 
 export default function CartPageClient({
@@ -40,7 +41,7 @@ export default function CartPageClient({
     if (!selectedUniformId) {
       return;
     }
-    fetch(`/api/uniforms/${selectedUniformId}/clothes`)
+    fetch(apiUrl(`/api/uniforms/${selectedUniformId}/clothes`))
       .then((res) => res.json())
       .then((data) => {
         setClothes(data.clothes ?? []);
@@ -49,7 +50,7 @@ export default function CartPageClient({
   }, [selectedUniformId]);
 
   async function addToCart(item: ClothesItem, size: unknown, quantity: number) {
-    const res = await fetch("/api/cart/add", {
+    const res = await fetch(apiUrl("/api/cart/add"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uniformsId: selectedUniformId, clothesSlug: item.clothesSlug, size, quantity }),
@@ -64,7 +65,7 @@ export default function CartPageClient({
   }
 
   async function removeFromCart(uniformsId: string, clothesSlug: string) {
-    const res = await fetch("/api/cart/remove", {
+    const res = await fetch(apiUrl("/api/cart/remove"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uniformsId, clothesSlug }),
@@ -84,7 +85,7 @@ export default function CartPageClient({
     setCheckingOut(true);
     setCheckoutMessage(null);
     try {
-      const res = await fetch("/api/cart/checkout", {
+      const res = await fetch(apiUrl("/api/cart/checkout"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "{}",

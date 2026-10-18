@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { AnnouncementAudience } from "@/lib/types";
 
 const AUDIENCES: { value: AnnouncementAudience; label: string }[] = [
@@ -34,7 +35,7 @@ export default function AnnouncementsForm({
     setSending(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/announcements/send", {
+      const res = await fetch(apiUrl("/api/admin/announcements/send"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ from, subject, body, send_to: sendTo }),

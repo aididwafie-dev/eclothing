@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 
 export default function AddBaseForm() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function AddBaseForm() {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/bases", {
+      const res = await fetch(apiUrl("/api/admin/bases"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ base: baseName, orgName, active }),

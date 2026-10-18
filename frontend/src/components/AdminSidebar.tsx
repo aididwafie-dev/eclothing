@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSidebar } from "./AppShell";
-import { apiPost } from "@/lib/clientApi";
+import { apiPost, apiUrl } from "@/lib/clientApi";
 
 const SUPERADMIN_LINKS = [
   { href: "/admin/new-admin", label: "Add New Admin", icon: "fa-user-plus" },
@@ -54,7 +54,7 @@ export default function AdminSidebar() {
   const [role, setRole] = useState<"superadmin" | "orders" | null>(null);
 
   useEffect(() => {
-    void fetch("/api/admin/auth/me")
+    void fetch(apiUrl("/api/admin/auth/me"))
       .then((res) => res.json())
       .then((data) => setRole(data.admin?.role ?? "superadmin"))
       .catch(() => setRole("superadmin"));

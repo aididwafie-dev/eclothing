@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { apiPut } from "@/lib/clientApi";
+import { apiPut, apiUrl } from "@/lib/clientApi";
 
 export default function SiteTab({
   initialSiteTitle,
@@ -32,7 +32,7 @@ export default function SiteTab({
       if (logoFile) {
         const formData = new FormData();
         formData.append("logo", logoFile);
-        const logoRes = await fetch("/api/admin/system-settings/site/logo", { method: "POST", body: formData });
+        const logoRes = await fetch(apiUrl("/api/admin/system-settings/site/logo"), { method: "POST", body: formData });
         const logoData = await logoRes.json();
         if (!logoRes.ok) {
           setMessage({ kind: "error", text: logoData.message ?? "Could not save." });

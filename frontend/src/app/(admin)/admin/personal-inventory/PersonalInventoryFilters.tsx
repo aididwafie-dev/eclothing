@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { BASE_PATH } from "@/lib/basePath";
 import type { PersonalInventoryResponse } from "@/lib/types";
 
 export default function PersonalInventoryFilters({
@@ -164,7 +165,7 @@ export default function PersonalInventoryFilters({
                 className="inventory-row"
                 style={{ cursor: row.sId ? "pointer" : undefined }}
                 onClick={() => {
-                  if (row.sId) window.open(`/admin/personal-inventory/${row.sId}`, "_blank", "noopener");
+                  if (row.sId) window.open(`${BASE_PATH}/admin/personal-inventory/${row.sId}`, "_blank", "noopener");
                 }}
               >
                 <td data-label="Service ID">

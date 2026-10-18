@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import BodyClass from "@/components/BodyClass";
+import { apiUrl } from "@/lib/clientApi";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/admin/auth/login", {
+      const res = await fetch(apiUrl("/api/admin/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

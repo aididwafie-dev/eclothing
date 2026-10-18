@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { AdminUserDetailResponse, DropdownOption } from "@/lib/types";
 
 const KNOWN_RELIGIONS = ["ISLAM", "BUDDHISM", "HINDU", "CHRISTIANITY"];
@@ -55,7 +56,7 @@ export default function PersonalDetailsEditForm({
   useEffect(() => {
     if (!service) return;
     const params = new URLSearchParams({ service, tredType: String(ketukanganType) });
-    fetch(`/api/admin/users/ranks?${params}`)
+    fetch(apiUrl(`/api/admin/users/ranks?${params}`))
       .then((res) => res.json())
       .then((d) => setFetchedRankOptions(d.ranks ?? []))
       .catch(() => setFetchedRankOptions([]));
@@ -66,7 +67,7 @@ export default function PersonalDetailsEditForm({
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/admin/users/${userId}/personal`, {
+      const res = await fetch(apiUrl(`/api/admin/users/${userId}/personal`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { UniformGroup } from "@/lib/types";
 
 export default function UniformTab({ initialGroups }: { initialGroups: UniformGroup[] }) {
@@ -20,7 +21,7 @@ export default function UniformTab({ initialGroups }: { initialGroups: UniformGr
   const [addingItem, setAddingItem] = useState(false);
 
   async function refresh() {
-    const data = await fetch("/api/admin/system-settings/uniforms").then((r) => r.json());
+    const data = await fetch(apiUrl("/api/admin/system-settings/uniforms")).then((r) => r.json());
     setGroups(data.groups ?? []);
   }
 
@@ -33,7 +34,7 @@ export default function UniformTab({ initialGroups }: { initialGroups: UniformGr
       formData.append("uniformType", newType);
       formData.append("uniformName", newName);
       if (newPhoto) formData.append("photo", newPhoto);
-      const res = await fetch("/api/admin/system-settings/uniforms", { method: "POST", body: formData });
+      const res = await fetch(apiUrl("/api/admin/system-settings/uniforms"), { method: "POST", body: formData });
       const data = await res.json();
       setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
       if (res.ok) {
@@ -58,7 +59,7 @@ export default function UniformTab({ initialGroups }: { initialGroups: UniformGr
       formData.append("clothesSize", itemSize);
       formData.append("itemKind", itemKind);
       if (itemPhoto) formData.append("photo", itemPhoto);
-      const res = await fetch("/api/admin/system-settings/uniform-items", { method: "POST", body: formData });
+      const res = await fetch(apiUrl("/api/admin/system-settings/uniform-items"), { method: "POST", body: formData });
       const data = await res.json();
       setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
       if (res.ok) {
@@ -77,7 +78,7 @@ export default function UniformTab({ initialGroups }: { initialGroups: UniformGr
     formData.append("uniformType", uniformType);
     formData.append("uniformName", uniformName);
     if (photo) formData.append("photo", photo);
-    const res = await fetch(`/api/admin/system-settings/uniforms/${id}`, { method: "POST", body: formData });
+    const res = await fetch(apiUrl(`/api/admin/system-settings/uniforms/${id}`), { method: "POST", body: formData });
     const data = await res.json();
     setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
     if (res.ok) await refresh();
@@ -88,7 +89,7 @@ export default function UniformTab({ initialGroups }: { initialGroups: UniformGr
     formData.append("clothesType", clothesType);
     formData.append("clothesSize", clothesSize);
     if (photo) formData.append("photo", photo);
-    const res = await fetch(`/api/admin/system-settings/uniform-items/${id}`, { method: "POST", body: formData });
+    const res = await fetch(apiUrl(`/api/admin/system-settings/uniform-items/${id}`), { method: "POST", body: formData });
     const data = await res.json();
     setMessage({ kind: res.ok ? "ok" : "error", text: data.message });
     if (res.ok) await refresh();

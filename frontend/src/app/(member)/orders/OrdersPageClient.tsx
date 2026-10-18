@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
-import { apiPost } from "@/lib/clientApi";
+import { apiPost, apiUrl } from "@/lib/clientApi";
 import type { MemberOrder } from "@/lib/types";
 
 const MONTH_NAMES = [
@@ -96,7 +96,7 @@ export default function OrdersPageClient({ orders }: { orders: MemberOrder[] }) 
   async function handleEdit(order: MemberOrder) {
     setEditingId(order.id);
     try {
-      const res = await fetch("/api/cart/load-from-order", {
+      const res = await fetch(apiUrl("/api/cart/load-from-order"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: order.id }),
@@ -273,7 +273,7 @@ export default function OrdersPageClient({ orders }: { orders: MemberOrder[] }) 
                                 </button>
                               )}
                               <a
-                                href={`/api/orders/${order.id}/kew-ps8`}
+                                href={apiUrl(`/api/orders/${order.id}/kew-ps8`)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="btn btn-default btn-sm"

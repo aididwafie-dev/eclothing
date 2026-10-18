@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { apiPost } from "@/lib/clientApi";
+import { apiPost, apiUrl } from "@/lib/clientApi";
 import type { ScaleResponse } from "@/lib/types";
 
 export default function ScaleTab({ initialData }: { initialData: ScaleResponse }) {
@@ -14,7 +14,7 @@ export default function ScaleTab({ initialData }: { initialData: ScaleResponse }
     setRankId(id);
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/system-settings/scale?pangkatId=${id}`);
+      const res = await fetch(apiUrl(`/api/admin/system-settings/scale?pangkatId=${id}`));
       const next: ScaleResponse = await res.json();
       setData(next);
       setActiveUniformId(next.uniforms[0]?.uniform.id ?? "");

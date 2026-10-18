@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { AdminUserDetailResponse } from "@/lib/types";
 
 export default function BasicDetailsForm({
@@ -21,7 +22,7 @@ export default function BasicDetailsForm({
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/admin/users/${userId}/basic`, {
+      const res = await fetch(apiUrl(`/api/admin/users/${userId}/basic`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sId, password }),

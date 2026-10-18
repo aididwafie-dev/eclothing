@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { AdminBaseDetailResponse } from "@/lib/types";
 
 export default function BaseEditForm({ data }: { data: AdminBaseDetailResponse }) {
@@ -23,7 +24,7 @@ export default function BaseEditForm({ data }: { data: AdminBaseDetailResponse }
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/admin/bases/${data.base.id}`, {
+      const res = await fetch(apiUrl(`/api/admin/bases/${data.base.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ base: baseName, orgName, active, unitIds }),

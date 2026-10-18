@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiPost } from "@/lib/clientApi";
+import { apiPost, apiUrl } from "@/lib/clientApi";
 import { useSidebar } from "./AppShell";
 
 type NotificationItem = {
@@ -38,7 +38,7 @@ export default function AppHeader({
   const fetchNotifications = useCallback(
     async (markAsRead: boolean) => {
       try {
-        const res = await fetch(indexUrl);
+        const res = await fetch(apiUrl(indexUrl));
         const data = await res.json();
         setUnreadCount(data.unread_count ?? 0);
         if (markAsRead) {

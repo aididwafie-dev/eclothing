@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { AdminOrderDetailResponse } from "@/lib/types";
 
 const STATUS_BUTTONS = [
@@ -70,7 +71,7 @@ export default function OrderDetailForm({ data }: { data: AdminOrderDetailRespon
     setMessage(null);
 
     try {
-      const res = await fetch(`/api/admin/orders/${order.id}/status`, {
+      const res = await fetch(apiUrl(`/api/admin/orders/${order.id}/status`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -297,7 +298,7 @@ export default function OrderDetailForm({ data }: { data: AdminOrderDetailRespon
                 <div className="report-card-title">KEW.PS-8</div>
                 <div className="order-card-meta">Borang Permohonan Stok</div>
               </div>
-              <a href={`/api/admin/orders/${order.id}/kew-ps8`} target="_blank" rel="noreferrer" className="btn btn-brand">
+              <a href={apiUrl(`/api/admin/orders/${order.id}/kew-ps8`)} target="_blank" rel="noreferrer" className="btn btn-brand">
                 <i className="fa fa-download" aria-hidden="true"></i> Download KEW.PS-8
               </a>
             </div>

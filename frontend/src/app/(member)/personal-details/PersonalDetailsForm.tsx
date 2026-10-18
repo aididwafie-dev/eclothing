@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/clientApi";
 import type { ClothingSizesResponse, DropdownOption, PersonalDetails, ProfileResponse } from "@/lib/types";
 
 const EMPTY_DETAILS: PersonalDetails = {
@@ -141,7 +142,7 @@ function DetailsTab({ profile }: { profile: ProfileResponse }) {
       piliihAngkatan: form.service,
       ketukanganType: String(form.ketukangan_type),
     });
-    fetch(`/api/profile/ranks?${params}`)
+    fetch(apiUrl(`/api/profile/ranks?${params}`))
       .then((res) => res.json())
       .then((data) => setFetchedRankOptions(data.ranks ?? []))
       .catch(() => setFetchedRankOptions([]));
@@ -168,7 +169,7 @@ function DetailsTab({ profile }: { profile: ProfileResponse }) {
     setStatus({ kind: "idle" });
 
     try {
-      const res = await fetch("/api/profile", {
+      const res = await fetch(apiUrl("/api/profile"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -533,7 +534,7 @@ function SizesTab({ groups }: { groups: ClothingSizesResponse["groups"] }) {
     setStatus({ kind: "idle" });
 
     try {
-      const res = await fetch("/api/profile/clothing-sizes", {
+      const res = await fetch(apiUrl("/api/profile/clothing-sizes"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sizes: values }),
