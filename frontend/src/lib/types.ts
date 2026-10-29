@@ -407,3 +407,22 @@ export type AdminOrderDetailResponse = {
   canRecordIssueVouchers: boolean;
   isOwnOrder: boolean;
 };
+
+export type AdminUnit = {
+  id: string;
+  value: string;
+  baseHq: string | null;
+  org: string | null;
+  baseHqName?: string | null;
+};
+
+export type AdminUnitsResponse = { units: AdminUnit[] };
+
+export type AdminUnitDetailResponse = { unit: AdminUnit; bases: DropdownOption[] };
+
+/** ketukangans.officer_recruit: 1 officer, 2 other rank, 3 both. */
+export type AdminTred = { id: string; value: string; officerRecruit: number };
+
+export type AdminTredsResponse = { treds: AdminTred[] };
+
+export type AdminTredDetailResponse = { tred: AdminTred };

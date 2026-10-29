@@ -91,6 +91,19 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::put('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'update']);
 		Route::delete('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'destroy']);
 
+		Route::get('/units', [\App\Http\Controllers\Api\Admin\UnitController::class, 'index']);
+		Route::get('/units/bases', [\App\Http\Controllers\Api\Admin\UnitController::class, 'bases']);
+		Route::get('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'show']);
+		Route::post('/units', [\App\Http\Controllers\Api\Admin\UnitController::class, 'store']);
+		Route::put('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'update']);
+		Route::delete('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'destroy']);
+
+		Route::get('/treds', [\App\Http\Controllers\Api\Admin\TredController::class, 'index']);
+		Route::get('/treds/{id}', [\App\Http\Controllers\Api\Admin\TredController::class, 'show']);
+		Route::post('/treds', [\App\Http\Controllers\Api\Admin\TredController::class, 'store']);
+		Route::put('/treds/{id}', [\App\Http\Controllers\Api\Admin\TredController::class, 'update']);
+		Route::delete('/treds/{id}', [\App\Http\Controllers\Api\Admin\TredController::class, 'destroy']);
+
 		Route::get('/announcements/audience-counts', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'audienceCounts']);
 		Route::post('/announcements/send', [\App\Http\Controllers\Api\Admin\AnnouncementController::class, 'send']);
 
