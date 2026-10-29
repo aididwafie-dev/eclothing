@@ -1,0 +1,343 @@
+{
+  "info": {
+    "name": "PLAS Mobile API",
+    "description": "Endpoints consumed by the plas-mobile app. Auth is a custom bearer token (not Sanctum/Passport): login/register issue a token that must be sent as `Authorization: Bearer {{token}}` on protected routes. See app/Http/Controllers/Api and App\\Http\\Middleware\\EnsureMobileTokenIsAuthenticated.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"s_id\": \"1234567\",\n  \"password\": \"password123\",\n  \"confirm_password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Check availability",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/auth/check-availability?field=email&value=user@example.com"
+          }
+        },
+        {
+          "name": "Activate",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/activate/:token",
+            "variable": [{ "key": "token", "value": "REPLACE_WITH_AUTH_CODE" }]
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"s_id\": \"1234567\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/forgot-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_token\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/profile"
+          }
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/profile",
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Get ranks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/profile/ranks"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uniforms",
+      "item": [
+        {
+          "name": "List uniforms",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/uniforms"
+          }
+        },
+        {
+          "name": "List clothes for uniform",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/uniforms/:id/clothes",
+            "variable": [{ "key": "id", "value": "1" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Show cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/cart"
+          }
+        },
+        {
+          "name": "Add to cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/cart/add",
+            "body": { "mode": "raw", "raw": "{\n  \"cloth_id\": 1,\n  \"quantity\": 1\n}" }
+          }
+        },
+        {
+          "name": "Remove from cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/cart/remove",
+            "body": { "mode": "raw", "raw": "{\n  \"cloth_id\": 1\n}" }
+          }
+        },
+        {
+          "name": "Load cart from order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/cart/load-from-order",
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": 1\n}" }
+          }
+        },
+        {
+          "name": "Checkout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/cart/checkout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/orders"
+          }
+        },
+        {
+          "name": "Get KEW.PS-8 for order",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/orders/:id/kew-ps8",
+            "variable": [{ "key": "id", "value": "1" }]
+          }
+        },
+        {
+          "name": "Email order details",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/orders/email-details",
+            "body": { "mode": "raw", "raw": "{\n  \"order_id\": 1\n}" }
+          }
+        },
+        {
+          "name": "Delete all orders",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/orders"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{base_url}}/notifications"
+          }
+        },
+        {
+          "name": "Mark notifications read",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/notifications/read",
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": []\n}" }
+          }
+        },
+        {
+          "name": "Register device",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/devices",
+            "body": { "mode": "raw", "raw": "{\n  \"device_token\": \"sample-fcm-token\"\n}" }
+          }
+        },
+        {
+          "name": "Unregister device",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/devices",
+            "body": { "mode": "raw", "raw": "{\n  \"device_token\": \"sample-fcm-token\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Update email",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/account/email",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"new-email@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Update password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/account/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"password123\",\n  \"new_password\": \"newpassword123\",\n  \"confirm_password\": \"newpassword123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "item": [
+        {
+          "name": "Get uploaded file",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/uploads/:path",
+            "variable": [{ "key": "path", "value": "example.jpg" }]
+          }
+        }
+      ]
+    }
+  ]
+}
