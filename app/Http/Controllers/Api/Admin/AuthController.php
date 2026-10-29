@@ -59,6 +59,23 @@ class AuthController extends Controller
         return response()->noContent();
     }
 
+    /** JSON counterpart to AdminPasswordController::saveChangePassword. */
+    public function updatePassword(Request $request)
+    {
+        $admin = DB::table('admins')->where('id', '=', $request->attributes->get('admin')->id)->first();
+
+        if (!$admin || !PasswordHasher::verify((string) $request->input('oldPassword'), $admin->password)) {
+            return response()->json(['message' => 'Wrong password.'], 422);
+        }
+
+        DB::table('admins')->where('id', '=', $admin->id)->update([
+            'password' => PasswordHasher::make((string) $request->input('newPassword')),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return response()->json(['message' => 'You have successfully updated your password.']);
+    }
+
     /** The signed-in admin's own identity -- the sidebar needs the role to know which links to show. */
     public function me(Request $request)
     {
