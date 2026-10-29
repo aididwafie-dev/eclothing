@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Bootstrap's `collapse` class (the sidebar's <nav class="collapse
+   bd-links">, copied from Blade) collides with Tailwind's
+   `visibility: collapse` utility, which hides the whole sidebar menu.
+   style.css already gives .bd-links the right display rules. */
+@source not inline("collapse");
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
