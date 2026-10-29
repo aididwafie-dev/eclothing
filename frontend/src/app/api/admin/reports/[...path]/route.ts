@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { laravelFetchAdminAuthedRaw } from "@/lib/laravel";
+import { LaravelApiError, laravelFetchAdminAuthedRaw } from "@/lib/laravel";
 import { adminProxy } from "@/lib/proxy";
 
 /**
@@ -27,7 +27,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         "Content-Disposition": res.headers.get("Content-Disposition") ?? "attachment",
       },
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof LaravelApiError) {
+      return NextResponse.json(err.body, { status: err.status });
+    }
     return NextResponse.json({ message: "Could not generate the Excel file." }, { status: 500 });
   }
 }
