@@ -27,6 +27,11 @@ const SUPERADMIN_LINKS_2 = [
   { href: "/admin/announcements", label: "Announcements", icon: "fa-envelope-o" },
 ];
 
+/** The link itself or anything under it -- not /admin/orders-report for /admin/orders. */
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 function NavLink({
   href,
   label,
@@ -80,16 +85,16 @@ export default function AdminSidebar() {
       </button>
 
       {!isOrdersOnly &&
-        SUPERADMIN_LINKS.map((l) => <NavLink key={l.href} {...l} active={pathname.startsWith(l.href)} />)}
-      {SHARED_LINKS.map((l) => <NavLink key={l.href} {...l} active={pathname.startsWith(l.href)} />)}
+        SUPERADMIN_LINKS.map((l) => <NavLink key={l.href} {...l} active={isActive(pathname, l.href)} />)}
+      {SHARED_LINKS.map((l) => <NavLink key={l.href} {...l} active={isActive(pathname, l.href)} />)}
       {!isOrdersOnly &&
-        SUPERADMIN_LINKS_2.map((l) => <NavLink key={l.href} {...l} active={pathname.startsWith(l.href)} />)}
+        SUPERADMIN_LINKS_2.map((l) => <NavLink key={l.href} {...l} active={isActive(pathname, l.href)} />)}
 
       <NavLink
         href="/admin/change-password"
         label="Change Password"
         icon="fa-lock"
-        active={pathname.startsWith("/admin/change-password")}
+        active={isActive(pathname, "/admin/change-password")}
       />
 
       {!isOrdersOnly && (
@@ -97,7 +102,7 @@ export default function AdminSidebar() {
           href="/admin/system-settings"
           label="System Settings"
           icon="fa-cog"
-          active={pathname.startsWith("/admin/system-settings")}
+          active={isActive(pathname, "/admin/system-settings")}
         />
       )}
 

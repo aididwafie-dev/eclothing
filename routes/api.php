@@ -109,6 +109,24 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::put('/uniform-clothes/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'updateItem']);
 		Route::delete('/uniform-clothes/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'destroyItem']);
 
+		Route::prefix('reports')->group(function (): void {
+			$c = \App\Http\Controllers\Api\Admin\ReportController::class;
+
+			Route::get('/options', [$c, 'options']);
+			Route::get('/clothes', [$c, 'clothes']);
+			Route::get('/orders/uniform', [$c, 'uniform']);
+			Route::get('/orders/uniform-users', [$c, 'uniformUsers']);
+			Route::get('/orders/unit-users', [$c, 'unitUsers']);
+			Route::get('/orders/unit', [$c, 'unit']);
+			Route::get('/orders/uniform-unit', [$c, 'uniformUnit']);
+			Route::get('/orders/cloth', [$c, 'cloth']);
+			Route::get('/users/units', [$c, 'usersByUnit']);
+			Route::get('/users/uniform-tags', [$c, 'uniformTags']);
+			Route::get('/users/without-orders', [$c, 'withoutOrders']);
+			Route::get('/users/strength', [$c, 'strength']);
+			Route::get('/excel/{type}', [$c, 'excel']);
+		});
+
 		Route::get('/units', [\App\Http\Controllers\Api\Admin\UnitController::class, 'index']);
 		Route::get('/units/bases', [\App\Http\Controllers\Api\Admin\UnitController::class, 'bases']);
 		Route::get('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'show']);
