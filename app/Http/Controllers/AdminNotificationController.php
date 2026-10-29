@@ -16,7 +16,7 @@
 
 		public function index(Request $request) {
 
-			$adminId = (int) $request->session()->get('admin_id', 0);
+			$adminId = $this->adminId($request);
 			if ($adminId <= 0) {
 				return response()->json(['notifications' => [], 'unread_count' => 0], 401);
 			}
@@ -42,7 +42,7 @@
 
 		public function markRead(Request $request) {
 
-			$adminId = (int) $request->session()->get('admin_id', 0);
+			$adminId = $this->adminId($request);
 			if ($adminId <= 0) {
 				return response()->json(['unread_count' => 0], 401);
 			}
@@ -67,6 +67,19 @@
 			$query->update(['read_at' => now(), 'updated_at' => now()]);
 
 			return response()->json(['unread_count' => $this->unreadCount($adminId)]);
+		}
+
+		/**
+		 * The web bell is session-based; the Next.js UI reaches the same methods
+		 * through /api/admin/notifications, where admin.api.auth has already put
+		 * the token's admin on the request and there is no session at all.
+		 */
+		private function adminId(Request $request): int {
+			$admin = $request->attributes->get('admin');
+			if ($admin) {
+				return (int) $admin->id;
+			}
+			return (int) $request->session()->get('admin_id', 0);
 		}
 
 		private function unreadCount(int $adminId): int {

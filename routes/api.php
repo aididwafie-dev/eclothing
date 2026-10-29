@@ -78,6 +78,9 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 	Route::get('/auth/me', [\App\Http\Controllers\Api\Admin\AuthController::class, 'me']);
 	Route::put('/auth/password', [\App\Http\Controllers\Api\Admin\AuthController::class, 'updatePassword']);
 
+	Route::get('/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'index']);
+	Route::post('/notifications/read', [\App\Http\Controllers\AdminNotificationController::class, 'markRead']);
+
 	Route::get('/orders', [\App\Http\Controllers\Api\Admin\OrderController::class, 'index']);
 	Route::get('/orders/{id}', [\App\Http\Controllers\Api\Admin\OrderController::class, 'show']);
 	Route::get('/orders/{id}/kew-ps8', [\App\Http\Controllers\Api\Admin\OrderController::class, 'kewPs8']);
