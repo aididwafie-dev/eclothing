@@ -99,6 +99,16 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::post('/admins/{id}/toggle-status', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'toggleStatus']);
 		Route::delete('/admins/{id}', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'destroy']);
 
+		Route::get('/uniforms', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'index']);
+		Route::get('/uniforms/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'show']);
+		Route::post('/uniforms/{id}/toggle-active', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'toggleActive']);
+		Route::get('/uniforms/{id}/items', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'items']);
+		Route::get('/uniform-clothes/options', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'options']);
+		Route::post('/uniform-clothes', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'storeItem']);
+		Route::get('/uniform-clothes/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'showItem']);
+		Route::put('/uniform-clothes/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'updateItem']);
+		Route::delete('/uniform-clothes/{id}', [\App\Http\Controllers\Api\Admin\UniformCatalogController::class, 'destroyItem']);
+
 		Route::get('/units', [\App\Http\Controllers\Api\Admin\UnitController::class, 'index']);
 		Route::get('/units/bases', [\App\Http\Controllers\Api\Admin\UnitController::class, 'bases']);
 		Route::get('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'show']);

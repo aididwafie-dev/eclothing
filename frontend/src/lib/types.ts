@@ -458,3 +458,50 @@ export type AdminAccountDetailResponse = AdminIdentityOptions & {
 export type AdminCandidateResponse = AdminIdentityOptions & {
   candidate: { name: string; email: string; username: string; pangkatId: string };
 };
+
+export type AdminUniform = {
+  id: string;
+  uniformType: string;
+  uniformName: string | null;
+  active: boolean;
+  /** Root-relative -- served by the Laravel site, not under basePath. */
+  photoPath: string;
+};
+
+export type UniformItemKind = "clothes" | "accessories";
+
+export type AdminUniformItemRow = {
+  id: string;
+  clothesType: string;
+  clothesSize: string | null;
+  gender: string | null;
+  rank: string | null;
+  tred: string | null;
+  religion: string | null;
+};
+
+export type AdminUniformItemsResponse = { uniform: AdminUniform; items: AdminUniformItemRow[] };
+
+export type UniformItemOptions = {
+  jantinas: DropdownOption[];
+  pangkats: DropdownOption[];
+  ketukangans: DropdownOption[];
+  religions: string[];
+};
+
+export type AdminUniformItem = {
+  id: string;
+  uniformId: string;
+  accessory: boolean;
+  clothesType: string;
+  clothesSize: string | null;
+  jantina: string[];
+  pangkat: string[];
+  ketukangan: string[];
+  religion: string[];
+};
+
+export type AdminUniformItemDetailResponse = UniformItemOptions & {
+  item: AdminUniformItem;
+  uniform: AdminUniform | null;
+};
