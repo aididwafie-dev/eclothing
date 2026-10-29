@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Support\PasswordHasher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -57,6 +58,39 @@ class AuthController extends Controller
         DB::table('admin_api_tokens')->where('token_hash', '=', $tokenHash)->delete();
 
         return response()->noContent();
+    }
+
+    /** AdminPasswordController::ajaxCheckIfValidEmail -- does an admin have this email? */
+    public function checkEmail(Request $request)
+    {
+        return response()->json([
+            'valid' => DB::table('admins')->where('email', '=', (string) $request->query('email'))->exists(),
+        ]);
+    }
+
+    /** AdminPasswordController::ajaxEmailAdminNewPassword -- email a new random password. */
+    public function forgotPassword(Request $request)
+    {
+        $email = (string) $request->input('email');
+        if (!DB::table('admins')->where('email', '=', $email)->exists()) {
+            return response()->json(['message' => 'Not a valid email'], 422);
+        }
+
+        $newPassword = Str::random(8) . time();
+        $body = 'Your new password is: ' . $newPassword . '. You can now login using this password. We recommend you to reset this password as soon as you login.';
+
+        try {
+            Mail::raw('Hello, admin! ' . $body, function ($message) use ($email) {
+                $message->from(config('mail.from.address'), config('mail.from.name'));
+                $message->to($email)->subject('Data Collection System Password Recovery of Admin');
+            });
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Email could not be sent right now. Please contact the administrator.'], 500);
+        }
+
+        DB::table('admins')->where('email', '=', $email)->update(['password' => PasswordHasher::make($newPassword)]);
+
+        return response()->json(['message' => 'We have sent you an email with your new password. Please go back to the login page to login with your new password.']);
     }
 
     /** JSON counterpart to AdminPasswordController::saveChangePassword. */

@@ -80,16 +80,27 @@ class AuthController extends Controller
             'updated_at' => now(),
         ]);
 
+        // The same /verify-account link UserController::SignedUp emails, so a
+        // web sign-up can activate by clicking -- the code stays for the app.
+        $activationUrl = secure_url('/verify-account/' . $authCode);
+
+        $mailSent = true;
         try {
-            Mail::raw("Please use this code to activate your account: {$authCode}", function ($message) use ($validated) {
+            Mail::raw("Please use this code to activate your account: {$authCode}\n\nOr click on this link to activate your account: {$activationUrl}", function ($message) use ($validated) {
                 $message->from(config('mail.from.address'), config('mail.from.name'));
                 $message->to($validated['email'])->subject('Activation Code For e-Clothing');
             });
         } catch (\Throwable $e) {
             // Registration still succeeds; the user can request the code again.
+            $mailSent = false;
         }
 
-        return response()->json(['message' => 'Registered. Check your email for an activation code.'], 202);
+        // register_done.blade.php shows the link itself when the mail failed.
+        return response()->json([
+            'message' => 'Registered. Check your email for an activation code.',
+            'mailSent' => $mailSent,
+            'activationUrl' => $mailSent ? null : $activationUrl,
+        ], 202);
     }
 
     public function checkAvailability(Request $request)
