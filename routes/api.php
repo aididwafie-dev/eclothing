@@ -157,6 +157,10 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::post('/users/block-all', [\App\Http\Controllers\Api\Admin\UserController::class, 'blockAll']);
 		Route::post('/users/unblock-all', [\App\Http\Controllers\Api\Admin\UserController::class, 'unblockAll']);
 		Route::delete('/users/{id}', [\App\Http\Controllers\Api\Admin\UserController::class, 'destroy']);
+		Route::get('/users/{id}/orders', [\App\Http\Controllers\Api\Admin\UserOrderController::class, 'index']);
+		Route::get('/user-orders/{id}', [\App\Http\Controllers\Api\Admin\UserOrderController::class, 'show']);
+		Route::put('/user-orders/{id}', [\App\Http\Controllers\Api\Admin\UserOrderController::class, 'update']);
+		Route::delete('/user-orders/{id}', [\App\Http\Controllers\Api\Admin\UserOrderController::class, 'destroy']);
 		Route::post('/users/{id}/resend-activation', [\App\Http\Controllers\Api\Admin\UserController::class, 'resendActivation']);
 
 		Route::prefix('system-settings')->group(function (): void {

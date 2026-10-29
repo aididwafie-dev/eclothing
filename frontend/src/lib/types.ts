@@ -505,3 +505,17 @@ export type AdminUniformItemDetailResponse = UniformItemOptions & {
   item: AdminUniformItem;
   uniform: AdminUniform | null;
 };
+
+export type AdminUserOrderLine = { id: string; clothes: string; size: string };
+
+export type AdminUserOrder = {
+  id: string;
+  uniform: string;
+  statusClass: string;
+  statusLabel: string;
+  collectionDate: string | null;
+  remarks: string;
+  lines: AdminUserOrderLine[];
+};
+
+export type AdminUserOrderDetail = { id: string; userId: string; uniform: string; lines: AdminUserOrderLine[] };
