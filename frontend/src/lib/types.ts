@@ -426,3 +426,35 @@ export type AdminTred = { id: string; value: string; officerRecruit: number };
 export type AdminTredsResponse = { treds: AdminTred[] };
 
 export type AdminTredDetailResponse = { tred: AdminTred };
+
+export type AdminAccountRow = {
+  id: string;
+  name: string;
+  email: string;
+  serviceId: string;
+  jawatanRank: string;
+  role: "superadmin" | "orders";
+  active: boolean;
+};
+
+export type AdminIdentity = {
+  sId: string;
+  pangkatId: string;
+  jawatan: string;
+  role: string;
+  baseId: string;
+};
+
+export type AdminIdentityOptions = {
+  pangkats: DropdownOption[];
+  bases: DropdownOption[];
+  roles: DropdownOption[];
+};
+
+export type AdminAccountDetailResponse = AdminIdentityOptions & {
+  admin: AdminIdentity & { id: string; name: string; email: string };
+};
+
+export type AdminCandidateResponse = AdminIdentityOptions & {
+  candidate: { name: string; email: string; username: string; pangkatId: string };
+};

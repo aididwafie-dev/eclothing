@@ -91,6 +91,14 @@ Route::middleware('admin.api.auth')->prefix('admin')->group(function (): void {
 		Route::put('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'update']);
 		Route::delete('/bases/{id}', [\App\Http\Controllers\Api\Admin\BaseController::class, 'destroy']);
 
+		Route::get('/admins', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'index']);
+		Route::get('/admins/lookup', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'lookup']);
+		Route::post('/admins', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'store']);
+		Route::get('/admins/{id}', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'show']);
+		Route::put('/admins/{id}', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'update']);
+		Route::post('/admins/{id}/toggle-status', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'toggleStatus']);
+		Route::delete('/admins/{id}', [\App\Http\Controllers\Api\Admin\AdminAccountController::class, 'destroy']);
+
 		Route::get('/units', [\App\Http\Controllers\Api\Admin\UnitController::class, 'index']);
 		Route::get('/units/bases', [\App\Http\Controllers\Api\Admin\UnitController::class, 'bases']);
 		Route::get('/units/{id}', [\App\Http\Controllers\Api\Admin\UnitController::class, 'show']);
