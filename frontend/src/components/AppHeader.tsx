@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiPost, apiUrl } from "@/lib/clientApi";
@@ -7,11 +8,43 @@ import { useSidebar } from "./AppShell";
 
 type NotificationItem = {
   id: number;
+  type: string;
   title: string;
   body: string;
+  order_id: number | null;
   created_at: string;
   read: boolean;
 };
+
+/** Icon and colours for each type from OrderNotificationService / AdminNotificationService. */
+const TYPE_ICONS: Record<string, { icon: string; color: string; bg: string }> = {
+  order_approved: { icon: "fa-check-circle", color: "#1a7f45", bg: "rgba(26, 127, 69, 0.12)" },
+  admin_order_approved: { icon: "fa-check-circle", color: "#1a7f45", bg: "rgba(26, 127, 69, 0.12)" },
+  order_completed: { icon: "fa-check", color: "#1a7f45", bg: "rgba(26, 127, 69, 0.12)" },
+  order_rejected: { icon: "fa-times-circle", color: "#c0392b", bg: "rgba(192, 57, 43, 0.12)" },
+  order_collection_timeout: { icon: "fa-clock-o", color: "#c0392b", bg: "rgba(192, 57, 43, 0.12)" },
+  order_processing: { icon: "fa-cog", color: "#0f5bb5", bg: "rgba(51, 145, 255, 0.12)" },
+  order_collection_date_updated: { icon: "fa-calendar", color: "#0f5bb5", bg: "rgba(51, 145, 255, 0.12)" },
+  order_remarks_updated: { icon: "fa-comment-o", color: "#0f5bb5", bg: "rgba(51, 145, 255, 0.12)" },
+  admin_new_order: { icon: "fa-shopping-cart", color: "#6b5200", bg: "rgba(249, 209, 22, 0.2)" },
+  admin_order_edited: { icon: "fa-pencil", color: "#6b5200", bg: "rgba(249, 209, 22, 0.2)" },
+  announcement: { icon: "fa-bullhorn", color: "#6b5200", bg: "rgba(249, 209, 22, 0.2)" },
+};
+const DEFAULT_ICON = { icon: "fa-bell-o", color: "#0b1f3a", bg: "rgba(0, 26, 56, 0.06)" };
+
+/** "Y-m-d H:i:s" (server local time) -> "5 minit", "3 jam", "1 hari", like the reference's "1 day". */
+function timeAgo(value: string) {
+  const then = new Date(value.replace(" ", "T"));
+  if (Number.isNaN(then.getTime())) return value;
+  const minutes = Math.floor((Date.now() - then.getTime()) / 60000);
+  if (minutes < 1) return "Baru sahaja";
+  if (minutes < 60) return `${minutes} minit`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} hari`;
+  return then.toLocaleDateString("ms-MY", { day: "numeric", month: "short", year: "numeric" });
+}
 
 /**
  * The shared topbar from static-layout/header.blade.php: hamburger,
@@ -34,7 +67,7 @@ export default function AppHeader({
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[] | null>(null);
-  const [panelPos, setPanelPos] = useState<{ top: number; right: number; arrowRight: number } | null>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -105,10 +138,15 @@ export default function AppHeader({
   function bellPosition() {
     const rect = bellRef.current?.getBoundingClientRect();
     if (!rect) return null;
-    const panelWidth = Math.min(320, window.innerWidth - 32);
+    const panelWidth = Math.min(520, window.innerWidth - 32);
     const right = Math.min(Math.max(16, window.innerWidth - rect.right), window.innerWidth - panelWidth - 16);
-    const arrowRight = Math.max(12, window.innerWidth - right - rect.right + rect.width / 2 - 7);
-    return { top: rect.bottom + 10, right, arrowRight };
+    return { top: rect.bottom + 12, right };
+  }
+
+  /** Order notifications open the order; there is no admin "all notifications" page, so admins get no footer. */
+  function itemHref(n: NotificationItem) {
+    if (n.order_id === null) return null;
+    return notifContext === "admin" ? `/admin/orders/${n.order_id}` : "/orders";
   }
 
   function handleBellClick(e: React.MouseEvent) {
@@ -166,55 +204,63 @@ export default function AppHeader({
                 // grid or overflow rule can clip or cover it.
                 <div
                   ref={panelRef}
-                  className="notif-dropdown"
+                  className="notif-panel"
                   role="dialog"
                   aria-label="Pemberitahuan"
-                  style={{ display: "block", position: "fixed", top: panelPos.top, right: panelPos.right, zIndex: 2000, overflow: "visible" }}
+                  style={{ top: panelPos.top, right: panelPos.right }}
                 >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      top: -7,
-                      right: panelPos.arrowRight,
-                      width: 14,
-                      height: 14,
-                      background: "var(--card)",
-                      borderLeft: "1px solid var(--border)",
-                      borderTop: "1px solid var(--border)",
-                      transform: "rotate(45deg)",
-                    }}
-                  />
-                  <div
-                    className="notif-dropdown-header"
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-                  >
-                    <span>Pemberitahuan</span>
+                  <div className="notif-panel-header">
+                    <h2 className="notif-panel-title">Pemberitahuan</h2>
                     <button
                       type="button"
-                      className="close"
+                      className="notif-panel-close"
                       aria-label="Tutup"
                       onClick={() => setOpen(false)}
-                      style={{ fontSize: 20, lineHeight: 1 }}
                     >
-                      &times;
+                      <i className="fa fa-times" aria-hidden="true"></i>
                     </button>
                   </div>
-                  <div className="notif-dropdown-list">
+                  <div className="notif-panel-list">
                     {notifications === null ? (
-                      <div className="notif-empty">Memuatkan...</div>
+                      <div className="notif-panel-empty">Memuatkan...</div>
                     ) : notifications.length === 0 ? (
-                      <div className="notif-empty">Tiada pemberitahuan.</div>
+                      <div className="notif-panel-empty">Tiada pemberitahuan.</div>
                     ) : (
-                      notifications.map((n) => (
-                        <div key={n.id} className={`notif-item${n.read ? "" : " notif-unread"}`}>
-                          <div className="notif-item-title">{n.title}</div>
-                          <div className="notif-item-body">{n.body}</div>
-                          <div className="notif-item-time">{n.created_at}</div>
-                        </div>
-                      ))
+                      notifications.map((n) => {
+                        const icon = TYPE_ICONS[n.type] ?? DEFAULT_ICON;
+                        const href = itemHref(n);
+                        const content = (
+                          <>
+                            <span className="notif-panel-icon" style={{ color: icon.color, background: icon.bg }}>
+                              <i className={`fa ${icon.icon}`} aria-hidden="true"></i>
+                            </span>
+                            <span className="notif-panel-text">
+                              <span className="notif-panel-item-title" style={{ display: "block" }}>{n.title}</span>
+                              <span className="notif-panel-item-body">{n.body}</span>
+                            </span>
+                            <span className="notif-panel-time" title={n.created_at}>
+                              {timeAgo(n.created_at)}
+                            </span>
+                          </>
+                        );
+                        const className = `notif-panel-item${n.read ? "" : " is-unread"}`;
+                        return href ? (
+                          <Link key={n.id} href={href} className={className} onClick={() => setOpen(false)}>
+                            {content}
+                          </Link>
+                        ) : (
+                          <div key={n.id} className={className}>
+                            {content}
+                          </div>
+                        );
+                      })
                     )}
                   </div>
+                  {notifContext === "member" && (
+                    <Link href="/notifications" className="notif-panel-footer" onClick={() => setOpen(false)}>
+                      Lihat Semua
+                    </Link>
+                  )}
                 </div>,
                 document.body,
               )}
