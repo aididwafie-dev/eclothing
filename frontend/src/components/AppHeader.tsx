@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiPost, apiUrl } from "@/lib/clientApi";
 import { useSidebar } from "./AppShell";
 
@@ -33,7 +34,10 @@ export default function AppHeader({
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<NotificationItem[] | null>(null);
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number; arrowRight: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(
     async (markAsRead: boolean) => {
@@ -70,18 +74,47 @@ export default function AppHeader({
   }, [notifContext]);
 
   useEffect(() => {
+    if (!open) return;
     function onDocClick(e: MouseEvent) {
-      if (open && wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (!wrapRef.current?.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    // The panel is fixed to the viewport, so keep it pinned under the
+    // bell when the window is resized or the page scrolls.
+    function reposition() {
+      setPanelPos(bellPosition());
+    }
     document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
   }, [open]);
+
+  /** Where the floating panel goes: just below the bell, right-aligned to it, kept 16px inside the viewport. */
+  function bellPosition() {
+    const rect = bellRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const panelWidth = Math.min(320, window.innerWidth - 32);
+    const right = Math.min(Math.max(16, window.innerWidth - rect.right), window.innerWidth - panelWidth - 16);
+    const arrowRight = Math.max(12, window.innerWidth - right - rect.right + rect.width / 2 - 7);
+    return { top: rect.bottom + 10, right, arrowRight };
+  }
 
   function handleBellClick(e: React.MouseEvent) {
     e.stopPropagation();
     const next = !open;
+    if (next) setPanelPos(bellPosition());
     setOpen(next);
     if (next) fetchNotifications(true);
   }
@@ -119,15 +152,54 @@ export default function AppHeader({
                 aria-haspopup="true"
                 aria-expanded={open}
                 onClick={handleBellClick}
+                ref={bellRef}
               >
                 <i className="fa fa-bell-o" aria-hidden="true"></i>
                 {unreadCount > 0 && (
                   <span className="notif-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
                 )}
               </button>
-              {open && (
-                <div className="notif-dropdown" style={{ display: "block" }}>
-                  <div className="notif-dropdown-header">Pemberitahuan</div>
+              {open &&
+                panelPos &&
+                createPortal(
+                // Portalled to <body> with fixed positioning so no header,
+                // grid or overflow rule can clip or cover it.
+                <div
+                  ref={panelRef}
+                  className="notif-dropdown"
+                  role="dialog"
+                  aria-label="Pemberitahuan"
+                  style={{ display: "block", position: "fixed", top: panelPos.top, right: panelPos.right, zIndex: 2000, overflow: "visible" }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      top: -7,
+                      right: panelPos.arrowRight,
+                      width: 14,
+                      height: 14,
+                      background: "var(--card)",
+                      borderLeft: "1px solid var(--border)",
+                      borderTop: "1px solid var(--border)",
+                      transform: "rotate(45deg)",
+                    }}
+                  />
+                  <div
+                    className="notif-dropdown-header"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                  >
+                    <span>Pemberitahuan</span>
+                    <button
+                      type="button"
+                      className="close"
+                      aria-label="Tutup"
+                      onClick={() => setOpen(false)}
+                      style={{ fontSize: 20, lineHeight: 1 }}
+                    >
+                      &times;
+                    </button>
+                  </div>
                   <div className="notif-dropdown-list">
                     {notifications === null ? (
                       <div className="notif-empty">Memuatkan...</div>
@@ -143,7 +215,8 @@ export default function AppHeader({
                       ))
                     )}
                   </div>
-                </div>
+                </div>,
+                document.body,
               )}
             </div>
           )}
