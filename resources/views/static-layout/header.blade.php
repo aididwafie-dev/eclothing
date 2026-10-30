@@ -155,10 +155,17 @@
 								<i class="fa fa-bell-o" aria-hidden="true"></i>
 								<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
 							</button>
-							<div class="notif-dropdown" id="notifDropdown" style="display:none;">
-								<div class="notif-dropdown-header">Pemberitahuan</div>
-								<div class="notif-dropdown-list" id="notifList">
-									<div class="notif-empty">Memuatkan...</div>
+							{{-- Moved to <body> by the script below and fixed-positioned under the bell. --}}
+							<div class="notif-panel" id="notifDropdown" role="dialog" aria-label="Pemberitahuan" style="display:none;"
+								data-order-url="{{ $notifContext === 'admin' ? url('/admin/uniform-orders/__ID__') : route('user.ordered-uniform') }}">
+								<div class="notif-panel-header">
+									<h2 class="notif-panel-title">Pemberitahuan</h2>
+									<button type="button" class="notif-panel-close" id="notifClose" aria-label="Tutup">
+										<i class="fa fa-times" aria-hidden="true"></i>
+									</button>
+								</div>
+								<div class="notif-panel-list" id="notifList">
+									<div class="notif-panel-empty">Memuatkan...</div>
 								</div>
 							</div>
 						</div>
@@ -178,11 +185,66 @@
 			var $badge = $('#notifBadge');
 			var $dropdown = $('#notifDropdown');
 			var $list = $('#notifList');
+			var orderUrl = String($dropdown.data('order-url') || '');
 			var csrf = $('meta[name="_token"]').attr('content');
 			var open = false;
 
+			// Fixed to the viewport from <body> so no header, grid or
+			// overflow rule can clip or cover it.
+			$dropdown.appendTo('body');
+
+			// Icon and colours per type from OrderNotificationService /
+			// AdminNotificationService -- same table as the Next.js AppHeader.
+			var green = ['#1a7f45', 'rgba(26, 127, 69, 0.12)'];
+			var red = ['#c0392b', 'rgba(192, 57, 43, 0.12)'];
+			var blue = ['#0f5bb5', 'rgba(51, 145, 255, 0.12)'];
+			var yellow = ['#6b5200', 'rgba(249, 209, 22, 0.2)'];
+			var typeIcons = {
+				order_approved: ['fa-check-circle', green],
+				admin_order_approved: ['fa-check-circle', green],
+				order_completed: ['fa-check', green],
+				order_rejected: ['fa-times-circle', red],
+				order_collection_timeout: ['fa-clock-o', red],
+				order_processing: ['fa-cog', blue],
+				order_collection_date_updated: ['fa-calendar', blue],
+				order_remarks_updated: ['fa-comment-o', blue],
+				admin_new_order: ['fa-shopping-cart', yellow],
+				admin_order_edited: ['fa-pencil', yellow],
+				announcement: ['fa-bullhorn', yellow]
+			};
+			var defaultIcon = ['fa-bell-o', ['#0b1f3a', 'rgba(0, 26, 56, 0.06)']];
+
 			function escapeHtml(value) {
 				return $('<div>').text(value == null ? '' : value).html();
+			}
+
+			// "Y-m-d H:i:s" (server local time) -> "5 minit", "3 jam", "1 hari".
+			function timeAgo(value) {
+				var then = new Date(String(value).replace(' ', 'T'));
+				if (isNaN(then.getTime())) return String(value);
+				var minutes = Math.floor((Date.now() - then.getTime()) / 60000);
+				if (minutes < 1) return 'Baru sahaja';
+				if (minutes < 60) return minutes + ' minit';
+				var hours = Math.floor(minutes / 60);
+				if (hours < 24) return hours + ' jam';
+				var days = Math.floor(hours / 24);
+				if (days < 30) return days + ' hari';
+				return then.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+			}
+
+			// Just below the bell, right-aligned to it, kept 16px inside the viewport.
+			function position() {
+				var rect = $bell[0].getBoundingClientRect();
+				var panelWidth = Math.min(520, window.innerWidth - 32);
+				var right = Math.min(Math.max(16, window.innerWidth - rect.right), window.innerWidth - panelWidth - 16);
+				$dropdown.css({ top: rect.bottom + 12, right: right });
+			}
+
+			function setOpen(next) {
+				open = next;
+				if (open) position();
+				$dropdown.toggle(open);
+				$bell.attr('aria-expanded', open ? 'true' : 'false');
 			}
 
 			function renderBadge(count) {
@@ -195,15 +257,23 @@
 
 			function renderList(notifications) {
 				if (!notifications.length) {
-					$list.html('<div class="notif-empty">Tiada pemberitahuan.</div>');
+					$list.html('<div class="notif-panel-empty">Tiada pemberitahuan.</div>');
 					return;
 				}
 				var html = notifications.map(function (n) {
-					return '<div class="notif-item' + (n.read ? '' : ' notif-unread') + '">'
-						+ '<div class="notif-item-title">' + escapeHtml(n.title) + '</div>'
-						+ '<div class="notif-item-body">' + escapeHtml(n.body) + '</div>'
-						+ '<div class="notif-item-time">' + escapeHtml(n.created_at) + '</div>'
-						+ '</div>';
+					var icon = typeIcons[n.type] || defaultIcon;
+					var href = n.order_id != null ? orderUrl.replace('__ID__', n.order_id) : '';
+					var tag = href ? 'a' : 'div';
+					return '<' + tag + ' class="notif-panel-item' + (n.read ? '' : ' is-unread') + '"'
+						+ (href ? ' href="' + escapeHtml(href) + '"' : '') + '>'
+						+ '<span class="notif-panel-icon" style="color:' + icon[1][0] + ';background:' + icon[1][1] + '">'
+						+ '<i class="fa ' + icon[0] + '" aria-hidden="true"></i></span>'
+						+ '<span class="notif-panel-text">'
+						+ '<span class="notif-panel-item-title" style="display:block">' + escapeHtml(n.title) + '</span>'
+						+ '<span class="notif-panel-item-body">' + escapeHtml(n.body) + '</span>'
+						+ '</span>'
+						+ '<span class="notif-panel-time" title="' + escapeHtml(n.created_at) + '">' + escapeHtml(timeAgo(n.created_at)) + '</span>'
+						+ '</' + tag + '>';
 				}).join('');
 				$list.html(html);
 			}
@@ -230,28 +300,41 @@
 					}
 				}).fail(function () {
 					if (markAsRead) {
-						$list.html('<div class="notif-empty">Gagal memuatkan pemberitahuan.</div>');
+						$list.html('<div class="notif-panel-empty">Gagal memuatkan pemberitahuan.</div>');
 					}
 				});
 			}
 
 			$bell.on('click', function (e) {
 				e.stopPropagation();
-				open = !open;
-				$dropdown.toggle(open);
-				$bell.attr('aria-expanded', open ? 'true' : 'false');
+				setOpen(!open);
 				if (open) {
+					$list.html('<div class="notif-panel-empty">Memuatkan...</div>');
 					fetchNotifications(true);
 				}
 			});
 
+			$('#notifClose').on('click', function () {
+				setOpen(false);
+			});
+
 			$(document).on('click', function (e) {
-				if (open && !$.contains($wrap[0], e.target)) {
-					open = false;
-					$dropdown.hide();
-					$bell.attr('aria-expanded', 'false');
+				if (open && !$.contains($wrap[0], e.target) && !$.contains($dropdown[0], e.target)) {
+					setOpen(false);
 				}
 			});
+
+			$(document).on('keydown', function (e) {
+				if (open && e.key === 'Escape') setOpen(false);
+			});
+
+			// Keep it pinned under the bell when the window resizes or the page scrolls.
+			$(window).on('resize', function () {
+				if (open) position();
+			});
+			window.addEventListener('scroll', function () {
+				if (open) position();
+			}, true);
 
 			// Badge only, on load -- the full list (and marking read) waits
 			// for the admin/member to actually open the dropdown.
